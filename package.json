@@ -1,0 +1,59 @@
+{
+  "name": "blind75-studio",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A local Blind 75 practice environment: browse problems, solve them in Python, run tests, get hints, compare against optimal solutions and track progress.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:web": "vite",
+    "dev:server": "tsx watch --clear-screen=false --include \"data/**/*\" --include \"server/runner/py/**/*\" server/index.ts",
+    "build": "tsc -b && vite build",
+    "start": "cross-env NODE_ENV=production tsx server/index.ts",
+    "preview": "npm run build && npm start",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate": "tsx scripts/validate-problems.ts",
+    "e2e": "playwright test",
+    "check": "npm run typecheck && npm test && npm run validate"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@monaco-editor/react": "^4.7.0",
+    "clsx": "^2.1.1",
+    "concurrently": "^9.2.4",
+    "cross-env": "^7.0.3",
+    "express": "^5.2.1",
+    "lucide-react": "^1.51.0",
+    "monaco-editor": "0.52.2",
+    "prism-react-renderer": "^2.4.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
+    "react-resizable-panels": "^3.0.6",
+    "react-router": "^7.18.4",
+    "remark-gfm": "^4.0.1",
+    "tsx": "^4.20.0",
+    "yaml": "^2.9.1",
+    "zod": "^3.25.76",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.6",
+    "vitest": "^3.2.7"
+  }
+}

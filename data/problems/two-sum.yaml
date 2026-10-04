@@ -1,0 +1,148 @@
+id: "1"
+title: Two Sum
+slug: two-sum
+leetcode_url: https://leetcode.com/problems/two-sum/
+category: arrays-hashing
+difficulty: Easy
+patterns: [Hash Map, Complement Lookup]
+
+description: |
+  Given an array of integers `nums` and an integer `target`, return the **indices** of the two numbers that add up to `target`.
+
+  You may assume that each input has **exactly one** solution, and you may not use the same element twice.
+
+  You can return the answer in any order.
+
+examples:
+  - input: { nums: [2, 7, 11, 15], target: 9 }
+    output: [0, 1]
+    explanation: Because `nums[0] + nums[1] == 9`, we return `[0, 1]`.
+  - input: { nums: [3, 2, 4], target: 6 }
+    output: [1, 2]
+    explanation: "`nums[1] + nums[2] == 2 + 4 == 6`. Note that index 0 cannot be used twice (`3 + 3`)."
+  - input: { nums: [3, 3], target: 6 }
+    output: [0, 1]
+
+constraints:
+  - "`2 <= nums.length <= 10^4`"
+  - "`-10^9 <= nums[i] <= 10^9`"
+  - "`-10^9 <= target <= 10^9`"
+  - Only one valid answer exists.
+
+function_signature: "def twoSum(self, nums: List[int], target: int) -> List[int]"
+
+starter_code: |
+  class Solution:
+      def twoSum(self, nums: List[int], target: int) -> List[int]:
+          pass
+
+runner:
+  kind: function
+  method: twoSum
+  params:
+    - { name: nums, type: "List[int]" }
+    - { name: target, type: int }
+  returns: "List[int]"
+  compare: unordered
+
+hints:
+  - Checking every pair works, but it is O(n²). Can information about the numbers you have *already visited* help you avoid re-scanning the array?
+  - For each number `x`, the only partner that works is `target - x`. The question becomes "have I already seen `target - x`, and where?"
+  - Store each number you have visited in a hash map from value to index. Look up the complement *before* inserting the current number so an element is never paired with itself.
+
+approach: One-pass hash map
+optimal_solution: |
+  class Solution:
+      def twoSum(self, nums: List[int], target: int) -> List[int]:
+          seen = {}  # value -> index of a number we've already visited
+
+          for i, num in enumerate(nums):
+              complement = target - num
+              if complement in seen:
+                  return [seen[complement], i]
+              seen[num] = i
+
+          return []  # unreachable: the problem guarantees a solution
+
+explanation: |
+  **Intuition.** A pair `(a, b)` works when `a + b == target`, i.e. `b == target - a`. So for every number we don't need to search for *any* partner, only for one specific value: its **complement**.
+
+  If we remember every number we have visited (and its index) in a hash map, then "has the complement appeared before?" becomes an O(1) average-time lookup instead of an O(n) scan.
+
+  **Algorithm.**
+  1. Walk through `nums` once, keeping `seen: value -> index`.
+  2. For each `num` at index `i`, compute `complement = target - num`.
+  3. If `complement` is already in `seen`, the answer is `[seen[complement], i]`.
+  4. Otherwise record `seen[num] = i` and continue.
+
+  **Why check before inserting?** With `nums = [3, 2, 4]` and `target = 6`, the first `3` would otherwise find *itself* as its own complement. Looking up first guarantees the two indices are different, while duplicates like `[3, 3]` still work because the first `3` is already stored when we reach the second.
+
+key_insight: Trade O(n) memory for O(1) average-time hash lookups of each number's complement, so one pass replaces checking every pair.
+
+time_complexity: O(n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n):** each element is visited once, and both the dictionary lookup and insertion are O(1) on average.
+
+  **Space O(n):** in the worst case (the pair is at the very end) the dictionary stores almost every element.
+
+data_structures: [Hash map]
+passes: 1 pass over nums
+
+alternatives:
+  - name: Brute force (check every pair)
+    time_complexity: O(n²)
+    space_complexity: O(1)
+    explanation: |
+      Try every pair `(i, j)` with `i < j` and return the first pair whose sum equals `target`. Simple and correct, but the number of pairs grows quadratically.
+    tradeoff: Uses no extra memory, but performs roughly n²/2 additions. At n = 10⁴ that is ~50 million checks versus 10⁴ dictionary operations for the hash map.
+    code: |
+      class Solution:
+          def twoSum(self, nums: List[int], target: int) -> List[int]:
+              n = len(nums)
+              for i in range(n):
+                  for j in range(i + 1, n):
+                      if nums[i] + nums[j] == target:
+                          return [i, j]
+              return []
+  - name: Sort + two pointers
+    time_complexity: O(n log n)
+    space_complexity: O(n)
+    explanation: |
+      Sort the indices by value, then move a left pointer up and a right pointer down: if the sum is too small move left, if too large move right. Sorting values directly would lose the original indices, so we sort index positions instead.
+    tradeoff: A good pattern when the input is already sorted (see 3Sum), but sorting costs O(n log n), which is slower than a single hash map pass here.
+    code: |
+      class Solution:
+          def twoSum(self, nums: List[int], target: int) -> List[int]:
+              order = sorted(range(len(nums)), key=lambda i: nums[i])
+              left, right = 0, len(order) - 1
+              while left < right:
+                  total = nums[order[left]] + nums[order[right]]
+                  if total == target:
+                      return [order[left], order[right]]
+                  if total < target:
+                      left += 1
+                  else:
+                      right -= 1
+              return []
+
+tests:
+  - { name: negatives, input: { nums: [-1, -2, -3, -4, -5], target: -8 }, expected: [2, 4] }
+  - { name: zeros, input: { nums: [0, 4, 3, 0], target: 0 }, expected: [0, 3] }
+  - { name: pair at the end, input: { nums: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], target: 19 }, expected: [8, 9] }
+  - { name: mixed signs, input: { nums: [-3, 4, 3, 90], target: 0 }, expected: [0, 2] }
+  - { name: large values, input: { nums: [1000000000, -1000000000, 7], target: 0 }, expected: [0, 1] }
+  - { name: duplicate not used twice, input: { nums: [5, 1, 5], target: 10 }, expected: [0, 2] }
+  - { name: two elements, input: { nums: [1, 9], target: 10 }, expected: [0, 1] }
+
+benchmark:
+  size_label: length of nums
+  sizes: [100, 1000, 5000, 20000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Distinct values; the only valid pair is placed at the end so that
+        # brute-force solutions have to do the maximum amount of work.
+        nums = rng.sample(range(1, 10 * n), n - 2)
+        a, b = -1, -2
+        nums += [a, b]
+        return {"nums": nums, "target": a + b}

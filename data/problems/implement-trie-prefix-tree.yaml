@@ -1,0 +1,190 @@
+id: "208"
+title: Implement Trie (Prefix Tree)
+slug: implement-trie-prefix-tree
+leetcode_url: https://leetcode.com/problems/implement-trie-prefix-tree/
+category: tries
+difficulty: Medium
+patterns: [Trie, Design]
+
+description: |
+  A **trie** (pronounced "try") or **prefix tree** is a tree data structure used to efficiently store and retrieve keys in a set of strings. It powers autocomplete and spell checkers.
+
+  Implement the `Trie` class:
+
+  - `Trie()` initializes the trie object.
+  - `insert(word)` inserts the string `word` into the trie.
+  - `search(word)` returns `True` if `word` was inserted before, and `False` otherwise.
+  - `startsWith(prefix)` returns `True` if any previously inserted word has the prefix `prefix`, and `False` otherwise.
+
+  **How tests work:** each test is a sequence of operations. The first creates the object; the expected output lists the return value of every call (`None` for calls that return nothing).
+
+examples:
+  - input:
+      operations: [Trie, insert, search, search, startsWith, insert, search]
+      arguments: [[], [apple], [apple], [app], [app], [app], [app]]
+    output: [null, null, true, false, true, null, true]
+    explanation: |
+      `search("app")` is `False` at first because only `"apple"` was inserted, even though `"app"` is a prefix of it. After `insert("app")` it becomes `True`.
+  - input:
+      operations: [Trie, insert, startsWith, startsWith, search]
+      arguments: [[], [car], [ca], [cart], [ca]]
+    output: [null, null, true, false, false]
+
+constraints:
+  - "`1 <= word.length, prefix.length <= 2000`"
+  - "`word` and `prefix` consist only of lowercase English letters."
+  - "At most `3 * 10^4` calls in total will be made to `insert`, `search`, and `startsWith`."
+
+function_signature: "class Trie: insert(word) / search(word) -> bool / startsWith(prefix) -> bool"
+
+starter_code: |
+  class Trie:
+
+      def __init__(self):
+          pass
+
+      def insert(self, word: str) -> None:
+          pass
+
+      def search(self, word: str) -> bool:
+          pass
+
+      def startsWith(self, prefix: str) -> bool:
+          pass
+
+runner:
+  kind: design
+  class_name: Trie
+
+hints:
+  - Storing whole words in a set answers `search` instantly, but `startsWith` would have to scan every word. Can words that share a prefix share storage too?
+  - Build a tree where each edge is one character. Every word becomes a path from the root, so all words starting with "ca" share the same first two nodes.
+  - Give each node a dictionary of children (`char -> node`) plus a boolean `is_end`. `search` and `startsWith` walk the same path; they differ only in whether the final node must be marked `is_end`.
+
+approach: Tree of character nodes
+optimal_solution: |
+  class TrieNode:
+      def __init__(self):
+          self.children = {}   # char -> TrieNode
+          self.is_end = False  # True if a word ends at this node
+
+
+  class Trie:
+
+      def __init__(self):
+          self.root = TrieNode()
+
+      def insert(self, word: str) -> None:
+          node = self.root
+          for ch in word:
+              if ch not in node.children:
+                  node.children[ch] = TrieNode()
+              node = node.children[ch]
+          node.is_end = True
+
+      def _walk(self, s: str):
+          """Follow s from the root; return the last node, or None if the path breaks."""
+          node = self.root
+          for ch in s:
+              node = node.children.get(ch)
+              if node is None:
+                  return None
+          return node
+
+      def search(self, word: str) -> bool:
+          node = self._walk(word)
+          return node is not None and node.is_end
+
+      def startsWith(self, prefix: str) -> bool:
+          return self._walk(prefix) is not None
+
+explanation: |
+  **Intuition.** Words that share a prefix should share the work of storing that prefix. A trie stores one node per *distinct prefix*: the root is the empty prefix, and following the edge labelled `c` from a node appends `c` to its prefix.
+
+  Each node keeps:
+  - `children`: a map from the next character to the child node.
+  - `is_end`: whether some inserted word ends exactly here. This flag is what distinguishes the word `"app"` from the mere prefix `"app"` of `"apple"`.
+
+  **Operations.**
+  - **insert:** walk character by character from the root, creating missing children, then mark the last node `is_end = True`.
+  - **search:** walk the path; the word exists only if the path exists *and* the final node has `is_end`.
+  - **startsWith:** walk the path; the prefix exists if the path exists. No `is_end` check.
+
+  Because `search` and `startsWith` share the same traversal, factoring it into a helper (`_walk`) keeps the code short and avoids subtle differences between the two.
+
+key_insight: Store one node per distinct prefix so lookups cost O(length of the word), independent of how many words are stored.
+
+time_complexity: O(L) per operation
+space_complexity: O(N · L)
+complexity_explanation: |
+  **Time O(L)** for each `insert`, `search` and `startsWith`, where `L` is the length of the word or prefix: we follow at most one edge per character and dictionary operations are O(1) on average. The number of stored words does not matter.
+
+  **Space O(N · L)** in the worst case for `N` inserted words of length up to `L` (when no prefixes are shared). Shared prefixes are stored only once, so real usage is often much lower.
+
+data_structures: [Trie, Hash map]
+passes: One walk per operation
+
+alternatives:
+  - name: Hash set of words (slow prefix queries)
+    time_complexity: "O(L) insert/search, O(N · L) startsWith"
+    space_complexity: O(N · L)
+    explanation: |
+      Keep every word in a set. `insert` and `search` are fast, but `startsWith` must check every stored word with `str.startswith`.
+    tradeoff: Simpler to write and fine for exact lookups, but every prefix query scans all N words, which is exactly the work a trie avoids by sharing prefixes.
+    code: |
+      class Trie:
+
+          def __init__(self):
+              self.words = set()
+
+          def insert(self, word: str) -> None:
+              self.words.add(word)
+
+          def search(self, word: str) -> bool:
+              return word in self.words
+
+          def startsWith(self, prefix: str) -> bool:
+              return any(w.startswith(prefix) for w in self.words)
+
+tests:
+  - name: prefix is not a word
+    input:
+      operations: [Trie, insert, search, startsWith, search]
+      arguments: [[], [hello], [hell], [hell], [hello]]
+    expected: [null, null, false, true, true]
+  - name: single letters
+    input:
+      operations: [Trie, insert, insert, search, search, startsWith, startsWith]
+      arguments: [[], [a], [b], [a], [c], [b], [ab]]
+    expected: [null, null, null, true, false, true, false]
+  - name: query before insert
+    input:
+      operations: [Trie, search, startsWith, insert, search]
+      arguments: [[], [x], [x], [x], [x]]
+    expected: [null, false, false, null, true]
+  - name: word longer than stored words
+    input:
+      operations: [Trie, insert, search, startsWith]
+      arguments: [[], [abc], [abcd], [abcd]]
+    expected: [null, null, false, false]
+  - name: duplicate insert and shared prefixes
+    input:
+      operations: [Trie, insert, insert, insert, search, search, startsWith, search]
+      arguments: [[], [team], [tea], [team], [tea], [te], [tea], [teams]]
+    expected: [null, null, null, null, true, false, true, false]
+
+benchmark:
+  size_label: number of operations
+  sizes: [200, 1000, 5000, 20000]
+  generator: |
+    def generate(n, rng):
+        letters = "abcde"
+        words = ["".join(rng.choice(letters) for _ in range(rng.randint(3, 10))) for _ in range(n // 2)]
+        ops, args = ["Trie"], [[]]
+        for w in words:
+            ops.append("insert")
+            args.append([w])
+        for _ in range(n - len(words)):
+            ops.append(rng.choice(["search", "startsWith"]))
+            args.append(["".join(rng.choice(letters) for _ in range(rng.randint(1, 4)))])
+        return {"operations": ops, "arguments": args}

@@ -1,0 +1,114 @@
+# Canonical Blind 75 list, grouped by topic.
+# Order here is the order problems appear in the app.
+categories:
+  - id: arrays-hashing
+    problems:
+      - contains-duplicate
+      - valid-anagram
+      - two-sum
+      - group-anagrams
+      - top-k-frequent-elements
+      - encode-and-decode-strings
+      - product-of-array-except-self
+      - longest-consecutive-sequence
+  - id: two-pointers
+    problems:
+      - valid-palindrome
+      - 3sum
+      - container-with-most-water
+  - id: sliding-window
+    problems:
+      - best-time-to-buy-and-sell-stock
+      - longest-substring-without-repeating-characters
+      - longest-repeating-character-replacement
+      - minimum-window-substring
+  - id: stack
+    problems:
+      - valid-parentheses
+  - id: binary-search
+    problems:
+      - find-minimum-in-rotated-sorted-array
+      - search-in-rotated-sorted-array
+  - id: linked-list
+    problems:
+      - reverse-linked-list
+      - merge-two-sorted-lists
+      - linked-list-cycle
+      - reorder-list
+      - remove-nth-node-from-end-of-list
+      - merge-k-sorted-lists
+  - id: trees
+    problems:
+      - invert-binary-tree
+      - maximum-depth-of-binary-tree
+      - same-tree
+      - subtree-of-another-tree
+      - lowest-common-ancestor-of-a-binary-search-tree
+      - binary-tree-level-order-traversal
+      - validate-binary-search-tree
+      - kth-smallest-element-in-a-bst
+      - construct-binary-tree-from-preorder-and-inorder-traversal
+      - binary-tree-maximum-path-sum
+      - serialize-and-deserialize-binary-tree
+  - id: tries
+    problems:
+      - implement-trie-prefix-tree
+      - design-add-and-search-words-data-structure
+      - word-search-ii
+  - id: heap
+    problems:
+      - find-median-from-data-stream
+  - id: backtracking
+    problems:
+      - combination-sum
+      - word-search
+  - id: graphs
+    problems:
+      - number-of-islands
+      - clone-graph
+      - pacific-atlantic-water-flow
+      - course-schedule
+      - number-of-connected-components-in-an-undirected-graph
+      - graph-valid-tree
+  - id: advanced-graphs
+    problems:
+      - alien-dictionary
+  - id: dp-1d
+    problems:
+      - climbing-stairs
+      - house-robber
+      - house-robber-ii
+      - longest-palindromic-substring
+      - palindromic-substrings
+      - decode-ways
+      - coin-change
+      - maximum-product-subarray
+      - word-break
+      - longest-increasing-subsequence
+  - id: dp-2d
+    problems:
+      - unique-paths
+      - longest-common-subsequence
+  - id: greedy
+    problems:
+      - maximum-subarray
+      - jump-game
+  - id: intervals
+    problems:
+      - insert-interval
+      - merge-intervals
+      - non-overlapping-intervals
+      - meeting-rooms
+      - meeting-rooms-ii
+  - id: math-geometry
+    problems:
+      - rotate-image
+      - spiral-matrix
+      - set-matrix-zeroes
+  - id: bit-manipulation
+    problems:
+      - number-of-1-bits
+      - counting-bits
+      - reverse-bits
+      - missing-number
+      - sum-of-two-integers
