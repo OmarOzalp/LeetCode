@@ -6,11 +6,13 @@ export function Popover({
   children,
   align = "right",
   width = 280,
+  placement = "bottom",
 }: {
   trigger: (props: { open: boolean; toggle: () => void }) => ReactNode;
   children: (close: () => void) => ReactNode;
   align?: "left" | "right";
   width?: number;
+  placement?: "top" | "bottom";
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -33,7 +35,8 @@ export function Popover({
       {open && (
         <div
           className={clsx(
-            "animate-fade-in absolute top-full z-40 mt-1.5 rounded-xl border border-border bg-surface p-1.5 shadow-[var(--shadow-pop)]",
+            "animate-fade-in absolute z-40 rounded-xl border border-border bg-surface p-1.5 shadow-[var(--shadow-pop)]",
+            placement === "bottom" ? "top-full mt-1.5" : "bottom-full mb-1.5",
             align === "right" ? "right-0" : "left-0",
           )}
           style={{ width }}

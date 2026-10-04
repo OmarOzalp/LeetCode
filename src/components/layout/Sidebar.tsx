@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { BarChart3, BookOpen, ListChecks, Moon, PanelLeftClose, PanelLeftOpen, RotateCcw, Sun, Terminal } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { SettingsMenu } from "./SettingsMenu";
 
 const NAV = [
   { to: "/", label: "Blind 75", icon: ListChecks, end: true },
@@ -92,9 +93,10 @@ export function Sidebar() {
           >
             {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </button>
+          <SettingsMenu collapsed={collapsed} />
           {!collapsed && health?.python.available && (
             <span className="truncate text-[11px] text-subtle" title={`Using ${health.python.command}`}>
-              Python {health.python.version}
+              Py {health.python.version}
             </span>
           )}
           <button

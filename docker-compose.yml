@@ -1,0 +1,9 @@
+services:
+  blind75:
+    build: .
+    ports:
+      - "3001:3001"
+    volumes:
+      # Progress is stored on your machine in ./.data, so it survives rebuilds.
+      - ./.data:/data
+    restart: unless-stopped
