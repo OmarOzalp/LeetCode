@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useAppStore } from "@/lib/store";
 import { Page, PageHeader } from "@/components/layout/AppShell";
@@ -9,6 +9,16 @@ import { FilterBar, ProblemTable, statusCounts } from "@/components/dashboard/Pr
 import { allPatterns, computeStats, continueTarget, DEFAULT_FILTERS, filterProblems, randomUnsolved, type ProblemFilters, type StatusFilter } from "@/lib/stats";
 import { dailyPractice } from "@/lib/review";
 import { toast } from "@/components/ui/Toast";
+
+function toParams(f: ProblemFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  if (f.status !== "all") params.set("status", f.status);
+  if (f.category !== "all") params.set("topic", f.category);
+  if (f.difficulty !== "all") params.set("difficulty", f.difficulty);
+  if (f.pattern !== "all") params.set("pattern", f.pattern);
+  if (f.query) params.set("q", f.query);
+  return params;
+}
 
 function readFilters(sp: URLSearchParams): ProblemFilters {
   return {
@@ -26,18 +36,29 @@ export default function DashboardPage() {
   const progress = useAppStore((s) => s.progress);
   const navigate = useNavigate();
   const [sp, setSp] = useSearchParams();
-  const filters = readFilters(sp);
+  // Filters live in state (so rapid successive updates never read a stale
+  // snapshot) and are mirrored to the URL so they survive reloads and links.
+  const [filters, setFilterState] = useState<ProblemFilters>(() => readFilters(sp));
+  const written = useRef(sp.toString());
 
-  const setFilters = (patch: Partial<ProblemFilters>) => {
-    const next = { ...filters, ...patch };
-    const params = new URLSearchParams();
-    if (next.status !== "all") params.set("status", next.status);
-    if (next.category !== "all") params.set("topic", next.category);
-    if (next.difficulty !== "all") params.set("difficulty", next.difficulty);
-    if (next.pattern !== "all") params.set("pattern", next.pattern);
-    if (next.query) params.set("q", next.query);
-    setSp(params, { replace: true });
-  };
+  useEffect(() => {
+    const qs = toParams(filters).toString();
+    if (qs !== written.current) {
+      written.current = qs;
+      setSp(new URLSearchParams(qs), { replace: true });
+    }
+  }, [filters, setSp]);
+
+  // External navigation (e.g. a link to /?topic=trees while already here).
+  useEffect(() => {
+    const qs = sp.toString();
+    if (qs !== written.current) {
+      written.current = qs;
+      setFilterState(readFilters(sp));
+    }
+  }, [sp]);
+
+  const setFilters = (patch: Partial<ProblemFilters>) => setFilterState((f) => ({ ...f, ...patch }));
 
   const stats = useMemo(() => computeStats(problems, categories, progress), [problems, categories, progress]);
   const filtered = useMemo(() => filterProblems(problems, progress, filters), [problems, progress, filters]);

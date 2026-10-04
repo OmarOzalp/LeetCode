@@ -29,6 +29,7 @@ export function FilterBar({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Segmented<StatusFilter>
+        label="Status filter"
         value={filters.status}
         onChange={(status) => onChange({ status })}
         items={[

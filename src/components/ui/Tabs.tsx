@@ -53,14 +53,16 @@ export function Segmented<T extends string>({
   value,
   onChange,
   className,
+  label,
 }: {
   items: Array<{ id: T; label: ReactNode; count?: number }>;
   value: T;
   onChange: (id: T) => void;
   className?: string;
+  label?: string;
 }) {
   return (
-    <div className={clsx("inline-flex items-center rounded-lg border border-border bg-surface p-0.5", className)}>
+    <div role="group" aria-label={label} className={clsx("inline-flex items-center rounded-lg border border-border bg-surface p-0.5", className)}>
       {items.map((it) => (
         <button
           key={it.id}

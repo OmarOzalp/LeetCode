@@ -16,7 +16,7 @@ import { DifficultyCard } from "@/components/dashboard/StatsOverview";
 import { CONFIDENCE_LEVELS } from "@/components/problem/ConfidencePicker";
 import { toast } from "@/components/ui/Toast";
 
-const WEEKS = 18;
+const WEEKS = 26;
 const DAY = 86_400_000;
 
 function dayKey(d: Date): string {
@@ -146,6 +146,7 @@ export default function ProgressPage() {
         </Card>
         <Card>
           <CardHeader title="Confidence" subtitle="How independently you solved rated problems" />
+          {rated === 0 && <p className="px-4 pt-2 text-xs text-subtle">No ratings yet — pick a confidence level after you solve a problem.</p>}
           <div className="flex h-[180px] items-end gap-3 px-5 pt-4 pb-3">
             {confidence.map((count, i) => {
               const max = Math.max(1, ...confidence);

@@ -46,6 +46,8 @@ export function CodeEditor({
 
   const onMount: OnMount = (editor) => {
     editorRef.current = editor as unknown as Editor;
+    // Test hook: lets end-to-end tests set the editor contents precisely.
+    if (import.meta.env.DEV && !readOnly) (window as unknown as { __b75Editor?: unknown }).__b75Editor = editor;
     registerPythonCompletions();
     const { KeyMod, KeyCode } = monaco;
     editor.addCommand(KeyMod.CtrlCmd | KeyCode.Enter, () => cbs.current.onRunAll?.());

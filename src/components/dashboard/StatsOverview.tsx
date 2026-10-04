@@ -18,7 +18,20 @@ export function ProgressSummaryCard({ stats }: { stats: OverallStats }) {
           <span className="ml-1 text-[13px] text-muted">completed</span>
         </div>
       </div>
-      <div className="mt-5">
+      <div className="mt-4 grid grid-cols-4 gap-2">
+        {[
+          { label: "Solved", value: stats.solved, cls: "text-success" },
+          { label: "Attempted", value: stats.attempted, cls: "text-warning" },
+          { label: "Review", value: stats.review, cls: "text-review" },
+          { label: "Not started", value: stats.total - stats.solved - stats.attempted - stats.review, cls: "text-muted" },
+        ].map((x) => (
+          <div key={x.label} className="rounded-lg bg-surface-2/60 px-2.5 py-2">
+            <div className={`text-base font-semibold tabular-nums ${x.cls}`}>{x.value}</div>
+            <div className="text-[11px] text-subtle">{x.label}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4">
         <ProgressBar value={stats.solved} max={stats.total} height={8} />
         <div className="mt-2 flex justify-between text-xs text-muted tabular-nums">
           <span>{stats.percent}% complete</span>
