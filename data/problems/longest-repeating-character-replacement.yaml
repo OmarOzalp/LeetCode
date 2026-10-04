@@ -1,0 +1,166 @@
+id: "424"
+title: Longest Repeating Character Replacement
+slug: longest-repeating-character-replacement
+leetcode_url: https://leetcode.com/problems/longest-repeating-character-replacement/
+category: sliding-window
+difficulty: Medium
+patterns: [Sliding Window, Frequency Count]
+
+description: |
+  You are given a string `s` made of uppercase English letters and an integer `k`.
+
+  You may perform **at most `k` operations**. In one operation you pick any position in `s` and change its letter to any other uppercase letter.
+
+  Return the length of the longest substring that consists of **one repeated letter** after performing your operations.
+
+examples:
+  - input: { s: "ABAB", k: 2 }
+    output: 4
+    explanation: Change both `A`s to `B` (or both `B`s to `A`) and the whole string becomes one repeated letter.
+  - input: { s: "AABABBA", k: 1 }
+    output: 4
+    explanation: Change the `A` inside `"BABB"` (index 3) to `B`, giving `"AABBBBA"`. The substring `"BBBB"` has length 4.
+  - input: { s: "AAAB", k: 0 }
+    output: 3
+    explanation: With no changes allowed, the answer is simply the longest run of one letter, `"AAA"`.
+
+constraints:
+  - "`1 <= s.length <= 10^5`"
+  - "`s` consists of only uppercase English letters."
+  - "`0 <= k <= s.length`"
+
+function_signature: "def characterReplacement(self, s: str, k: int) -> int"
+
+starter_code: |
+  class Solution:
+      def characterReplacement(self, s: str, k: int) -> int:
+          pass
+
+runner:
+  kind: function
+  method: characterReplacement
+  params:
+    - { name: s, type: str }
+    - { name: k, type: int }
+  returns: int
+
+hints:
+  - Look at one fixed substring. Which letter should you turn everything into, and how many changes does that take?
+  - A substring of length `L` can be made uniform with `L - (count of its most frequent letter)` changes. So a window is valid exactly when `L - max_count <= k`.
+  - Slide a window over `s`, keeping letter counts for the window. Extend on the right; whenever the window becomes invalid, move the left edge forward by one. Ask yourself whether the "most frequent count" ever needs to *decrease* for the answer to be correct.
+
+approach: Sliding window with letter counts and a never-decreasing max frequency
+optimal_solution: |
+  class Solution:
+      def characterReplacement(self, s: str, k: int) -> int:
+          count = defaultdict(int)  # letter -> occurrences inside the window
+          max_freq = 0              # highest single-letter count seen in any window
+          left = 0
+          best = 0
+
+          for right, ch in enumerate(s):
+              count[ch] += 1
+              max_freq = max(max_freq, count[ch])
+
+              # Letters to replace = window length - most common letter.
+              # If that exceeds k, slide the window forward by one.
+              if (right - left + 1) - max_freq > k:
+                  count[s[left]] -= 1
+                  left += 1
+
+              best = max(best, right - left + 1)
+
+          return best
+
+explanation: |
+  **Intuition.** For a fixed window, the cheapest way to make it one repeated letter is to keep its most frequent letter and change everything else. So a window of length `L` is achievable exactly when
+
+  `L - max_count <= k`
+
+  This condition is *monotone*: adding a character raises `L` by 1 and `max_count` by at most 1, so once a window is invalid, extending it never makes it valid again. That is the property that makes a sliding window work.
+
+  **Algorithm.**
+  1. Move `right` across the string, adding `s[right]` to a count table and updating `max_freq`.
+  2. If `(right - left + 1) - max_freq > k`, the window needs too many changes: remove `s[left]` from the counts and advance `left` by one.
+  3. Record the window length in `best`.
+
+  **The subtle part: why `max_freq` never has to decrease.** When `left` moves, the true most-frequent count of the window may drop, but we keep the old, larger `max_freq`. That is safe because we only care about finding a window **longer than `best`**. A longer window is only valid if some letter occurs *more* often than `max_freq` (since `L <= max_count + k`). Until that happens, the stale value just makes the window slide forward at its current size, which is a size we already know is achievable. As soon as a letter really does reach a higher count, `max_freq` updates and the window grows. Because of this, the window never shrinks, and its length is always the best answer so far.
+
+  **Edge cases.** If `k >= len(s)` the whole string is the answer. With `k = 0` the algorithm finds the longest run of a single letter.
+
+key_insight: A window is fixable when its length minus its most frequent letter's count is at most k, and since only a higher max count can produce a longer answer, the window can slide without ever recomputing or lowering that max.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** `right` advances n times and `left` advances at most once per step, each with O(1) dictionary work. There is no inner loop: the `if` moves `left` by at most one position.
+
+  **Space O(1):** the count table holds at most 26 entries (one per uppercase letter), independent of the length of `s`.
+
+data_structures: [Hash map]
+passes: 1 pass over s
+
+alternatives:
+  - name: Brute force (extend from every start)
+    time_complexity: O(n²)
+    space_complexity: O(1)
+    explanation: |
+      For every start `i`, extend the end `j` to the right while maintaining letter counts and the maximum count. The window `s[i..j]` is valid while `(j - i + 1) - max_count <= k`. Because that quantity never decreases as `j` grows, we can stop extending at the first invalid `j`.
+    tradeoff: Easy to reason about, but every start index rebuilds its counts from scratch. When `k` is large the valid windows are long, so the work approaches n²/2 steps. The sliding window reuses the counts of the previous window instead.
+    code: |
+      class Solution:
+          def characterReplacement(self, s: str, k: int) -> int:
+              best = 0
+              n = len(s)
+              for i in range(n):
+                  count = [0] * 26
+                  max_count = 0
+                  for j in range(i, n):
+                      idx = ord(s[j]) - ord("A")
+                      count[idx] += 1
+                      max_count = max(max_count, count[idx])
+                      if (j - i + 1) - max_count > k:
+                          break  # extending further can never make this valid
+                      best = max(best, j - i + 1)
+              return best
+  - name: Sliding window, recomputing the max count (O(26 · n))
+    time_complexity: O(26 · n)
+    space_complexity: O(1)
+    explanation: |
+      The same window, but each time we check validity we compute the window's **true** most frequent count with `max(count)` over the 26 letters, and shrink with a `while` loop until the window is valid again. This avoids the "stale max" argument entirely.
+    tradeoff: Still linear and often the first sliding-window version people write. It is easier to justify, but pays a factor of 26 for scanning the count array on every step. The optimal version removes that factor by observing that the max never needs to go down.
+    code: |
+      class Solution:
+          def characterReplacement(self, s: str, k: int) -> int:
+              count = [0] * 26
+              left = 0
+              best = 0
+              for right, ch in enumerate(s):
+                  count[ord(ch) - ord("A")] += 1
+                  # Shrink until the window can be fixed with at most k changes.
+                  while (right - left + 1) - max(count) > k:
+                      count[ord(s[left]) - ord("A")] -= 1
+                      left += 1
+                  best = max(best, right - left + 1)
+              return best
+
+tests:
+  - { name: single letter, input: { s: "A", k: 0 }, expected: 1 }
+  - { name: no changes allowed, input: { s: "AABBBCC", k: 0 }, expected: 3 }
+  - { name: k covers the whole string, input: { s: "ABCD", k: 4 }, expected: 4 }
+  - { name: already uniform, input: { s: "AAAA", k: 2 }, expected: 4 }
+  - { name: fix the first letter, input: { s: "ABBB", k: 2 }, expected: 4 }
+  - { name: k is zero with short runs, input: { s: "ABAA", k: 0 }, expected: 2 }
+  - { name: replace both ends, input: { s: "BAAAB", k: 2 }, expected: 5 }
+  - { name: all letters different, input: { s: "ABCDE", k: 1 }, expected: 2 }
+  - { name: best window in the middle, input: { s: "AABCABBB", k: 2 }, expected: 6 }
+
+benchmark:
+  size_label: length of s
+  sizes: [100, 1000, 5000, 20000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Four random letters with k = n // 3: valid windows are long (about 4n/9),
+        # so a brute force that restarts from every index does quadratic work.
+        s = "".join(rng.choice("ABCD") for _ in range(n))
+        return {"s": s, "k": n // 3}

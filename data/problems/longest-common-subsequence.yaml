@@ -1,0 +1,198 @@
+id: "1143"
+title: Longest Common Subsequence
+slug: longest-common-subsequence
+leetcode_url: https://leetcode.com/problems/longest-common-subsequence/
+category: dp-2d
+difficulty: Medium
+patterns: [2-D DP, String DP, Two-Sequence DP]
+
+description: |
+  Given two strings `text1` and `text2`, return the length of their **longest common subsequence**. If they have no character in common, return `0`.
+
+  A **subsequence** is what is left of a string after deleting zero or more of its characters *without reordering* the ones that remain. For example, `"ace"` is a subsequence of `"abcde"`, but `"aec"` is not. Unlike a substring, the kept characters do not have to be next to each other.
+
+  A **common subsequence** of two strings is a string that is a subsequence of both.
+
+examples:
+  - input: { text1: abcde, text2: ace }
+    output: 3
+    explanation: |
+      `"ace"` is a subsequence of both strings, and no longer common subsequence exists.
+  - input: { text1: bdcaba, text2: abcbdab }
+    output: 4
+    explanation: |
+      Several common subsequences have length 4, for example `"bcba"` and `"bdab"`. Only the length is returned, so it does not matter which one you find.
+  - input: { text1: abc, text2: def }
+    output: 0
+    explanation: |
+      No character appears in both strings.
+
+constraints:
+  - "`1 <= text1.length, text2.length <= 1000`"
+  - "`text1` and `text2` consist only of lowercase English letters."
+
+function_signature: "def longestCommonSubsequence(self, text1: str, text2: str) -> int"
+
+starter_code: |
+  class Solution:
+      def longestCommonSubsequence(self, text1: str, text2: str) -> int:
+          pass
+
+runner:
+  kind: function
+  method: longestCommonSubsequence
+  params:
+    - { name: text1, type: str }
+    - { name: text2, type: str }
+  returns: int
+
+hints:
+  - Compare the last characters of the two strings. If they are equal, is it safe to use them as the last character of the common subsequence? If they differ, at least one of them cannot be the final matched pair. Which smaller problems does each case leave you with?
+  - Every smaller problem you reach is "the LCS of a prefix of `text1` and a prefix of `text2`". There are only `(len(text1) + 1) · (len(text2) + 1)` such pairs of prefixes, yet plain recursion visits them over and over.
+  - Let `dp[i][j]` be the LCS length of the first `i` characters of `text1` and the first `j` characters of `text2`. If `text1[i - 1] == text2[j - 1]` it is one more than `dp[i - 1][j - 1]`; otherwise it is the larger of `dp[i - 1][j]` and `dp[i][j - 1]`. An empty prefix gives 0, so add an extra row and column of zeros.
+
+approach: Bottom-up 2-D DP over prefixes
+optimal_solution: |
+  class Solution:
+      def longestCommonSubsequence(self, text1: str, text2: str) -> int:
+          m, n = len(text1), len(text2)
+          # dp[i][j] = LCS length of text1[:i] and text2[:j].
+          # Row 0 and column 0 stand for an empty prefix, so they stay 0.
+          dp = [[0] * (n + 1) for _ in range(m + 1)]
+
+          for i in range(1, m + 1):
+              for j in range(1, n + 1):
+                  if text1[i - 1] == text2[j - 1]:
+                      # Matching last characters extend the LCS of both shorter prefixes.
+                      dp[i][j] = dp[i - 1][j - 1] + 1
+                  else:
+                      # One of the two last characters goes unused: try skipping each.
+                      dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+
+          return dp[m][n]
+
+explanation: |
+  **Intuition.** Look at the last character of each string.
+  - If they are **equal**, match them with each other and add 1 to the answer for both strings without their last character. This never loses anything. Take any longest common subsequence: if its last character is matched somewhere else, then either we could append this pair and make it longer (impossible, it is already longest), or one of the two last characters is already in use and we can re-match it to the other one instead. So some longest answer uses this pair.
+  - If they **differ**, they cannot both be the final matched pair, so at least one of them is not used. We do not know which one, so we try both: drop the last character of `text1`, or drop the last character of `text2`, and keep the better result.
+
+  Either way we are left with the same question on *prefixes* of the two strings. Many different choices lead to the same pair of prefixes, and that overlap is what DP removes.
+
+  **The DP, spelled out.**
+  - **State:** `dp[i][j]` = length of the LCS of `text1[:i]` and `text2[:j]` (the first `i` and the first `j` characters).
+  - **Transition:** if `text1[i - 1] == text2[j - 1]` then `dp[i][j] = dp[i - 1][j - 1] + 1`, otherwise `dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])`.
+  - **Base cases:** `dp[0][j] = dp[i][0] = 0`, because nothing is common with an empty string. This extra row and column are why the table is `(m + 1) x (n + 1)` and why `dp[i][j]` looks at `text1[i - 1]` (indices are shifted by one).
+  - **Order:** increasing `i`, and increasing `j` within a row. Each cell reads only the cell above, the cell to the left, and the cell diagonally up-left, all computed earlier.
+  - **Answer:** `dp[m][n]`.
+
+  For `text1 = "abcde"` (rows) and `text2 = "ace"` (columns). Bold cells are matches (diagonal + 1); every other cell copies the larger of its top and left neighbours:
+
+  |         | "" | a | c | e |
+  |---------|----|---|---|---|
+  | **""**  | 0  | 0 | 0 | 0 |
+  | **a**   | 0  | **1** | 1 | 1 |
+  | **b**   | 0  | 1 | 1 | 1 |
+  | **c**   | 0  | 1 | **2** | 2 |
+  | **d**   | 0  | 1 | 2 | 2 |
+  | **e**   | 0  | 1 | 2 | **3** |
+
+  **Algorithm.**
+  1. Build an `(m + 1) x (n + 1)` table of zeros.
+  2. For `i` from `1` to `m`, and `j` from `1` to `n`, apply the transition.
+  3. Return `dp[m][n]`.
+
+  **Space optimization.** Row `i` only reads row `i - 1` and itself, so two rows of length `n + 1` are enough. You can even use a single row plus one variable that remembers the diagonal value `dp[i - 1][j - 1]` before it is overwritten. Letting the shorter string index the row gives `O(min(m, n))` memory. The cost is that you can no longer walk back through the full table to *reconstruct* the subsequence itself, only its length. (See the two-row alternative.)
+
+  **Subtle points.**
+  - On a match you do not also need `max(dp[i - 1][j], dp[i][j - 1])`: adding one character to one string raises the LCS by at most 1, so `dp[i - 1][j - 1] + 1` is always at least as large.
+  - This is a *subsequence*, not a substring. After a mismatch we carry the best value forward and never reset to 0. Resetting would solve "longest common substring" instead.
+  - Greedily matching the first equal characters you see does not work: an early match can use up a character that a longer subsequence needs later.
+
+key_insight: The LCS of two prefixes depends only on their last characters and three smaller prefix pairs (diagonal on a match, max of up and left otherwise), so an (m + 1) x (n + 1) table answers every subproblem once.
+
+time_complexity: O(m · n)
+space_complexity: O(m · n)
+complexity_explanation: |
+  **Time O(m · n):** there are `m · n` cells to fill and each one takes O(1): one character comparison and at most one `max` of two table entries.
+
+  **Space O(m · n):** the full `(m + 1) x (n + 1)` table is stored. Since each row depends only on the previous one, this can be cut to `O(min(m, n))` with two rolling rows if you only need the length.
+
+data_structures: [2-D DP table]
+passes: One pass over the (m + 1) x (n + 1) table
+
+alternatives:
+  - name: Top-down recursion with memoization
+    time_complexity: O(m · n)
+    space_complexity: O(m · n)
+    explanation: |
+      Define `lcs(i, j)` as the LCS length of the suffixes `text1[i:]` and `text2[j:]`. If the first characters match, the answer is `1 + lcs(i + 1, j + 1)`; otherwise it is `max(lcs(i + 1, j), lcs(i, j + 1))`. Either string running out gives 0. Without a cache the recursion is exponential. With `lru_cache` every `(i, j)` pair is solved once.
+    tradeoff: Mirrors the reasoning most directly and only visits reachable states (very few when the strings are nearly equal). In Python, though, function-call and cache overhead make it several times slower than the table, and the recursion can be m + n levels deep, which would exceed Python's default recursion limit of 1000 for long inputs.
+    code: |
+      class Solution:
+          def longestCommonSubsequence(self, text1: str, text2: str) -> int:
+              @lru_cache(maxsize=None)
+              def lcs(i: int, j: int) -> int:
+                  # LCS length of the suffixes text1[i:] and text2[j:].
+                  if i == len(text1) or j == len(text2):
+                      return 0
+                  if text1[i] == text2[j]:
+                      return 1 + lcs(i + 1, j + 1)
+                  return max(lcs(i + 1, j), lcs(i, j + 1))
+
+              return lcs(0, 0)
+  - name: Two rolling rows (O(min(m, n)) space)
+    time_complexity: O(m · n)
+    space_complexity: O(min(m, n))
+    explanation: |
+      Exactly the same recurrence, but only the previous row (`prev`) and the row being filled (`cur`) are kept. Swapping the strings first, if needed, makes each row as short as possible.
+    tradeoff: Same O(m · n) time with far less memory, which is the best choice when only the length is needed. You lose the full table, so you cannot backtrack to recover the subsequence itself, and the row bookkeeping is slightly easier to get wrong under pressure.
+    code: |
+      class Solution:
+          def longestCommonSubsequence(self, text1: str, text2: str) -> int:
+              # Let text2 be the shorter string so each row is as short as possible.
+              if len(text2) > len(text1):
+                  text1, text2 = text2, text1
+              n = len(text2)
+
+              prev = [0] * (n + 1)  # dp row i - 1 (starts as the empty-prefix row)
+              for c in text1:
+                  cur = [0] * (n + 1)  # dp row i; cur[0] = 0 for the empty prefix of text2
+                  for j in range(1, n + 1):
+                      if c == text2[j - 1]:
+                          cur[j] = prev[j - 1] + 1
+                      else:
+                          cur[j] = max(prev[j], cur[j - 1])
+                  prev = cur
+
+              return prev[n]
+
+tests:
+  - { name: single matching character, input: { text1: a, text2: a }, expected: 1 }
+  - { name: single different character, input: { text1: a, text2: b }, expected: 0 }
+  - { name: one string hidden inside the other, input: { text1: xaybzc, text2: abc }, expected: 3 }
+  - { name: reversed string, input: { text1: abcde, text2: edcba }, expected: 1 }
+  - { name: repeated letters, input: { text1: aaaa, text2: aa }, expected: 2 }
+  - { name: scattered matches, input: { text1: ezupkr, text2: ubmrapg }, expected: 2 }
+  - { name: longer mixed strings, input: { text1: pmjghexybyrgzczy, text2: hafcdqbgncrcbihkd }, expected: 4 }
+  - name: alternating letters offset by one
+    input:
+      text1: abababababababababababababababababababababababababababababababababababababababababababababababababab
+      text2: babababababababababababababababababababababababababababababababababababababababababababababababababa
+    expected: 99
+  - name: alphabet blocks against reversed blocks
+    input:
+      text1: abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+      text2: zyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcba
+    expected: 7
+
+benchmark:
+  size_label: length of each string
+  sizes: [10, 50, 200, 600]
+  generator: |
+    def generate(n, rng):
+        # Two random strings over a small alphabet, so many characters match
+        # and the LCS is long (roughly 0.65 * n for 4 letters).
+        alphabet = "abcd"
+        text1 = "".join(rng.choice(alphabet) for _ in range(n))
+        text2 = "".join(rng.choice(alphabet) for _ in range(n))
+        return {"text1": text1, "text2": text2}

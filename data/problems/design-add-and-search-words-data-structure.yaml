@@ -1,0 +1,223 @@
+id: "211"
+title: Design Add and Search Words Data Structure
+slug: design-add-and-search-words-data-structure
+leetcode_url: https://leetcode.com/problems/design-add-and-search-words-data-structure/
+category: tries
+difficulty: Medium
+patterns: [Trie, DFS, Backtracking, Design]
+
+description: |
+  Build a word dictionary that lets you add words and later ask whether a **pattern** matches any word you have added.
+
+  Implement the `WordDictionary` class:
+
+  - `WordDictionary()` creates an empty dictionary.
+  - `addWord(word)` stores the lowercase string `word`.
+  - `search(word)` returns `True` if some stored word matches `word`, and `False` otherwise. The query may contain dots `'.'`; a dot stands for **exactly one** letter, any letter. Every other character must match exactly, and the lengths must be equal.
+
+  For example, after adding `"cat"` the queries `"cat"`, `"c.t"` and `"..."` all match, but `"ca"` and `"c..."` do not, because a dot never matches "nothing" or several letters.
+
+  **How tests work:** each test is a sequence of operations. The first creates the object; the expected output lists the return value of every call (`None` for calls that return nothing).
+
+examples:
+  - input:
+      operations: [WordDictionary, addWord, addWord, addWord, search, search, search, search, search]
+      arguments: [[], ["cat"], ["cot"], ["dog"], ["c.t"], ["d.t"], ["..g"], ["..."], ["c."]]
+    output: [null, null, null, null, true, false, true, true, false]
+    explanation: |
+      `"c.t"` matches both `"cat"` and `"cot"`. `"d.t"` fails because the only word starting with `d` is `"dog"`. `"..."` matches any three-letter word, while `"c."` has the wrong length for every stored word.
+  - input:
+      operations: [WordDictionary, search, addWord, search, search, addWord, search]
+      arguments: [[], ["."], ["a"], ["."], ["a."], ["ab"], ["a."]]
+    output: [null, false, null, true, false, null, true]
+    explanation: |
+      Searching an empty dictionary always returns `False`. After adding `"a"`, the single dot matches it, but `"a."` needs a two-letter word, which only exists once `"ab"` is added.
+
+constraints:
+  - "`1 <= word.length <= 25`"
+  - "`word` in `addWord` consists of lowercase English letters."
+  - "`word` in `search` consists of `'.'` or lowercase English letters."
+  - "Each `search` query contains at most `2` dots."
+  - "At most `10^4` calls in total will be made to `addWord` and `search`."
+
+function_signature: "class WordDictionary: addWord(word) / search(word) -> bool"
+
+starter_code: |
+  class WordDictionary:
+
+      def __init__(self):
+          pass
+
+      def addWord(self, word: str) -> None:
+          pass
+
+      def search(self, word: str) -> bool:
+          pass
+
+runner:
+  kind: design
+  class_name: WordDictionary
+
+hints:
+  - Without dots this is exactly the trie from "Implement Trie". What should a `.` mean when you are standing on a trie node?
+  - A dot can stand for any child of the current node, so you cannot follow just one edge. You have to try every child branch and succeed if at least one of them succeeds.
+  - Write `search` as a depth-first search over (position in the query, current trie node). A letter follows its single child (or fails if it is missing); a dot recurses into every child; when the query is used up, the current node must mark the end of a word.
+
+approach: Trie + DFS on wildcards
+optimal_solution: |
+  class TrieNode:
+      def __init__(self):
+          self.children = {}   # char -> TrieNode
+          self.is_end = False  # True if an added word ends at this node
+
+
+  class WordDictionary:
+
+      def __init__(self):
+          self.root = TrieNode()
+
+      def addWord(self, word: str) -> None:
+          node = self.root
+          for ch in word:
+              if ch not in node.children:
+                  node.children[ch] = TrieNode()
+              node = node.children[ch]
+          node.is_end = True
+
+      def search(self, word: str) -> bool:
+          def dfs(i: int, node: TrieNode) -> bool:
+              """Can word[i:] be matched starting from `node`?"""
+              for j in range(i, len(word)):
+                  ch = word[j]
+                  if ch == ".":
+                      # Wildcard: any child may be the right one, so try them all.
+                      return any(dfs(j + 1, child) for child in node.children.values())
+                  node = node.children.get(ch)
+                  if node is None:
+                      return False  # no stored word continues with this letter
+              return node.is_end    # the whole query matched a path; is it a full word?
+
+          return dfs(0, self.root)
+
+explanation: |
+  **Intuition.** If queries had no dots, a trie would answer `search` by walking one edge per character. A dot breaks only one thing: at that position we do not know *which* edge to take. The fix is to try *every* edge out of the current node, which is a small depth-first search (backtracking) that only branches where the query has a dot.
+
+  The trie is what keeps this fast. A naive approach compares the pattern against every stored word; the trie compares against every *distinct prefix* at once, and a whole subtree is discarded as soon as one letter fails to match.
+
+  **Algorithm.**
+  1. `addWord`: insert the word into a trie exactly as in "Implement Trie", marking the last node with `is_end = True`.
+  2. `search`: run `dfs(i, node)`, meaning "can `word[i:]` be matched starting at `node`?"
+     1. Walk forward through the query. For a normal letter, follow the matching child; if it does not exist, return `False`.
+     2. For a `.`, recursively call `dfs(j + 1, child)` for every child and return `True` if any call succeeds. `any(...)` stops at the first success.
+     3. If the loop finishes, every character was matched along some path. Return `node.is_end`, because the path might only be a *prefix* of a stored word.
+
+  **Subtle points.**
+  - The final `is_end` check matters: after adding `"cats"`, the query `"ca."` reaches the node for `"cat"`, which is not a word, so the answer is `False`.
+  - A dot matches exactly one letter, never zero. Because each dot consumes one level of the trie, length mismatches are rejected automatically.
+  - Walking plain letters with a loop and recursing only on dots keeps the recursion depth at most `(number of dots) + 1`, not the length of the word.
+
+key_insight: A trie lets a wildcard branch over all possible next letters at once, so a dot costs a small DFS over children instead of a scan of every stored word.
+
+time_complexity: O(L) addWord, O(26^d · L) search
+space_complexity: O(N · L)
+complexity_explanation: |
+  **addWord, O(L):** one step per character, and each dictionary operation is O(1) on average.
+
+  **search, O(L) without dots and O(26^d · L) in the worst case,** where `d` is the number of dots. Each dot can fan out to at most 26 children, and every branch then walks at most `L` more characters. With at most 2 dots per query (from the constraints) that is a constant factor of at most 676, and in practice far fewer branches exist because most children are missing.
+
+  **Space O(N · L)** for `N` added words of length up to `L` when no prefixes are shared. Shared prefixes are stored once. The recursion uses only O(d) extra stack frames.
+
+data_structures: [Trie, Hash map]
+passes: One trie walk per call, branching only on dots
+
+alternatives:
+  - name: Bucket words by length and scan
+    time_complexity: O(L) addWord, O(N · L) search
+    space_complexity: O(N · L)
+    explanation: |
+      Store words in a set per length. A query without dots is a single set lookup. A query with dots can only match words of the same length, so compare it character by character against each word in that bucket, treating `.` as "anything matches".
+    tradeoff: Short and easy to get right, and exact lookups are O(L). But every wildcard query scans all N words of that length, while the trie only explores the branches that actually share the query's letters. With many words of similar length, wildcard queries get much slower.
+    code: |
+      class WordDictionary:
+
+          def __init__(self):
+              self.by_length = defaultdict(set)  # word length -> set of words
+
+          def addWord(self, word: str) -> None:
+              self.by_length[len(word)].add(word)
+
+          def search(self, word: str) -> bool:
+              bucket = self.by_length.get(len(word))
+              if not bucket:
+                  return False
+              if "." not in word:
+                  return word in bucket  # exact query: O(L) set lookup
+              return any(
+                  all(p == "." or p == c for p, c in zip(word, candidate))
+                  for candidate in bucket
+              )
+
+tests:
+  - name: single dot vs. longer patterns
+    input:
+      operations: [WordDictionary, addWord, search, search, search]
+      arguments: [[], ["a"], ["."], [".."], ["a."]]
+    expected: [null, null, true, false, false]
+  - name: all dots must match the exact length
+    input:
+      operations: [WordDictionary, addWord, search, search, search]
+      arguments: [[], ["abc"], ["..."], [".."], ["...."]]
+    expected: [null, null, true, false, false]
+  - name: prefix of a word is not a match
+    input:
+      operations: [WordDictionary, addWord, search, search, search, search]
+      arguments: [[], ["apple"], ["app"], ["app.."], ["a...."], ["a..."]]
+    expected: [null, null, false, true, true, false]
+  - name: first branch fails, later branch succeeds
+    input:
+      operations: [WordDictionary, addWord, addWord, addWord, search, search, search]
+      arguments: [[], ["ax"], ["by"], ["cz"], [".z"], [".y"], [".w"]]
+    expected: [null, null, null, null, true, true, false]
+  - name: dots at both ends
+    input:
+      operations: [WordDictionary, addWord, addWord, search, search, search]
+      arguments: [[], ["bad"], ["bed"], [".a."], [".e."], [".i."]]
+    expected: [null, null, null, true, true, false]
+  - name: words added between searches
+    input:
+      operations: [WordDictionary, addWord, addWord, search, addWord, search, search, search, search]
+      arguments: [[], ["at"], ["and"], [".at"], ["bat"], [".at"], ["an."], ["a.d"], ["b."]]
+    expected: [null, null, null, false, null, true, true, true, false]
+  - name: duplicate words and a prefix word
+    input:
+      operations: [WordDictionary, addWord, addWord, addWord, search, search, search]
+      arguments: [[], ["code"], ["code"], ["cod"], ["co."], ["cod."], ["co.."]]
+    expected: [null, null, null, null, true, true, true]
+  - name: exact search only matches exact words
+    input:
+      operations: [WordDictionary, addWord, search, search, search]
+      arguments: [[], ["word"], ["word"], ["words"], ["wor"]]
+    expected: [null, null, true, false, false]
+
+benchmark:
+  size_label: number of operations
+  sizes: [200, 1000, 5000, 20000]
+  generator: |
+    def generate(n, rng):
+        letters = "abcdef"
+
+        def random_word():
+            return "".join(rng.choice(letters) for _ in range(rng.randint(3, 8)))
+
+        ops, args = ["WordDictionary"], [[]]
+        for _ in range(n):
+            if rng.random() < 0.5:
+                ops.append("addWord")
+                args.append([random_word()])
+            else:
+                query = list(random_word())
+                for _ in range(rng.randint(0, 2)):  # up to two wildcards
+                    query[rng.randrange(len(query))] = "."
+                ops.append("search")
+                args.append(["".join(query)])
+        return {"operations": ops, "arguments": args}

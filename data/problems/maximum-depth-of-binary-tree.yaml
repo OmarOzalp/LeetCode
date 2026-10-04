@@ -1,0 +1,180 @@
+id: "104"
+title: Maximum Depth of Binary Tree
+slug: maximum-depth-of-binary-tree
+leetcode_url: https://leetcode.com/problems/maximum-depth-of-binary-tree/
+category: trees
+difficulty: Easy
+patterns: [DFS, Recursion, BFS]
+
+description: |
+  Given the `root` of a binary tree, return its **maximum depth**.
+
+  The maximum depth is the number of nodes on the longest path that starts at the root and goes down to a leaf (a node with no children). Depth counts **nodes**, not edges, so a tree with a single node has depth `1` and an empty tree has depth `0`.
+
+examples:
+  - input: { root: [3, 9, 20, null, null, 15, 7] }
+    output: 3
+    explanation: "The longest root-to-leaf paths are `3 → 20 → 15` and `3 → 20 → 7`, each containing 3 nodes. The path `3 → 9` is shorter."
+  - input: { root: [1, null, 2] }
+    output: 2
+  - input: { root: [1, 2, 3, 4, null, null, null, 5] }
+    output: 4
+    explanation: "The deepest leaf is `5`, reached by `1 → 2 → 4 → 5`. The leaf `3` is only at depth 2, so a tree can be much deeper on one side than the other."
+
+constraints:
+  - "The number of nodes in the tree is in the range `[0, 10^4]`."
+  - "`-100 <= Node.val <= 100`"
+
+function_signature: "def maxDepth(self, root: Optional[TreeNode]) -> int"
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def maxDepth(self, root: Optional[TreeNode]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: maxDepth
+  params:
+    - { name: root, type: "Optional[TreeNode]" }
+  returns: int
+
+hints:
+  - If you already knew the depth of the root's left subtree and the depth of its right subtree, how would you get the depth of the whole tree?
+  - The deepest path from the root must go through one of its two children, so only the deeper child matters. Remember to count the root itself.
+  - "Define the depth of an empty tree as 0. Then the depth of any node is 1 plus the larger of its two children's depths, which is a direct recursion. Alternatively, a level-by-level BFS can simply count how many levels it processes."
+
+approach: Recursive DFS (1 + max of children)
+optimal_solution: |
+  class Solution:
+      def maxDepth(self, root: Optional[TreeNode]) -> int:
+          if root is None:  # an empty tree contributes no nodes
+              return 0
+
+          # The longest path goes through whichever child is deeper; +1 counts this node.
+          return 1 + max(self.maxDepth(root.left), self.maxDepth(root.right))
+
+explanation: |
+  **Intuition.** The depth of a tree can be defined in terms of the depths of its subtrees. Any root-to-leaf path starts at the root and then continues entirely inside the left subtree or entirely inside the right subtree. So the longest one is the root plus the longest path in the deeper subtree:
+
+  `depth(node) = 1 + max(depth(node.left), depth(node.right))`, with `depth(None) = 0`.
+
+  Each recursive call answers one question: *"how many nodes are on the longest downward path starting at this node?"* A leaf returns `1 + max(0, 0) = 1`, and the values grow by one per level on the way back up.
+
+  **Algorithm.**
+  1. If `root` is `None`, return `0`. This base case covers both the empty tree and the missing children of leaves.
+  2. Recursively compute the depth of the left and right subtrees.
+  3. Return `1 + max(left_depth, right_depth)`.
+
+  **Subtle points.**
+  - Depth counts nodes, not edges. Returning `0` for `None` (rather than for a leaf) is what makes a single node come out as `1`.
+  - You must take the **max** over both children. Following only the left side, or stopping at the first leaf you find, measures some path but not the longest one.
+
+key_insight: "The depth of a tree is 1 + the depth of its deeper subtree, with an empty tree having depth 0."
+
+time_complexity: O(n)
+space_complexity: O(h)
+complexity_explanation: |
+  **Time O(n):** each node is visited exactly once and does constant work (one comparison and one addition).
+
+  **Space O(h):** the recursion stack holds one frame per node on the current path, where `h` is the height of the tree. That is O(log n) for a balanced tree and O(n) for a completely skewed tree (a chain of `n` nodes), which is the worst case.
+
+data_structures: [Binary tree, Recursion stack]
+passes: 1 visit per node
+
+alternatives:
+  - name: Iterative BFS (count the levels)
+    time_complexity: O(n)
+    space_complexity: O(w)
+    explanation: |
+      Process the tree one level at a time with a queue. Each round, pop exactly as many nodes as the queue held at the start of the round (that is one full level) and push their children. The number of rounds completed is the depth.
+    tradeoff: Same O(n) time with no recursion, so very deep trees are safe. Memory is the widest level, `w`, which is about n/2 for a balanced tree (worse than the O(log n) recursion) but O(1) for a chain (better than O(n) recursion).
+    code: |
+      class Solution:
+          def maxDepth(self, root: Optional[TreeNode]) -> int:
+              if root is None:
+                  return 0
+              depth = 0
+              queue = deque([root])
+              while queue:
+                  depth += 1                    # one more level
+                  for _ in range(len(queue)):   # consume exactly this level
+                      node = queue.popleft()
+                      if node.left:
+                          queue.append(node.left)
+                      if node.right:
+                          queue.append(node.right)
+              return depth
+  - name: Iterative DFS (stack of node, depth)
+    time_complexity: O(n)
+    space_complexity: O(h)
+    explanation: |
+      Simulate the recursion with an explicit stack of `(node, depth)` pairs. Every time a node is popped, record `depth` as a candidate for the answer and push its children with `depth + 1`. Because the child pushed last is explored first, each level leaves at most one sibling waiting on the stack, so the stack stays proportional to the height.
+    tradeoff: Same O(n) time and O(h) memory as the recursion, but it cannot hit Python's recursion limit on a very deep chain. The cost is that each node's depth must be carried along explicitly. The recursive version is shorter and states the definition directly.
+    code: |
+      class Solution:
+          def maxDepth(self, root: Optional[TreeNode]) -> int:
+              best = 0
+              stack = [(root, 1)] if root else []
+              while stack:
+                  node, depth = stack.pop()
+                  best = max(best, depth)
+                  if node.left:
+                      stack.append((node.left, depth + 1))
+                  if node.right:
+                      stack.append((node.right, depth + 1))
+              return best
+
+tests:
+  - { name: empty tree, input: { root: [] }, expected: 0 }
+  - { name: single node, input: { root: [0] }, expected: 1 }
+  - { name: left-skewed chain, input: { root: [1, 2, null, 3, null, 4, null, 5, null, 6] }, expected: 6 }
+  - { name: right-skewed chain, input: { root: [1, null, 2, null, 3, null, 4] }, expected: 4 }
+  - name: deepest leaf is far down the right side
+    input: { root: [1, 2, 3, 4, 5, null, 6, null, null, null, null, 7, null, 8] }
+    expected: 5
+  - name: perfect tree
+    input: { root: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] }
+    expected: 4
+  - { name: negative duplicate values, input: { root: [-1, -1, -1] }, expected: 2 }
+
+benchmark:
+  size_label: number of nodes
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Grow a random tree: each new node takes a uniformly random free child
+        # slot. The height stays around O(log n), so recursion depth is modest.
+        left, right = [-1] * n, [-1] * n
+        free = [(0, 0), (0, 1)]  # (parent index, 0 = left / 1 = right)
+        for i in range(1, n):
+            j = rng.randrange(len(free))
+            free[j], free[-1] = free[-1], free[j]
+            parent, side = free.pop()
+            if side == 0:
+                left[parent] = i
+            else:
+                right[parent] = i
+            free.append((i, 0))
+            free.append((i, 1))
+        vals = [rng.randint(-100, 100) for _ in range(n)]
+
+        # Serialize to LeetCode level order (None marks a missing child).
+        out, queue = [], deque([0])
+        while queue:
+            i = queue.popleft()
+            if i < 0:
+                out.append(None)
+                continue
+            out.append(vals[i])
+            queue.append(left[i])
+            queue.append(right[i])
+        while out[-1] is None:
+            out.pop()
+        return {"root": out}

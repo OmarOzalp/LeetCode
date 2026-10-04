@@ -1,0 +1,156 @@
+id: "55"
+title: Jump Game
+slug: jump-game
+leetcode_url: https://leetcode.com/problems/jump-game/
+category: greedy
+difficulty: Medium
+patterns: [Greedy, Reachability, Array]
+
+description: |
+  You start at index `0` of an integer array `nums`. Each value `nums[i]` is the **maximum** length of a jump you can make from index `i`. From `i` you may land on any index from `i + 1` up to `i + nums[i]`, so shorter jumps are allowed too.
+
+  Return `True` if you can reach the **last index**, and `False` otherwise.
+
+examples:
+  - input: { nums: [2, 3, 1, 1, 4] }
+    output: true
+    explanation: |
+      Jump 1 step from index 0 to index 1, then 3 steps to the last index. (Other routes work as well.)
+  - input: { nums: [3, 2, 1, 0, 4] }
+    output: false
+    explanation: |
+      Index 0 reaches at most index 3, and so do indices 1 and 2. Every route therefore gets stuck on index 3, whose value is 0, and the last index is never reached.
+  - input: { nums: [2, 0, 0] }
+    output: true
+    explanation: |
+      Index 0 jumps straight over the zero to the last index. A zero only traps you if nothing before it can jump past it.
+
+constraints:
+  - "`1 <= nums.length <= 10^4`"
+  - "`0 <= nums[i] <= 10^5`"
+
+function_signature: "def canJump(self, nums: List[int]) -> bool"
+
+starter_code: |
+  class Solution:
+      def canJump(self, nums: List[int]) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: canJump
+  params:
+    - { name: nums, type: "List[int]" }
+  returns: bool
+
+hints:
+  - You do not need to know *which* jumps to make, only whether the end can be reached. Can you describe the set of all reachable indices with a single number?
+  - If you can reach some index `j`, you can also reach every index before it. Whatever jump carried you to `j` could have been shorter. So the reachable indices always form a prefix `0..reach`.
+  - Scan left to right, keeping `reach`, the farthest index reachable so far. If the current index is beyond `reach` you are stuck; otherwise extend `reach` with `i + nums[i]`.
+
+approach: Greedy farthest reach
+optimal_solution: |
+  class Solution:
+      def canJump(self, nums: List[int]) -> bool:
+          reach = 0  # farthest index reachable using the indices seen so far
+
+          for i, jump in enumerate(nums):
+              if i > reach:
+                  # Nothing before i can get this far, so i (and the end) is unreachable.
+                  return False
+              reach = max(reach, i + jump)
+
+          # We walked over every index, including the last one, without getting stuck.
+          return True
+
+explanation: |
+  **Intuition.** Trying every sequence of jumps blows up combinatorially, but we never need a particular route, only the set of reachable indices. That set has a very simple shape: it is always a **prefix** `0, 1, ..., reach`. If a jump from `i` lands on `j`, every index between `i` and `j` could have been reached from `i` with a shorter jump. So a single integer, `reach`, sums up everything we know.
+
+  **Why the greedy is safe (the invariant).** After looking at indices `0..i`, `reach` is the farthest index reachable by jumps that start from any of them. Now look at index `i + 1`:
+  - If `i + 1 > reach`, none of the earlier indices can get there. Later indices cannot help either, because to use them you would first have to get past `i + 1`. The answer is `False`.
+  - Otherwise `i + 1` is reachable, and jumping from it can push the frontier to `i + 1 + nums[i + 1]`, so take the maximum.
+
+  We never commit to a jump. Taking the maximum over every position already accounts for all choices at once, and that is why one greedy pass is enough.
+
+  **Algorithm.**
+  1. Set `reach = 0`.
+  2. For each index `i` in order: if `i > reach`, return `False`; otherwise set `reach = max(reach, i + nums[i])`.
+  3. If the loop finishes, the last index was reachable, so return `True`. (You can also stop early as soon as `reach >= len(nums) - 1`.)
+
+  Trace for `[3, 2, 1, 0, 4]`: `reach` is `3` after index 0 and stays `3` through indices 1, 2 and 3. At index 4, `4 > 3`, so the answer is `False`.
+
+  **Subtle points.**
+  - A `0` is only a trap if no earlier index can jump *over* it: `[2, 0, 0]` is `True`, but `[1, 0, 1]` is `False`.
+  - A single-element array already starts at the end, so the answer is `True` even when that value is `0`.
+  - The same idea works backwards: keep a `goal`, starting at the last index, and move it to `i` whenever `i + nums[i] >= goal`. The answer is whether `goal` reaches index 0.
+
+key_insight: The reachable indices always form a prefix, so tracking just the farthest reachable index in one pass decides the answer without ever choosing a specific jump.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** each index is visited at most once, with an O(1) comparison and `max`. The size of the jump values does not matter.
+
+  **Space O(1):** only the integer `reach` (plus the loop index) is stored.
+
+data_structures: [Array]
+passes: 1 pass over nums
+
+alternatives:
+  - name: Bottom-up DP over "good" indices
+    time_complexity: O(n²)
+    space_complexity: O(n)
+    explanation: |
+      Let `good[i]` mean "the last index can be reached from `i`". The last index is good. Going right to left, `i` is good if any index it can land on, `i + 1 .. i + nums[i]`, is good. The answer is `good[0]`.
+    tradeoff: The natural DP formulation and a fine starting point, but each index may scan up to n later positions, which is O(n²), about 10^8 steps at the largest inputs. The greedy notices that only the leftmost good index matters and keeps one number instead.
+    code: |
+      class Solution:
+          def canJump(self, nums: List[int]) -> bool:
+              n = len(nums)
+              good = [False] * n  # good[i]: the last index is reachable from i
+              good[n - 1] = True
+              for i in range(n - 2, -1, -1):
+                  farthest = min(n - 1, i + nums[i])
+                  # i is good if any landing spot within its range is good.
+                  good[i] = any(good[j] for j in range(i + 1, farthest + 1))
+              return good[0]
+  - name: Greedy from the end (moving goal)
+    time_complexity: O(n)
+    space_complexity: O(1)
+    explanation: |
+      Walk from right to left, keeping `goal`, the leftmost index known to reach the end. If index `i` can jump to `goal` (`i + nums[i] >= goal`), then `i` can reach the end too, so it becomes the new goal. The answer is `True` exactly when the goal ends up at index 0.
+    tradeoff: Same O(n) time and O(1) space. It is the DP above, with the observation that only the leftmost good index matters. Some people find it more intuitive, but it always scans the whole array, while the forward version can stop as soon as it gets stuck or reaches the end.
+    code: |
+      class Solution:
+          def canJump(self, nums: List[int]) -> bool:
+              goal = len(nums) - 1  # leftmost index known to reach the end
+              for i in range(len(nums) - 2, -1, -1):
+                  if i + nums[i] >= goal:
+                      goal = i  # from i we can jump to goal, so i is a new, closer target
+              return goal == 0
+
+tests:
+  - { name: single zero, input: { nums: [0] }, expected: true }
+  - { name: stuck at the start, input: { nums: [0, 1] }, expected: false }
+  - { name: exact single step, input: { nums: [1, 0] }, expected: true }
+  - { name: one jump over several zeros, input: { nums: [3, 0, 0, 0] }, expected: true }
+  - { name: zero that cannot be jumped, input: { nums: [1, 0, 1, 0] }, expected: false }
+  - { name: trap in the middle, input: { nums: [1, 1, 0, 1] }, expected: false }
+  - { name: chain of single steps, input: { nums: [1, 1, 1, 1, 1] }, expected: true }
+  - { name: later index has the long jump, input: { nums: [2, 5, 0, 0] }, expected: true }
+  - { name: frontier stops one short, input: { nums: [4, 1, 1, 0, 0, 2] }, expected: false }
+  - { name: big values after a zero, input: { nums: [0, 100000, 100000] }, expected: false }
+
+benchmark:
+  size_label: length of nums
+  sizes: [80, 400, 2000, 10000]
+  generator: |
+    def generate(n, rng):
+        # Short jumps (1-3) plus occasional zeros that can always be jumped over
+        # (each zero follows a value >= 2 and zeros never touch). The answer is True,
+        # but the greedy scan has to walk almost the whole array to see that.
+        nums = [rng.randint(1, 3) for _ in range(n)]
+        for i in range(1, n - 1):
+            if nums[i - 1] >= 2 and rng.random() < 0.2:
+                nums[i] = 0
+        return {"nums": nums}

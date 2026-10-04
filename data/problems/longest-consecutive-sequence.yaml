@@ -1,0 +1,162 @@
+id: "128"
+title: Longest Consecutive Sequence
+slug: longest-consecutive-sequence
+leetcode_url: https://leetcode.com/problems/longest-consecutive-sequence/
+category: arrays-hashing
+difficulty: Medium
+patterns: [Hash Set, Sequence Start Detection]
+
+description: |
+  Given an **unsorted** integer array `nums`, return the length of the longest run of **consecutive integers** (`x, x + 1, x + 2, ...`) whose values all appear in `nums`.
+
+  The values do not need to be adjacent in the array, only present somewhere in it. Duplicates count once.
+
+  Your algorithm must run in **O(n)** time.
+
+examples:
+  - input: { nums: [10, 5, 12, 3, 11, 4, 13] }
+    output: 4
+    explanation: The longest run is `10, 11, 12, 13`. The run `3, 4, 5` has only length 3.
+  - input: { nums: [0, -1, 1, 1, 2] }
+    output: 4
+    explanation: The run `-1, 0, 1, 2` has length 4. The duplicate `1` does not make it longer.
+  - input: { nums: [] }
+    output: 0
+
+constraints:
+  - "`0 <= nums.length <= 10^5`"
+  - "`-10^9 <= nums[i] <= 10^9`"
+
+function_signature: "def longestConsecutive(self, nums: List[int]) -> int"
+
+starter_code: |
+  class Solution:
+      def longestConsecutive(self, nums: List[int]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: longestConsecutive
+  params:
+    - { name: nums, type: "List[int]" }
+  returns: int
+
+hints:
+  - Sorting makes consecutive values adjacent, but costs O(n log n). What structure lets you ask "is `x + 1` present?" in O(1) without sorting?
+  - With all values in a hash set you can count a run by repeatedly checking `x + 1`, `x + 2`, and so on. But if you do that from every element, a long run gets re-counted from each of its members. How do you avoid that?
+  - Only start counting from a value `x` when `x - 1` is **not** in the set. Such an `x` is the first value of its run, so each run is walked exactly once.
+
+approach: Hash set, count only from run starts
+optimal_solution: |
+  class Solution:
+      def longestConsecutive(self, nums: List[int]) -> int:
+          num_set = set(nums)  # O(1) membership checks; duplicates collapse
+          longest = 0
+
+          for num in num_set:
+              # If num - 1 exists, num is inside a run that will be counted
+              # from its real start, so skip it.
+              if num - 1 not in num_set:
+                  length = 1
+                  while num + length in num_set:
+                      length += 1
+                  longest = max(longest, length)
+
+          return longest
+
+explanation: |
+  **Intuition.** Every consecutive run has exactly one **starting value**: the `x` for which `x - 1` is missing. If we put all values in a hash set, we can recognise a start in O(1) and then walk forward (`x + 1`, `x + 2`, ...) to measure its run.
+
+  The key is to walk *only* from starts. Walking from every value would re-measure the run `1..1000` from `1`, from `2`, from `3`, and so on, which is quadratic. Walking only from starts means each value is stepped over by exactly one walk.
+
+  **Algorithm.**
+  1. Put all values in `num_set`.
+  2. For each `num` in the set:
+     - If `num - 1` is in the set, skip it: `num` is not the start of its run.
+     - Otherwise count `length` while `num + length` is in the set, and update `longest`.
+  3. Return `longest` (which stays `0` for an empty input).
+
+  **Subtle points.**
+  - **Iterate over the set, not over `nums`.** With input like `[1, 1, 1, ..., 1, 2, 3, ..., k]`, looping over `nums` would start a full walk from every copy of `1`, quietly bringing back the quadratic behaviour.
+  - Duplicates neither extend nor break a run, and the set removes them automatically.
+  - Negative numbers and gaps need no special handling. The check `num - 1 not in num_set` works for any integers.
+
+key_insight: Start counting only at values whose predecessor is missing, so every value is visited by at most one forward walk and the total work is O(n).
+
+time_complexity: O(n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n):** building the set is O(n). The `for` loop visits each distinct value once. The inner `while` loop runs only from run starts, and each value can be stepped over by only one such walk (the walk from its run's start), so all inner iterations together add up to at most n. Set lookups are O(1) on average.
+
+  **Space O(n):** the hash set stores up to n distinct values.
+
+data_structures: [Hash set]
+passes: 1 pass to build the set + amortized 1 walk over each run
+
+alternatives:
+  - name: Extend from every number (no start check)
+    time_complexity: O(n²)
+    space_complexity: O(n)
+    explanation: |
+      Put the values in a set, then from *every* value walk forward while the next integer exists, keeping the longest walk. It is the optimal algorithm without the "is this a run start?" check.
+    tradeoff: Looks linear but is not. On a single run of length L, the walk from its first value takes L steps, the next L - 1, and so on, about L²/2 lookups in total. The one-line `num - 1 not in num_set` check is what brings this down to O(n).
+    code: |
+      class Solution:
+          def longestConsecutive(self, nums: List[int]) -> int:
+              num_set = set(nums)
+              longest = 0
+              for num in num_set:
+                  length = 1
+                  while num + length in num_set:
+                      length += 1
+                  longest = max(longest, length)
+              return longest
+  - name: Sort, then scan
+    time_complexity: O(n log n)
+    space_complexity: O(n)
+    explanation: |
+      Sort the values so that consecutive integers become neighbours. Scan once, extending the current run when `nums[i] == nums[i - 1] + 1`, skipping exact duplicates, and resetting the run to 1 on any larger gap.
+    tradeoff: Intuitive and uses only a sorted copy, but sorting costs O(n log n), which violates the O(n) requirement. In Python it is still quick in practice because the sort runs in C. Remember to skip duplicates rather than resetting the run on them.
+    code: |
+      class Solution:
+          def longestConsecutive(self, nums: List[int]) -> int:
+              if not nums:
+                  return 0
+              nums = sorted(nums)
+              longest = current = 1
+              for i in range(1, len(nums)):
+                  if nums[i] == nums[i - 1]:
+                      continue  # duplicates neither extend nor break the run
+                  if nums[i] == nums[i - 1] + 1:
+                      current += 1
+                  else:
+                      current = 1
+                  longest = max(longest, current)
+              return longest
+
+tests:
+  - { name: empty array, input: { nums: [] }, expected: 0 }
+  - { name: single element, input: { nums: [5] }, expected: 1 }
+  - { name: all duplicates, input: { nums: [7, 7, 7] }, expected: 1 }
+  - { name: duplicate inside a run, input: { nums: [1, 2, 2, 3] }, expected: 3 }
+  - { name: many copies of the run start, input: { nums: [1, 1, 1, 1, 2, 3] }, expected: 3 }
+  - { name: negative run, input: { nums: [-3, -1, -2, 0, 5] }, expected: 4 }
+  - { name: run crossing zero, input: { nums: [2, -2, 1, -1, 0] }, expected: 5 }
+  - { name: two runs of equal length, input: { nums: [10, 11, 12, 1, 2, 3] }, expected: 3 }
+  - { name: extreme values with gaps, input: { nums: [1000000000, -1000000000, 0] }, expected: 1 }
+  - { name: long run in descending order, input: { nums: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 20, 30] }, expected: 10 }
+
+benchmark:
+  size_label: length of nums
+  sizes: [100, 1000, 5000, 20000, 100000]
+  generator: |
+    def generate(n, rng):
+        # One long run covering half the array, shuffled among values that are
+        # spread far apart. A long run is the worst case for approaches that
+        # re-walk the run from every member.
+        run_len = n // 2
+        start = rng.randint(-10**6, 10**6)
+        nums = list(range(start, start + run_len))
+        nums += rng.sample(range(10**7, 10**9), n - run_len)
+        rng.shuffle(nums)
+        return {"nums": nums}

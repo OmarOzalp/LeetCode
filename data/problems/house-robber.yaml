@@ -1,0 +1,155 @@
+id: "198"
+title: House Robber
+slug: house-robber
+leetcode_url: https://leetcode.com/problems/house-robber/
+category: dp-1d
+difficulty: Medium
+patterns: [1-D DP, Take or Skip, Memoization]
+
+description: |
+  A row of houses lines a street, and `nums[i]` is the amount of money hidden in house `i`.
+
+  You want to collect as much money as possible, but neighboring houses share an alarm system: if **two adjacent houses** are both robbed on the same night, the police are alerted.
+
+  Return the **maximum total** you can collect without ever robbing two adjacent houses.
+
+examples:
+  - input: { nums: [1, 2, 3, 1] }
+    output: 4
+    explanation: Rob house 0 (1) and house 2 (3) for a total of 4.
+  - input: { nums: [2, 7, 9, 3, 1] }
+    output: 12
+    explanation: "Rob houses 0, 2 and 4: `2 + 9 + 1 = 12`. Taking the single largest neighbor pair (7 and 9) is not allowed."
+  - input: { nums: [2, 1, 1, 2] }
+    output: 4
+    explanation: Rob the first and last house. The best plan skips **two** houses in a row, so strictly alternating (even or odd indices) is not always optimal.
+
+constraints:
+  - "`1 <= nums.length <= 100`"
+  - "`0 <= nums[i] <= 400`"
+
+function_signature: "def rob(self, nums: List[int]) -> int"
+
+starter_code: |
+  class Solution:
+      def rob(self, nums: List[int]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: rob
+  params:
+    - { name: nums, type: "List[int]" }
+  returns: int
+
+hints:
+  - Look at the houses one at a time. At each house you face exactly one decision. What is it, and what does each choice rule out?
+  - Picking alternate houses greedily fails on inputs like `[2, 1, 1, 2]`. Instead, define the best total you can collect from the first `i + 1` houses and ask how it relates to smaller prefixes.
+  - "If you rob house `i` you cannot rob house `i - 1`, so the best is `best(i - 2) + nums[i]`; if you skip it, the best is `best(i - 1)`. Take the larger of the two, and notice you only ever need the last two answers."
+
+approach: Bottom-up DP with two rolling values
+optimal_solution: |
+  class Solution:
+      def rob(self, nums: List[int]) -> int:
+          # prev1 = best total for the houses seen so far (0..i-1)
+          # prev2 = best total for the houses before that (0..i-2)
+          prev2, prev1 = 0, 0
+
+          for money in nums:
+              # Skip this house (keep prev1) or rob it (prev2 + money).
+              prev2, prev1 = prev1, max(prev1, prev2 + money)
+
+          return prev1
+
+explanation: |
+  **Intuition.** Walk down the street left to right. At each house there is one decision: **rob it or skip it**. Robbing it forbids the previous house, skipping it leaves you free to have robbed the previous one. The best plan for a prefix of the street therefore only depends on the best plans for the two shorter prefixes.
+
+  **State & recurrence.**
+  - **State:** `dp[i]` = maximum money obtainable from houses `0..i` (house `i` may or may not be robbed).
+  - **Transition:** `dp[i] = max(dp[i - 1], dp[i - 2] + nums[i])`.
+    - `dp[i - 1]`: skip house `i`; the best for the first `i` houses carries over.
+    - `dp[i - 2] + nums[i]`: rob house `i`; house `i - 1` is off limits, so add `nums[i]` to the best for houses `0..i-2`.
+  - **Base cases:** `dp[-1] = dp[-2] = 0` (no houses, no money). That makes `dp[0] = nums[0]` and `dp[1] = max(nums[0], nums[1])` fall out of the same formula.
+  - **Order:** left to right, since `dp[i]` needs `dp[i - 1]` and `dp[i - 2]`.
+  - **Space:** only the last two `dp` values are ever read, so keep them in `prev1` and `prev2`.
+
+  **Algorithm.**
+  1. Start with `prev2 = prev1 = 0` (best totals for "no houses").
+  2. For each `money` in `nums`, the new best is `max(prev1, prev2 + money)`.
+  3. Shift the window: `prev2` becomes the old `prev1`, `prev1` becomes the new best.
+  4. After the last house, `prev1` is the answer.
+
+  **Why not just alternate?** Taking every even or every odd house is a tempting greedy, but `[2, 1, 1, 2]` needs houses 0 and 3, which skips two in a row. The DP considers every legal pattern implicitly.
+
+  **The progression.** The plain recursion `best(i) = max(best(i - 1), best(i - 2) + nums[i])` is correct but recomputes subproblems exponentially often. Memoizing it makes it O(n); filling the values left to right removes recursion; keeping only two of them gives O(1) space.
+
+key_insight: "At each house choose skip (best of the previous prefix) or rob (best two houses back plus this one): dp[i] = max(dp[i-1], dp[i-2] + nums[i]), which needs only two rolling values."
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** one pass over the houses with a constant amount of work (one `max`, one addition) per house.
+
+  **Space O(1):** the recurrence only reads the previous two answers, so two integers replace the O(n) `dp` table.
+
+data_structures: [Two rolling variables]
+passes: 1 pass over nums
+
+alternatives:
+  - name: Plain recursion (brute force)
+    time_complexity: O(φⁿ) ≈ O(1.62ⁿ)
+    space_complexity: O(n)
+    explanation: |
+      Translate the decision directly into recursion: `best(i)` is the best total from houses `0..i`, and it either skips house `i` (`best(i - 1)`) or robs it (`best(i - 2) + nums[i]`). Negative indices mean "no houses left" and return 0.
+
+      Each call spawns two more, and the same `best(k)` is recomputed along many different paths, so the number of calls grows like the Fibonacci numbers.
+    tradeoff: Correct and the natural first step to discovering the recurrence, but exponential. Around 30 houses it already makes millions of calls, and 100 houses is hopeless, whereas the DP does 100 steps.
+    code: |
+      class Solution:
+          def rob(self, nums: List[int]) -> int:
+              def best(i: int) -> int:
+                  """Max money from houses 0..i."""
+                  if i < 0:
+                      return 0
+                  return max(best(i - 1), best(i - 2) + nums[i])
+
+              return best(len(nums) - 1)
+  - name: Top-down recursion with memoization
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      The same recursion, but each `best(i)` is cached the first time it is computed. There are only `n` distinct subproblems, each doing O(1) work once its two children are known.
+    tradeoff: Fixes the exponential blow-up with a single decorator and is often the fastest way to a correct answer in an interview. It still uses O(n) cache memory and O(n) recursion depth; the bottom-up loop needs neither.
+    code: |
+      class Solution:
+          def rob(self, nums: List[int]) -> int:
+              @cache
+              def best(i: int) -> int:
+                  """Max money from houses 0..i."""
+                  if i < 0:
+                      return 0
+                  return max(best(i - 1), best(i - 2) + nums[i])
+
+              return best(len(nums) - 1)
+
+tests:
+  - { name: single house, input: { nums: [7] }, expected: 7 }
+  - { name: two houses first richer, input: { nums: [2, 1] }, expected: 2 }
+  - { name: two houses second richer, input: { nums: [1, 9] }, expected: 9 }
+  - { name: all empty, input: { nums: [0, 0, 0, 0] }, expected: 0 }
+  - { name: rob both ends, input: { nums: [5, 1, 1, 5] }, expected: 10 }
+  - { name: big house at the end, input: { nums: [1, 3, 1, 3, 100] }, expected: 103 }
+  - { name: equal values, input: { nums: [4, 4, 4, 4, 4] }, expected: 12 }
+  - { name: maximum values, input: { nums: [400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400] }, expected: 4000 }
+  - name: longer mixed street
+    input: { nums: [6, 3, 10, 8, 2, 10, 3, 5, 10, 5, 3, 7, 1, 9, 0, 4, 2, 8, 6, 1, 7, 3, 9, 2] }
+    expected: 80
+
+benchmark:
+  size_label: number of houses
+  sizes: [10, 20, 30, 60, 100]
+  generator: |
+    def generate(n, rng):
+        # Constraint: n <= 100 and 0 <= nums[i] <= 400. Linear DP is instant here,
+        # but recursion without memoization grows like Fibonacci(n).
+        return {"nums": [rng.randint(0, 400) for _ in range(n)]}

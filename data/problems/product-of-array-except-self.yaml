@@ -1,0 +1,159 @@
+id: "238"
+title: Product of Array Except Self
+slug: product-of-array-except-self
+leetcode_url: https://leetcode.com/problems/product-of-array-except-self/
+category: arrays-hashing
+difficulty: Medium
+patterns: [Prefix Product, Suffix Product]
+
+description: |
+  Given an integer array `nums`, build an array `answer` of the same length where `answer[i]` is the **product of every element of `nums` except `nums[i]`**.
+
+  Your algorithm must run in **O(n)** time and must **not use division**. The product of any prefix or suffix of `nums` is guaranteed to fit in a 32-bit signed integer.
+
+  **Follow-up:** can you do it with O(1) extra space? The output array does not count as extra space.
+
+examples:
+  - input: { nums: [2, 3, 4, 5] }
+    output: [60, 40, 30, 24]
+    explanation: 'For example `answer[0] = 3 · 4 · 5 = 60` and `answer[2] = 2 · 3 · 5 = 30`.'
+  - input: { nums: [-2, 0, 3, 1] }
+    output: [0, -6, 0, 0]
+    explanation: Every product except the one that skips the zero contains a `0`. Skipping index 1 leaves `-2 · 3 · 1 = -6`.
+  - input: { nums: [5, 7] }
+    output: [7, 5]
+
+constraints:
+  - "`2 <= nums.length <= 10^5`"
+  - "`-30 <= nums[i] <= 30`"
+  - The product of any prefix or suffix of `nums` fits in a 32-bit signed integer.
+
+function_signature: "def productExceptSelf(self, nums: List[int]) -> List[int]"
+
+starter_code: |
+  class Solution:
+      def productExceptSelf(self, nums: List[int]) -> List[int]:
+          pass
+
+runner:
+  kind: function
+  method: productExceptSelf
+  params:
+    - { name: nums, type: "List[int]" }
+  returns: "List[int]"
+
+hints:
+  - Recomputing the product for every index from scratch is O(n²). Split "everything except `nums[i]`" into two simpler pieces. What are they?
+  - '`answer[i]` = (product of everything to the left of `i`) × (product of everything to the right of `i`). Both pieces can be computed for all indices with a running product.'
+  - Make one left-to-right pass that stores the product of all earlier elements in `answer[i]`, then one right-to-left pass that multiplies in a running product of all later elements. No extra arrays are needed.
+
+approach: Prefix and suffix products in the output array
+optimal_solution: |
+  class Solution:
+      def productExceptSelf(self, nums: List[int]) -> List[int]:
+          n = len(nums)
+          answer = [1] * n
+
+          # Pass 1: answer[i] = product of everything to the LEFT of i.
+          prefix = 1
+          for i in range(n):
+              answer[i] = prefix
+              prefix *= nums[i]
+
+          # Pass 2: multiply in the product of everything to the RIGHT of i.
+          suffix = 1
+          for i in range(n - 1, -1, -1):
+              answer[i] *= suffix
+              suffix *= nums[i]
+
+          return answer
+
+explanation: |
+  **Intuition.** The product of "everything except index `i`" is the product of two contiguous blocks: everything **before** `i` and everything **after** `i`.
+
+  `[a, b, c, d]`, skipping `c`: `(a · b) · (d)`
+
+  Both blocks are prefix/suffix products, and a prefix product can be extended by one element in O(1): `prefix(i + 1) = prefix(i) · nums[i]`. So we can get every left block in one pass and every right block in another pass.
+
+  **Algorithm.**
+  1. Create `answer = [1] * n`.
+  2. **Left pass:** keep a running `prefix = 1`. At each `i`, first store `answer[i] = prefix` (the product of `nums[0..i-1]`), *then* update `prefix *= nums[i]`.
+  3. **Right pass:** keep a running `suffix = 1` and walk from the end. At each `i`, multiply `answer[i] *= suffix` (the product of `nums[i+1..n-1]`), then update `suffix *= nums[i]`.
+  4. `answer[i]` now holds left product × right product.
+
+  **Subtle points.**
+  - **Order of operations matters.** Write to `answer[i]` *before* folding `nums[i]` into the running product; otherwise `nums[i]` would be included in its own result.
+  - **Why no division?** "Total product ÷ `nums[i]`" breaks on zeros: with one zero, only the zero's own slot is non-zero, and with two zeros everything is zero. The prefix/suffix method handles zeros naturally, with no special cases.
+  - Storing the prefixes directly in `answer` and keeping the suffix in a single variable is what achieves O(1) extra space.
+
+key_insight: Every answer is (product of everything to the left) × (product of everything to the right), and both can be built with running products in two passes.
+
+time_complexity: O(n)
+space_complexity: O(1) extra
+complexity_explanation: |
+  **Time O(n):** two passes over the array, each doing O(1) work per element.
+
+  **Space O(1) extra:** apart from the required output array `answer`, we only keep the two scalars `prefix` and `suffix`. If the output counted, it would be O(n).
+
+data_structures: [Array]
+passes: 2 passes (left-to-right, then right-to-left)
+
+alternatives:
+  - name: Brute force (multiply everything else for each index)
+    time_complexity: O(n²)
+    space_complexity: O(1) extra
+    explanation: |
+      For each index `i`, loop over the whole array and multiply every element whose index is not `i`.
+    tradeoff: Obviously correct and handles zeros, but recomputes almost the same product n times, about n² multiplications in total. At n = 10⁵ that is 10 billion operations versus 2·10⁵ for the two-pass solution.
+    code: |
+      class Solution:
+          def productExceptSelf(self, nums: List[int]) -> List[int]:
+              n = len(nums)
+              answer = []
+              for i in range(n):
+                  product = 1
+                  for j in range(n):
+                      if j != i:
+                          product *= nums[j]
+                  answer.append(product)
+              return answer
+  - name: Separate prefix and suffix arrays
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Build `left[i]` = product of `nums[0..i-1]` and `right[i]` = product of `nums[i+1..n-1]` as two separate arrays, then return `left[i] * right[i]` for every `i`. This is the same idea as the optimal solution, written more explicitly.
+    tradeoff: Same O(n) time and often easier to reason about the first time, but it allocates two extra arrays. Folding the left products into the output and the right products into one variable removes that O(n) extra memory and answers the follow-up.
+    code: |
+      class Solution:
+          def productExceptSelf(self, nums: List[int]) -> List[int]:
+              n = len(nums)
+              left = [1] * n   # left[i]  = product of nums[0..i-1]
+              right = [1] * n  # right[i] = product of nums[i+1..n-1]
+              for i in range(1, n):
+                  left[i] = left[i - 1] * nums[i - 1]
+              for i in range(n - 2, -1, -1):
+                  right[i] = right[i + 1] * nums[i + 1]
+              return [left[i] * right[i] for i in range(n)]
+
+tests:
+  - { name: two elements, input: { nums: [3, 4] }, expected: [4, 3] }
+  - { name: two elements with a negative, input: { nums: [-1, 1] }, expected: [1, -1] }
+  - { name: one zero, input: { nums: [1, 2, 0, 4] }, expected: [0, 0, 8, 0] }
+  - { name: zero in the middle with negatives, input: { nums: [2, -1, 0, -3, 3] }, expected: [0, 0, 18, 0, 0] }
+  - { name: two zeros, input: { nums: [0, 2, 0, 3] }, expected: [0, 0, 0, 0] }
+  - { name: zero first, input: { nums: [0, 4, 5] }, expected: [20, 0, 0] }
+  - { name: all negatives, input: { nums: [-1, -2, -3, -4] }, expected: [-24, -12, -8, -6] }
+  - { name: all ones, input: { nums: [1, 1, 1, 1, 1] }, expected: [1, 1, 1, 1, 1] }
+  - { name: value bounds, input: { nums: [30, -30, 30] }, expected: [-900, 900, -900] }
+
+benchmark:
+  size_label: length of nums
+  sizes: [100, 1000, 5000, 20000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Mostly 1 and -1 so every prefix/suffix product fits in 32 bits, plus
+        # at most 20 entries of magnitude 2 (2^20 is well below 2^31).
+        nums = [rng.choice((1, -1)) for _ in range(n)]
+        for i in rng.sample(range(n), min(n, 20)):
+            nums[i] = rng.choice((2, -2))
+        return {"nums": nums}

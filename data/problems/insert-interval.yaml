@@ -1,0 +1,158 @@
+id: "57"
+title: Insert Interval
+slug: insert-interval
+leetcode_url: https://leetcode.com/problems/insert-interval/
+category: intervals
+difficulty: Medium
+patterns: [Intervals, Linear Scan, Merging]
+
+description: |
+  You are given a list of **non-overlapping** intervals `intervals`, where `intervals[i] = [start_i, end_i]`, sorted in ascending order by `start_i`. You are also given one more interval, `newInterval = [start, end]`.
+
+  Insert `newInterval` so that the list is still **sorted by start** and still has **no overlapping intervals**, merging intervals wherever necessary. Return the resulting list. You may build and return a new list instead of modifying `intervals`.
+
+  Two intervals overlap if they share at least one point. Intervals that merely **touch**, such as `[1, 5]` and `[5, 7]`, therefore overlap and must be merged into `[1, 7]`.
+
+examples:
+  - input: { intervals: [[1, 3], [6, 9]], newInterval: [2, 5] }
+    output: [[1, 5], [6, 9]]
+    explanation: |
+      `[2, 5]` overlaps `[1, 3]`, and together they become `[1, 5]`. `[6, 9]` is not affected.
+  - input: { intervals: [[1, 2], [3, 5], [6, 7], [8, 10], [12, 16]], newInterval: [4, 8] }
+    output: [[1, 2], [3, 10], [12, 16]]
+    explanation: |
+      `[4, 8]` overlaps `[3, 5]`, `[6, 7]` and `[8, 10]` (touching at 8 counts), so all four merge into `[3, 10]`.
+  - input: { intervals: [[1, 5]], newInterval: [5, 7] }
+    output: [[1, 7]]
+    explanation: |
+      The intervals touch at 5, which counts as overlapping.
+
+constraints:
+  - "`0 <= intervals.length <= 10^4`"
+  - "`intervals[i].length == 2`"
+  - "`0 <= start_i <= end_i <= 10^5`"
+  - "`intervals` is sorted by `start_i` in ascending order and contains no overlapping intervals."
+  - "`newInterval.length == 2`"
+  - "`0 <= start <= end <= 10^5`"
+
+function_signature: "def insert(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]"
+
+starter_code: |
+  class Solution:
+      def insert(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:
+          pass
+
+runner:
+  kind: function
+  method: insert
+  params:
+    - { name: intervals, type: "List[List[int]]" }
+    - { name: newInterval, type: "List[int]" }
+  returns: "List[List[int]]"
+
+hints:
+  - The input is already sorted and non-overlapping, so you never need to sort. Split the existing intervals into three groups based on where they sit relative to `newInterval`.
+  - Intervals that end before `newInterval` starts come first, unchanged. Intervals that start after `newInterval` ends come last, unchanged. Everything in between overlaps it, and these form one contiguous block.
+  - Make one pass. Copy the "before" group, then absorb every overlapping interval into `newInterval` by taking the minimum start and the maximum end, append the merged interval, and copy the rest. Watch the touching case. Something is entirely "before" only if its end is strictly less than the new start.
+
+approach: Three-phase linear scan
+optimal_solution: |
+  class Solution:
+      def insert(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:
+          result = []
+          start, end = newInterval
+          i, n = 0, len(intervals)
+
+          # 1. Intervals that end before the new one starts: no overlap, keep them.
+          while i < n and intervals[i][1] < start:
+              result.append(intervals[i])
+              i += 1
+
+          # 2. Intervals that start before (or exactly when) the new one ends overlap it:
+          #    grow [start, end] to cover each of them.
+          while i < n and intervals[i][0] <= end:
+              start = min(start, intervals[i][0])
+              end = max(end, intervals[i][1])
+              i += 1
+          result.append([start, end])
+
+          # 3. Everything left starts after the merged interval ends: keep it.
+          result.extend(intervals[i:])
+          return result
+
+explanation: |
+  **Intuition.** Because `intervals` is sorted and non-overlapping, `newInterval` can only collide with one **contiguous block** of it. Everything to the left of that block ends before `newInterval` starts, and everything to the right starts after it ends. So one left-to-right scan in three phases does the job: *copy, merge, copy*.
+
+  **Why the sorted order is the key.** Sorted, non-overlapping intervals have their **ends sorted too**. That gives both loops a safe place to stop:
+  - Phase 1 stops at the first interval with `end_i >= start`. Every later interval ends even later, so none of them is entirely before `newInterval`.
+  - Phase 2 stops at the first interval with `start_i > end`. Every later interval starts even later, so none of them can reach back into the merged interval, even though `end` grew while merging.
+
+  Without the sorted guarantee we would first have to sort (O(n log n)), which is what the general *Merge Intervals* problem does.
+
+  **Algorithm.**
+  1. Append every interval with `end_i < start` to the result unchanged.
+  2. While the next interval has `start_i <= end`, it overlaps. Set `start = min(start, start_i)` and `end = max(end, end_i)`.
+  3. Append the merged `[start, end]`.
+  4. Append all remaining intervals unchanged.
+
+  **Subtle points.**
+  - **Touching intervals overlap here.** That is why phase 1 uses a strict `end_i < start` and phase 2 uses `start_i <= end`. Swapping in `<=` / `<` would leave `[1, 5]` and `[5, 7]` unmerged.
+  - Only the first absorbed interval can lower `start`, and only the last can raise `end`. Calling `min`/`max` on every step is simpler and just as fast.
+  - If nothing overlaps, phase 2 runs zero times and `newInterval` simply lands in its sorted position, which may be the very front, the very end, or an empty list.
+  - If `newInterval` lies completely inside an existing interval, that interval absorbs it and comes out unchanged.
+
+key_insight: In a sorted, disjoint list the intervals overlapping the new one form a single contiguous block, so one scan can copy the left part, merge the block, and copy the right part.
+
+time_complexity: O(n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n):** the index `i` only moves forward, and each interval is handled once in exactly one of the three phases with O(1) work.
+
+  **Space O(n):** the output list can hold up to `n + 1` intervals. Apart from the output, only a few variables are used (O(1) extra).
+
+data_structures: [Array]
+passes: 1 pass over intervals
+
+alternatives:
+  - name: Append, sort and merge
+    time_complexity: O(n log n)
+    space_complexity: O(n)
+    explanation: |
+      Add `newInterval` to the list, sort everything by start, and run the standard *Merge Intervals* sweep. Each interval either extends the last merged interval (if it starts at or before that interval's end) or starts a new one.
+    tradeoff: Reuses a pattern you already know and is hard to get wrong, but it ignores that the input is already sorted, paying O(n log n) for the sort where one O(n) pass is enough. (Python's Timsort is fast on nearly sorted data, so the practical gap is small, but interviewers expect the linear scan.)
+    code: |
+      class Solution:
+          def insert(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:
+              # Treat it as the general Merge Intervals problem.
+              merged = []
+              for start, end in sorted(intervals + [newInterval]):
+                  if merged and start <= merged[-1][1]:
+                      merged[-1][1] = max(merged[-1][1], end)  # overlaps or touches: extend
+                  else:
+                      merged.append([start, end])  # a gap: start a new interval
+              return merged
+
+tests:
+  - { name: no existing intervals, input: { intervals: [], newInterval: [5, 7] }, expected: [[5, 7]] }
+  - { name: insert at the front, input: { intervals: [[3, 5], [6, 9]], newInterval: [1, 2] }, expected: [[1, 2], [3, 5], [6, 9]] }
+  - { name: insert at the end, input: { intervals: [[1, 2], [3, 4]], newInterval: [6, 8] }, expected: [[1, 2], [3, 4], [6, 8]] }
+  - { name: touching on the left, input: { intervals: [[3, 5], [8, 10]], newInterval: [1, 3] }, expected: [[1, 5], [8, 10]] }
+  - { name: fits in a gap, input: { intervals: [[1, 2], [6, 7]], newInterval: [3, 4] }, expected: [[1, 2], [3, 4], [6, 7]] }
+  - { name: inside an existing interval, input: { intervals: [[1, 10]], newInterval: [3, 4] }, expected: [[1, 10]] }
+  - { name: covers everything, input: { intervals: [[1, 2], [3, 5], [6, 7], [8, 10], [12, 16]], newInterval: [0, 20] }, expected: [[0, 20]] }
+  - { name: bridges two intervals by touching both, input: { intervals: [[1, 3], [6, 9]], newInterval: [3, 6] }, expected: [[1, 9]] }
+  - { name: point intervals, input: { intervals: [[0, 0], [2, 2], [4, 4]], newInterval: [2, 2] }, expected: [[0, 0], [2, 2], [4, 4]] }
+  - { name: point interval in a gap, input: { intervals: [[1, 3], [6, 9]], newInterval: [4, 4] }, expected: [[1, 3], [4, 4], [6, 9]] }
+
+benchmark:
+  size_label: number of intervals
+  sizes: [100, 500, 2500, 10000]
+  generator: |
+    def generate(n, rng):
+        # n sorted, disjoint intervals built from 2n distinct sorted points in
+        # [0, 10^5]. The new interval spans roughly the middle fifth of them.
+        points = sorted(rng.sample(range(100001), 2 * n))
+        intervals = [[points[2 * k], points[2 * k + 1]] for k in range(n)]
+        lo = points[rng.randint(4 * n // 5, n)]
+        hi = points[rng.randint(n, 6 * n // 5)]
+        return {"intervals": intervals, "newInterval": [lo, hi]}

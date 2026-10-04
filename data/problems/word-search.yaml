@@ -1,0 +1,186 @@
+id: "79"
+title: Word Search
+slug: word-search
+leetcode_url: https://leetcode.com/problems/word-search/
+category: backtracking
+difficulty: Medium
+patterns: [Backtracking, DFS, Matrix]
+
+description: |
+  You are given an `m x n` grid of characters `board` and a string `word`. Return `True` if `word` can be traced on the board, and `False` otherwise.
+
+  To trace a word, start at any cell whose letter matches the first character, then move one step at a time to a **horizontally or vertically** adjacent cell (no diagonals) whose letter matches the next character. A cell may be used **at most once** in the path.
+
+  Letters are case-sensitive: `"a"` and `"A"` are different characters.
+
+examples:
+  - input:
+      board: [["c", "a", "t"], ["o", "r", "e"], ["d", "e", "s"]]
+      word: core
+    output: true
+    explanation: "Start at `c` in the top-left, go down to `o`, right to `r`, and right again to `e`."
+  - input:
+      board: [["c", "a", "t"], ["o", "r", "e"], ["d", "e", "s"]]
+      word: cart
+    output: false
+    explanation: "`c → a → r` works, but the only `t` (top right) is diagonal to `r`, so the path cannot continue."
+  - input:
+      board: [["a", "a"]]
+      word: aaa
+    output: false
+    explanation: There are only two cells, and a cell cannot be used twice.
+
+constraints:
+  - "`m == board.length`, `n == board[i].length`"
+  - "`1 <= m, n <= 6`"
+  - "`1 <= word.length <= 15`"
+  - "`board` and `word` consist of lowercase and uppercase English letters only."
+
+function_signature: "def exist(self, board: List[List[str]], word: str) -> bool"
+
+starter_code: |
+  class Solution:
+      def exist(self, board: List[List[str]], word: str) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: exist
+  params:
+    - { name: board, type: "List[List[str]]" }
+    - { name: word, type: str }
+  returns: bool
+
+hints:
+  - The path could start at any cell, so try each cell as a starting point. From a start cell, how would you explore every way the word could continue?
+  - Write a recursive DFS that takes a cell and an index into the word. It succeeds when the whole word has been matched and fails on an out-of-bounds cell, a wrong letter, or a cell already used on the current path.
+  - Before exploring the neighbors, mark the current cell as used (for example, overwrite it with a placeholder). After exploring them, put the letter back so other paths can use the cell. That restore step is the backtracking.
+
+approach: Backtracking DFS with in-place marking
+optimal_solution: |
+  class Solution:
+      def exist(self, board: List[List[str]], word: str) -> bool:
+          rows, cols = len(board), len(board[0])
+
+          # Pruning 1: the board must contain enough copies of every letter.
+          board_count = Counter(ch for row in board for ch in row)
+          if any(board_count[ch] < need for ch, need in Counter(word).items()):
+              return False
+
+          # Pruning 2: start from whichever end of the word is rarer on the board,
+          # so fewer starting cells survive the first comparisons.
+          if board_count[word[0]] > board_count[word[-1]]:
+              word = word[::-1]
+
+          def dfs(r: int, c: int, i: int) -> bool:
+              """Can word[i:] be traced starting at cell (r, c)?"""
+              if board[r][c] != word[i]:
+                  return False
+              if i == len(word) - 1:
+                  return True
+              board[r][c] = "#"  # mark as used on the current path
+              found = any(
+                  0 <= nr < rows and 0 <= nc < cols and dfs(nr, nc, i + 1)
+                  for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1))
+              )
+              board[r][c] = word[i]  # backtrack: free the cell again
+              return found
+
+          return any(dfs(r, c, 0) for r in range(rows) for c in range(cols))
+
+explanation: |
+  **Intuition.** We do not know where the word starts or which way it turns, so we have to explore. From each starting cell, a depth-first search follows only neighbors whose letter matches the next character. When a path gets stuck, we **backtrack**: undo the last step and try another direction. Because the path must not reuse cells, we remember which cells the *current* path occupies and release them when we back out.
+
+  **Algorithm.**
+  1. For every cell, call `dfs(r, c, 0)` and return `True` as soon as one call succeeds.
+  2. `dfs(r, c, i)` asks whether `word[i:]` can be traced starting at `(r, c)`:
+     1. If `board[r][c] != word[i]`, fail. A cell already on the path holds `#`, which never equals a letter, so this check also blocks reuse.
+     2. If `i` is the last index, the whole word matched, so succeed.
+     3. Mark the cell with `#`, recurse into the four in-bounds neighbors with `i + 1`, then restore the letter.
+  3. If no start works, return `False`.
+
+  **Pruning (the follow-up interviewers like).**
+  - If the word needs more copies of some letter than the board has, no path can exist. Counting letters first answers this in O(m · n + L) and avoids an exponential search on inputs such as a board full of `a`s with the word `"aaaa…ab"`.
+  - Searching for the reversed word gives the same answer, because a path read backwards is still a valid path. Starting from the rarer end means fewer starting cells match, so many branches die immediately.
+
+  **Subtle points.** Always restore the cell before returning, including when the search succeeds, so the board ends up unchanged. Marking in place avoids a separate `visited` set and is a little faster.
+
+key_insight: Explore paths depth-first, mark cells on the current path, and un-mark them when backtracking, so every path is tried without ever reusing a cell.
+
+time_complexity: O(m · n · 3^L)
+space_complexity: O(L)
+complexity_explanation: |
+  **Time O(m · n · 3^L)** in the worst case, where `L = len(word)`. There are `m · n` starting cells. At each step after the first, the path can continue in at most 3 directions, because it cannot go back to the cell it came from, and the depth is at most `L`. The letter-count check costs O(m · n + L) and often skips the search entirely.
+
+  **Space O(L)** for the recursion depth. Cells are marked in place, so no visited structure is needed. The counters hold at most 52 distinct letters.
+
+data_structures: [2D grid, Recursion stack, Hash map (letter counts)]
+passes: One DFS per starting cell
+
+alternatives:
+  - name: Backtracking with a visited set, no pruning
+    time_complexity: O(m · n · 3^L)
+    space_complexity: O(L)
+    explanation: |
+      The textbook version: a DFS that checks bounds, the visited set and the letter, adds the cell to `visited`, recurses in all four directions, and removes the cell again on the way back.
+    tradeoff: The same worst-case bound and a perfectly good interview answer. Without the letter-count check, though, impossible words like `"aaaaaaaaaaaaaab"` on a board of `a`s explore every self-avoiding path before failing, which takes seconds on a 6 × 6 board. The pruned version rejects that input instantly. Tuple hashing for `visited` is also slightly slower than marking cells in place.
+    code: |
+      class Solution:
+          def exist(self, board: List[List[str]], word: str) -> bool:
+              rows, cols = len(board), len(board[0])
+              visited = set()
+
+              def dfs(r: int, c: int, i: int) -> bool:
+                  if i == len(word):
+                      return True
+                  if (r < 0 or c < 0 or r >= rows or c >= cols
+                          or (r, c) in visited or board[r][c] != word[i]):
+                      return False
+                  visited.add((r, c))
+                  found = (dfs(r + 1, c, i + 1) or dfs(r - 1, c, i + 1)
+                           or dfs(r, c + 1, i + 1) or dfs(r, c - 1, i + 1))
+                  visited.remove((r, c))
+                  return found
+
+              for r in range(rows):
+                  for c in range(cols):
+                      if dfs(r, c, 0):
+                          return True
+              return False
+
+tests:
+  - name: single matching cell
+    input: { board: [["a"]], word: a }
+    expected: true
+  - name: case-sensitive
+    input: { board: [["a", "B"]], word: ab }
+    expected: false
+  - name: diagonal step not allowed
+    input: { board: [["a", "b"], ["c", "d"]], word: abcd }
+    expected: false
+  - name: path that turns back
+    input: { board: [["a", "b"], ["c", "d"]], word: abdc }
+    expected: true
+  - name: word longer than the path allows
+    input: { board: [["a", "b"], ["c", "d"]], word: abdca }
+    expected: false
+  - name: needs backtracking after a wrong turn
+    input:
+      board: [["A", "B", "C", "E"], ["S", "F", "E", "S"], ["A", "D", "E", "E"]]
+      word: ABCESEEEFS
+    expected: true
+  - name: word uses every cell
+    input:
+      board: [["a", "b", "c"], ["f", "e", "d"], ["g", "h", "i"]]
+      word: abcdefghi
+    expected: true
+  - name: many possible starting cells
+    input:
+      board: [["C", "A", "A"], ["A", "A", "A"], ["B", "C", "D"]]
+      word: AAB
+    expected: true
+  - name: impossible word on a uniform board
+    input:
+      board: [["a", "a", "a", "a", "a"], ["a", "a", "a", "a", "a"], ["a", "a", "a", "a", "a"], ["a", "a", "a", "a", "a"]]
+      word: aaaaaaaaaaaaaab
+    expected: false

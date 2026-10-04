@@ -1,0 +1,140 @@
+id: "153"
+title: Find Minimum in Rotated Sorted Array
+slug: find-minimum-in-rotated-sorted-array
+leetcode_url: https://leetcode.com/problems/find-minimum-in-rotated-sorted-array/
+category: binary-search
+difficulty: Medium
+patterns: [Binary Search, Rotated Array]
+
+description: |
+  An array of **distinct** integers was sorted in ascending order and then **rotated** some number of times between `1` and `n`. Rotating once moves the last element to the front, so `[0, 1, 2, 4, 5, 6, 7]` becomes `[7, 0, 1, 2, 4, 5, 6]`, and rotating it 4 times gives `[4, 5, 6, 7, 0, 1, 2]`. Rotating `n` times gives back the original sorted array.
+
+  Given the rotated array `nums`, return its **minimum** element.
+
+  Your algorithm must run in `O(log n)` time.
+
+examples:
+  - input: { nums: [3, 4, 5, 1, 2] }
+    output: 1
+    explanation: The original array `[1, 2, 3, 4, 5]` was rotated 3 times.
+  - input: { nums: [4, 5, 6, 7, 0, 1, 2] }
+    output: 0
+    explanation: The original array `[0, 1, 2, 4, 5, 6, 7]` was rotated 4 times.
+  - input: { nums: [11, 13, 15, 17] }
+    output: 11
+    explanation: Rotated 4 times (a full cycle), so the array is sorted again and the minimum is the first element.
+
+constraints:
+  - "`n == nums.length`"
+  - "`1 <= n <= 5000`"
+  - "`-5000 <= nums[i] <= 5000`"
+  - All the integers of `nums` are **unique**.
+  - "`nums` is sorted in ascending order and rotated between `1` and `n` times."
+
+function_signature: "def findMin(self, nums: List[int]) -> int"
+
+starter_code: |
+  class Solution:
+      def findMin(self, nums: List[int]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: findMin
+  params:
+    - { name: nums, type: "List[int]" }
+  returns: int
+
+hints:
+  - A rotated sorted array is two sorted runs glued together, and the minimum is the first element of the second run. `O(log n)` means you must discard half of the remaining range at every step.
+  - Pick a middle element and compare it with the **last** element of the current range. What does `nums[mid] > nums[right]` tell you about where the "drop" is?
+  - If `nums[mid] > nums[right]`, the drop (and the minimum) is strictly to the right of `mid`. Otherwise `nums[mid..right]` is sorted, so the minimum is `mid` itself or somewhere to its left. Shrink the range accordingly until a single element remains.
+
+approach: Binary search against the right end
+optimal_solution: |
+  class Solution:
+      def findMin(self, nums: List[int]) -> int:
+          left, right = 0, len(nums) - 1
+
+          # Invariant: the minimum is always inside nums[left..right].
+          while left < right:
+              mid = (left + right) // 2
+              if nums[mid] > nums[right]:
+                  # mid is in the left (larger) run; the minimum is after mid.
+                  left = mid + 1
+              else:
+                  # nums[mid..right] is sorted; the minimum is mid or to its left.
+                  right = mid
+
+          return nums[left]
+
+explanation: |
+  **Intuition.** A rotated sorted array looks like two ascending runs, for example `[4, 5, 6, 7 | 0, 1, 2]`. Every element of the left run is **larger** than every element of the right run, and the minimum is the first element of the right run.
+
+  Comparing `nums[mid]` with `nums[right]` tells us which run `mid` belongs to:
+  - `nums[mid] > nums[right]`: values go *down* somewhere between `mid` and `right`, so `mid` is in the left run and the minimum lies strictly to its right.
+  - `nums[mid] < nums[right]`: the stretch `nums[mid..right]` is sorted, so nothing to the right of `mid` can be smaller than `nums[mid]`. The minimum is `mid` or to its left.
+
+  Either way we throw away half of the range, which gives `O(log n)`.
+
+  **Algorithm.**
+  1. Set `left = 0`, `right = n - 1`.
+  2. While `left < right`: compute `mid`. If `nums[mid] > nums[right]`, set `left = mid + 1`; otherwise set `right = mid`.
+  3. When `left == right`, that index is the minimum.
+
+  **Subtle points.**
+  - **Why compare with `right`, not `left`?** For a non-rotated array such as `[1, 2, 3, 4, 5]`, `nums[mid] > nums[left]` holds, which would wrongly suggest the minimum is to the right. Comparing with the right end works for both rotated and fully sorted arrays.
+  - **`right = mid`, not `mid - 1`.** When `nums[mid] < nums[right]`, `mid` itself may be the minimum, so it must stay in the range.
+  - `nums[mid] == nums[right]` only happens when `mid == right`, which cannot occur while `left < right` (since `mid` rounds down). Distinct values make the two cases exhaustive.
+  - The loop condition `left < right` (not `<=`) guarantees termination: the range shrinks every iteration and stops at exactly one element.
+
+key_insight: Comparing the middle element with the right end reveals which sorted run the middle is in, so half the range can be discarded each step.
+
+time_complexity: O(log n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(log n):** every iteration at least halves the size of `[left, right]` (either `left` jumps past `mid` or `right` moves to `mid`), so after about log₂ n iterations one element remains. For n = 5000 that is at most 13 iterations.
+
+  **Space O(1):** only three indices are stored.
+
+data_structures: [Array]
+passes: log₂ n probes
+
+alternatives:
+  - name: Linear scan for the drop
+    time_complexity: O(n)
+    space_complexity: O(1)
+    explanation: |
+      In a rotated sorted array, the minimum is the only element that is smaller than the element before it. Scan from left to right and return the first element that breaks the ascending order; if there is no such element, the array is fully sorted and `nums[0]` is the minimum. (Simply returning `min(nums)` is the same idea.)
+    tradeoff: Correct and simple, but it ignores the sorted structure and may look at every element. It does not meet the required O(log n) bound; binary search needs at most ~13 comparisons for n = 5000.
+    code: |
+      class Solution:
+          def findMin(self, nums: List[int]) -> int:
+              # The minimum is the only element smaller than its predecessor.
+              for i in range(1, len(nums)):
+                  if nums[i] < nums[i - 1]:
+                      return nums[i]
+              return nums[0]  # no drop: the array is in sorted order
+
+tests:
+  - { name: single element, input: { nums: [1] }, expected: 1 }
+  - { name: two elements rotated, input: { nums: [2, 1] }, expected: 1 }
+  - { name: two elements sorted, input: { nums: [1, 2] }, expected: 1 }
+  - { name: negative values, input: { nums: [-1, 0, 3, -5, -3] }, expected: -5 }
+  - { name: minimum at the last index, input: { nums: [2, 3, 4, 5, 1] }, expected: 1 }
+  - { name: minimum at index 1, input: { nums: [5, 1, 2, 3, 4] }, expected: 1 }
+  - { name: extreme values, input: { nums: [5000, -5000, 0] }, expected: -5000 }
+  - { name: minimum in the middle, input: { nums: [15, 18, 22, 26, 31, 2, 5, 8, 11, 12] }, expected: 2 }
+  - { name: fully sorted, input: { nums: [-3, 0, 7] }, expected: -3 }
+
+benchmark:
+  size_label: length of nums
+  sizes: [50, 250, 1000, 5000]
+  generator: |
+    def generate(n, rng):
+        # Distinct sorted values, rotated so the minimum lands in the second half:
+        # a linear scan has to walk past most of the array before finding it.
+        values = sorted(rng.sample(range(-5000, 5001), n))
+        k = rng.randint(n // 2, n - 1)  # index where the minimum ends up
+        nums = values[n - k:] + values[:n - k]
+        return {"nums": nums}

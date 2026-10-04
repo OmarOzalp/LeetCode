@@ -1,0 +1,138 @@
+id: "20"
+title: Valid Parentheses
+slug: valid-parentheses
+leetcode_url: https://leetcode.com/problems/valid-parentheses/
+category: stack
+difficulty: Easy
+patterns: [Stack, Bracket Matching]
+
+description: |
+  You are given a string `s` made up only of the bracket characters `(`, `)`, `[`, `]`, `{` and `}`. Decide whether the brackets are **valid**:
+
+  1. Every opening bracket is closed by a bracket of the **same type**.
+  2. Brackets are closed in the **correct order**: the most recently opened bracket must be closed first.
+  3. Every closing bracket has a matching opening bracket before it.
+
+  Return `True` if `s` is valid and `False` otherwise.
+
+examples:
+  - input: { s: "()[]{}" }
+    output: true
+    explanation: Three pairs, each opened and closed with the same type.
+  - input: { s: "([)]" }
+    output: false
+    explanation: 'The counts match, but the order is wrong: `[` was opened last, so it must be closed before `)` can close `(`.'
+  - input: { s: "{[]}" }
+    output: true
+    explanation: '`[]` is nested completely inside `{}`.'
+
+constraints:
+  - "`1 <= s.length <= 10^4`"
+  - "`s` consists only of the characters `()[]{}`."
+
+function_signature: "def isValid(self, s: str) -> bool"
+
+starter_code: |
+  class Solution:
+      def isValid(self, s: str) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: isValid
+  params:
+    - { name: s, type: str }
+  returns: bool
+
+hints:
+  - Counting each bracket type is not enough, since `"([)]"` has matching counts but is invalid. What extra information does the *order* carry?
+  - When you meet a closing bracket, which opening bracket must it match? Think about the most recently opened bracket that is still unclosed.
+  - "Keep the unclosed opening brackets in a last-in, first-out structure. Push openers; for a closer, the top must be the matching opener (pop it), otherwise the string is invalid. At the end, nothing may be left unclosed."
+
+approach: Stack of unmatched opening brackets
+optimal_solution: |
+  class Solution:
+      def isValid(self, s: str) -> bool:
+          opener_for = {")": "(", "]": "[", "}": "{"}  # closer -> matching opener
+          stack = []  # opening brackets still waiting to be closed
+
+          for ch in s:
+              if ch in opener_for:
+                  # A closer must match the most recently opened, unclosed bracket.
+                  if not stack or stack[-1] != opener_for[ch]:
+                      return False
+                  stack.pop()
+              else:
+                  stack.append(ch)
+
+          return not stack  # anything left over was never closed
+
+explanation: |
+  **Intuition.** Brackets nest: whatever was opened **last** must be closed **first**. That last-in, first-out rule is exactly what a stack models. The top of the stack is always the innermost bracket that is still open, so it is the only bracket a closing character is allowed to match.
+
+  **Algorithm.**
+  1. Keep a map from each closing bracket to its opening partner, and an empty stack.
+  2. Scan `s` from left to right:
+     - Opening bracket: push it.
+     - Closing bracket: if the stack is empty, or its top is not the matching opener, return `False`. Otherwise pop the top (this pair is done).
+  3. After the scan, the string is valid only if the stack is empty.
+
+  **Three ways to fail**, one per rule:
+  - Wrong type or wrong order (`"(]"`, `"([)]"`): the top of the stack does not match the closer.
+  - A closer with nothing open (`")("`, `"())"`): the stack is empty when the closer arrives. Check this *before* reading `stack[-1]`, or the code crashes.
+  - Unclosed openers (`"(()"`): the scan finishes with items still on the stack.
+
+  A quick extra check some people add: a string of odd length can never be valid. It is a valid shortcut, but the stack logic already handles it.
+
+key_insight: The most recently opened unclosed bracket is the only one a closer may match, so a stack of open brackets checks type and order in one pass.
+
+time_complexity: O(n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n):** each character is processed once, with an O(1) dictionary lookup and an O(1) push or pop.
+
+  **Space O(n):** in the worst case (for example `"(((((("` or deep nesting) every character is an opener and stays on the stack until near the end, so the stack can hold up to n/2 to n characters.
+
+data_structures: [Stack, Hash map]
+passes: 1 pass over s
+
+alternatives:
+  - name: Repeatedly delete adjacent pairs
+    time_complexity: O(n²)
+    space_complexity: O(n)
+    explanation: |
+      A valid string always contains at least one adjacent pair `()`, `[]` or `{}` (the innermost one). Deleting it leaves another valid string. So keep deleting adjacent pairs until nothing changes; the string was valid if and only if it ends up empty.
+    tradeoff: Short and intuitive, but each round rebuilds the whole string and deeply nested input removes only a few layers per round, giving O(n²) time. The stack processes each character exactly once.
+    code: |
+      class Solution:
+          def isValid(self, s: str) -> bool:
+              previous = None
+              while s != previous:  # stop once a full round removes nothing
+                  previous = s
+                  s = s.replace("()", "").replace("[]", "").replace("{}", "")
+              return s == ""
+
+tests:
+  - { name: single opener, input: { s: "(" }, expected: false }
+  - { name: single closer, input: { s: "]" }, expected: false }
+  - { name: closer before opener, input: { s: ")(" }, expected: false }
+  - { name: deep nesting, input: { s: "((([[[{{{}}}]]])))" }, expected: true }
+  - { name: unclosed opener, input: { s: "(()" }, expected: false }
+  - { name: interleaved types, input: { s: "{[}]" }, expected: false }
+  - { name: sequence and nesting, input: { s: "([]){}" }, expected: true }
+  - { name: extra closer at the end, input: { s: "())" }, expected: false }
+  - { name: mixed valid, input: { s: "[{()}]((){})" }, expected: true }
+  - { name: same count wrong type, input: { s: "(]" }, expected: false }
+
+benchmark:
+  size_label: length of s
+  sizes: [100, 500, 2000, 10000]
+  generator: |
+    def generate(n, rng):
+        # One deeply nested valid string: random openers followed by their closers
+        # in reverse order. The stack must hold n/2 brackets, and the pair-deletion
+        # approach needs many rounds because only the innermost pairs are adjacent.
+        closer = {"(": ")", "[": "]", "{": "}"}
+        openers = [rng.choice("([{") for _ in range(n // 2)]
+        s = "".join(openers) + "".join(closer[c] for c in reversed(openers))
+        return {"s": s}

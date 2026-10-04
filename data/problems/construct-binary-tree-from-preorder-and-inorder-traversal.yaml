@@ -1,0 +1,227 @@
+id: "105"
+title: Construct Binary Tree from Preorder and Inorder Traversal
+slug: construct-binary-tree-from-preorder-and-inorder-traversal
+leetcode_url: https://leetcode.com/problems/construct-binary-tree-from-preorder-and-inorder-traversal/
+category: trees
+difficulty: Medium
+patterns: [Divide and Conquer, Recursion, Hash Map, DFS]
+
+description: |
+  You are given two integer arrays that describe the same binary tree:
+  - `preorder`: the values in **preorder** (node, then left subtree, then right subtree).
+  - `inorder`: the values in **inorder** (left subtree, then node, then right subtree).
+
+  Rebuild the tree and return its root.
+
+  All values are **distinct**. That matters, because it lets you find any value's position in `inorder` without ambiguity.
+
+examples:
+  - input: { preorder: [3, 9, 20, 15, 7], inorder: [9, 3, 15, 20, 7] }
+    output: [3, 9, 20, null, null, 15, 7]
+    explanation: "`preorder[0] = 3` is the root. In `inorder`, `3` sits at index 1, so `[9]` (left of it) forms the left subtree and `[15, 20, 7]` (right of it) forms the right subtree. Repeat on each side: the next preorder value, `9`, is the left subtree's root, and `20` is the right subtree's root."
+  - input: { preorder: [-1], inorder: [-1] }
+    output: [-1]
+  - input: { preorder: [1, 2, 3], inorder: [3, 2, 1] }
+    output: [1, 2, null, 3]
+    explanation: Every root appears at the far right of its inorder range, so every node has only a left child. The result is a left-leaning chain.
+
+constraints:
+  - "`1 <= preorder.length <= 3000`"
+  - "`inorder.length == preorder.length`"
+  - "`-3000 <= preorder[i], inorder[i] <= 3000`"
+  - "`preorder` and `inorder` consist of **unique** values."
+  - "Every value of `inorder` also appears in `preorder`."
+  - "`preorder` and `inorder` are guaranteed to be the preorder and inorder traversals of the same tree."
+
+function_signature: "def buildTree(self, preorder: List[int], inorder: List[int]) -> Optional[TreeNode]"
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def buildTree(self, preorder: List[int], inorder: List[int]) -> Optional[TreeNode]:
+          pass
+
+runner:
+  kind: function
+  method: buildTree
+  params:
+    - { name: preorder, type: "List[int]" }
+    - { name: inorder, type: "List[int]" }
+  returns: "Optional[TreeNode]"
+
+hints:
+  - "Which array tells you the root immediately? Once you know the root, what does its position in the other array tell you?"
+  - "In inorder, everything left of the root belongs to the left subtree and everything right of it belongs to the right subtree. That split also tells you how many values the left subtree has, which you can use to split preorder."
+  - "Recurse on the two halves. To make it fast, precompute a dictionary from value to inorder index (so finding the root's position is O(1)), work with index ranges instead of slicing, and keep a single pointer into preorder. Each value it reaches is the root of the next subtree to build, as long as you build the left subtree before the right one."
+
+approach: Recursive divide and conquer with an inorder index map
+optimal_solution: |
+  class Solution:
+      def buildTree(self, preorder: List[int], inorder: List[int]) -> Optional[TreeNode]:
+          # Position of every value in inorder, so splitting a range is O(1).
+          index = {val: i for i, val in enumerate(inorder)}
+          pre_i = 0  # preorder[pre_i] is the root of the next subtree we build
+
+          def build(lo: int, hi: int) -> Optional[TreeNode]:
+              """Build the subtree whose values are exactly inorder[lo..hi]."""
+              nonlocal pre_i
+              if lo > hi:            # empty range: no subtree here
+                  return None
+              root = TreeNode(preorder[pre_i])
+              pre_i += 1
+              mid = index[root.val]  # left of mid -> left subtree, right of mid -> right subtree
+              # Preorder lists the entire left subtree before the right one,
+              # so the left subtree must be built first.
+              root.left = build(lo, mid - 1)
+              root.right = build(mid + 1, hi)
+              return root
+
+          return build(0, len(inorder) - 1)
+
+explanation: |
+  **Intuition.** The two traversals give complementary information:
+  - **Preorder** puts the root **first**: `[root, ...left subtree..., ...right subtree...]`.
+  - **Inorder** puts the root **between** its subtrees: `[...left subtree..., root, ...right subtree...]`.
+
+  So `preorder[0]` names the root. Finding that value in `inorder` splits the remaining values into the left subtree (everything before it) and the right subtree (everything after it). Each side is a smaller instance of the same problem.
+
+  **Algorithm.**
+  1. Build `index`, a map from value to its position in `inorder`. The values are unique, so the map is unambiguous.
+  2. Keep a pointer `pre_i` into `preorder`, starting at 0.
+  3. `build(lo, hi)` constructs the subtree whose values are exactly `inorder[lo..hi]`:
+     - If `lo > hi`, the range is empty, so return `None`.
+     - Otherwise the root is `preorder[pre_i]`. Create the node and advance `pre_i`.
+     - Let `mid = index[root.val]`. Build the left child from `(lo, mid - 1)`, **then** the right child from `(mid + 1, hi)`.
+  4. Return `build(0, n - 1)`.
+
+  **Why a single preorder pointer works.** Preorder visits the root, then the *whole* left subtree, then the whole right subtree. Our recursion creates nodes in that exact order: a node first, then (recursively) its entire left subtree, then its right subtree. So the next unused preorder value is always the root of the subtree we are about to build. This only holds if the left side is built before the right side. Swapping those two lines gives a wrong tree.
+
+  **Subtle points.**
+  - The inorder range `[lo, hi]` is what determines when a subtree is empty. The preorder pointer just supplies the roots in order.
+  - Slicing (`preorder[1:mid + 1]` and so on) plus `inorder.index(...)` is the most common first attempt. It is correct, but it copies O(n) data per call (see the alternative).
+  - Uniqueness is essential. With duplicate values, the root's position in `inorder` would be ambiguous and different trees could produce the same traversals.
+
+key_insight: Preorder's first value is the root, and its position in inorder splits the values into the left and right subtrees, so recurse on the two ranges using a value-to-index map and one advancing preorder pointer.
+
+time_complexity: O(n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n):** building the index map is O(n). Each `build` call that creates a node does O(1) work (one dictionary lookup, one node), and there are `n` such calls plus at most `n + 1` calls for empty ranges.
+
+  **Space O(n):** the dictionary holds `n` entries and the output tree has `n` nodes. The recursion stack is O(h): O(log n) for a balanced tree and O(n) for a skewed one (for example, a left-leaning chain where the inorder array is the reverse of preorder).
+
+data_structures: [Hash map, Binary tree, Recursion stack]
+passes: 1 pass to index inorder + 1 pass over preorder
+
+alternatives:
+  - name: Recursion with list slicing and index()
+    time_complexity: O(n²)
+    space_complexity: O(n²)
+    explanation: |
+      Take `preorder[0]` as the root and find its position `mid` with `inorder.index(...)`. That position is also the size of the left subtree. Then recurse on the slices: the left subtree gets `preorder[1:mid + 1]` and `inorder[:mid]`, and the right subtree gets `preorder[mid + 1:]` and `inorder[mid + 1:]`.
+    tradeoff: The most readable version and a good way to convince yourself of the idea. But every call scans `inorder` with `index()` and copies both slices, which is O(size of the subtree) per node. That is O(n log n) for balanced trees and O(n²) time and memory for skewed ones, compared with O(n) for the index-map version.
+    code: |
+      class Solution:
+          def buildTree(self, preorder: List[int], inorder: List[int]) -> Optional[TreeNode]:
+              if not preorder:
+                  return None
+              root = TreeNode(preorder[0])
+              mid = inorder.index(preorder[0])  # = number of nodes in the left subtree
+              root.left = self.buildTree(preorder[1:mid + 1], inorder[:mid])
+              root.right = self.buildTree(preorder[mid + 1:], inorder[mid + 1:])
+              return root
+  - name: Iterative with a stack
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Walk through `preorder`, keeping a stack of nodes whose right child has not been attached yet, and a pointer `j` into `inorder`.
+      - If the node on top of the stack is **not** `inorder[j]`, its left subtree isn't finished yet, so the next preorder value is its **left** child.
+      - Otherwise, pop nodes while the top matches `inorder[j]` (advancing `j` each time). Each popped node has finished its left subtree and itself in inorder order. The new value becomes the **right** child of the last node popped.
+    tradeoff: Linear time with no recursion, so very deep (skewed) trees cannot overflow the call stack. However, the invariant is much harder to see, explain and debug in an interview. The recursive index-map version expresses the divide-and-conquer idea directly.
+    code: |
+      class Solution:
+          def buildTree(self, preorder: List[int], inorder: List[int]) -> Optional[TreeNode]:
+              if not preorder:
+                  return None
+              root = TreeNode(preorder[0])
+              stack = [root]  # nodes whose right child has not been attached yet
+              j = 0           # next position in inorder
+              for val in preorder[1:]:
+                  node = TreeNode(val)
+                  parent = stack[-1]
+                  if parent.val != inorder[j]:
+                      parent.left = node     # still descending along left children
+                  else:
+                      # Pop nodes whose left subtree and self are done in inorder;
+                      # the new node is the right child of the last one popped.
+                      while stack and stack[-1].val == inorder[j]:
+                          parent = stack.pop()
+                          j += 1
+                      parent.right = node
+                  stack.append(node)
+              return root
+
+tests:
+  - { name: "two nodes: root has a left child", input: { preorder: [1, 2], inorder: [2, 1] }, expected: [1, 2] }
+  - { name: "two nodes: root has a right child", input: { preorder: [1, 2], inorder: [1, 2] }, expected: [1, null, 2] }
+  - { name: right-skewed chain, input: { preorder: [1, 2, 3, 4], inorder: [1, 2, 3, 4] }, expected: [1, null, 2, null, 3, null, 4] }
+  - { name: left-skewed chain, input: { preorder: [4, 3, 2, 1], inorder: [1, 2, 3, 4] }, expected: [4, 3, null, 2, null, 1] }
+  - name: perfect tree
+    input: { preorder: [1, 2, 4, 5, 3, 6, 7], inorder: [4, 2, 5, 1, 6, 3, 7] }
+    expected: [1, 2, 3, 4, 5, 6, 7]
+  - name: negative values
+    input: { preorder: [0, -3, -5, 2, -1], inorder: [-5, -3, 0, -1, 2] }
+    expected: [0, -3, 2, -5, null, -1]
+  - name: zigzag path
+    input: { preorder: [1, 2, 3, 4], inorder: [2, 4, 3, 1] }
+    expected: [1, 2, null, null, 3, 4]
+  - name: extreme values with a zigzag
+    input: { preorder: [3000, -3000, 0, 7, -8], inorder: [-3000, 7, -8, 0, 3000] }
+    expected: [3000, -3000, null, null, 0, 7, null, null, -8]
+
+benchmark:
+  size_label: number of nodes
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Grow a random tree: each new node takes a uniformly random free child
+        # slot. The height stays around O(log n), so recursion depth is modest.
+        left, right = [-1] * n, [-1] * n
+        free = [(0, 0), (0, 1)]  # (parent index, 0 = left / 1 = right)
+        for i in range(1, n):
+            j = rng.randrange(len(free))
+            free[j], free[-1] = free[-1], free[j]
+            parent, side = free.pop()
+            if side == 0:
+                left[parent] = i
+            else:
+                right[parent] = i
+            free.append((i, 0))
+            free.append((i, 1))
+        vals = rng.sample(range(-10**6, 10**6), n)  # distinct values
+
+        # Preorder: node, left, right (push right first so left is popped first).
+        preorder, stack = [], [0]
+        while stack:
+            i = stack.pop()
+            preorder.append(vals[i])
+            if right[i] >= 0:
+                stack.append(right[i])
+            if left[i] >= 0:
+                stack.append(left[i])
+
+        # Inorder: left, node, right.
+        inorder, stack, i = [], [], 0
+        while stack or i >= 0:
+            while i >= 0:
+                stack.append(i)
+                i = left[i]
+            i = stack.pop()
+            inorder.append(vals[i])
+            i = right[i]
+        return {"preorder": preorder, "inorder": inorder}

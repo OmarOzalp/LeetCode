@@ -1,0 +1,158 @@
+id: "268"
+title: Missing Number
+slug: missing-number
+leetcode_url: https://leetcode.com/problems/missing-number/
+category: bit-manipulation
+difficulty: Easy
+patterns: [Bit Manipulation, XOR, Math]
+
+description: |
+  You are given an array `nums` of `n` **distinct** integers, each in the range `[0, n]`. That range has `n + 1` values, so exactly one of them is missing from the array. Return the missing value.
+
+  The missing value can be anything from `0` to `n`, including `0` itself or the largest value `n`.
+
+  **Follow-up:** can you solve it in O(n) time using only O(1) extra space?
+
+examples:
+  - input: { nums: [3, 0, 1] }
+    output: 2
+    explanation: "`n = 3`, so the values should be `0, 1, 2, 3`. `2` is not in the array."
+  - input: { nums: [0, 1] }
+    output: 2
+    explanation: "`n = 2`, so the values should be `0, 1, 2`. The missing one is the largest, `n` itself."
+  - input: { nums: [9, 6, 4, 2, 3, 5, 7, 0, 1] }
+    output: 8
+    explanation: "`n = 9`. Every value from `0` to `9` appears except `8`."
+
+constraints:
+  - "`n == nums.length`"
+  - "`1 <= n <= 10^4`"
+  - "`0 <= nums[i] <= n`"
+  - All the numbers in `nums` are distinct.
+
+function_signature: "def missingNumber(self, nums: List[int]) -> int"
+
+starter_code: |
+  class Solution:
+      def missingNumber(self, nums: List[int]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: missingNumber
+  params:
+    - { name: nums, type: "List[int]" }
+  returns: int
+
+hints:
+  - You know exactly which values *should* be there, `0` to `n`. Compare that complete set with what you were given. A set or sorting works, but try to use no extra memory.
+  - One idea is arithmetic. The complete range has a known total, and the array's total is short by exactly the missing value. Is there a bitwise operation where everything that appears twice cancels out?
+  - "XOR has `x ^ x = 0` and `x ^ 0 = x`, and the order of XORs does not matter. XOR together every index `0..n` and every value in `nums`: each present number appears twice and cancels, and only the missing one is left."
+
+approach: XOR indices with values
+optimal_solution: |
+  class Solution:
+      def missingNumber(self, nums: List[int]) -> int:
+          # enumerate gives the indices 0..n-1, so start with n to complete the range 0..n.
+          missing = len(nums)
+          for i, num in enumerate(nums):
+              missing ^= i ^ num  # numbers seen as both an index and a value cancel out
+          return missing
+
+explanation: |
+  **Intuition.** XOR has three properties that together make it a cancellation tool:
+
+  - `x ^ x = 0`: a number XOR-ed with itself disappears.
+  - `x ^ 0 = x`: XOR with zero changes nothing.
+  - XOR is commutative and associative, so the **order does not matter**.
+
+  So if we XOR one big pile of numbers in which every value appears twice except one, all the pairs become `0` and only the unpaired value is left. Build exactly that pile: the full range `0..n` (the values that *should* be there) plus everything in `nums` (the values that *are* there). Each present value appears twice. The missing value appears only once, from the range.
+
+  Worked example, `nums = [3, 0, 1]`, `n = 3`:
+
+  ```
+  range 0..3 :  0 ^ 1 ^ 2 ^ 3
+  nums       :  3 ^ 0 ^ 1
+  together   :  (0 ^ 0) ^ (1 ^ 1) ^ (3 ^ 3) ^ 2  =  0 ^ 0 ^ 0 ^ 2  =  2
+  ```
+
+  The same thing bit by bit, as the loop runs (start with `n = 3 = 11`):
+
+  ```
+  start                     missing = 11
+  i = 0, num = 3:  11 ^ 00 ^ 11  ->  00
+  i = 1, num = 0:  00 ^ 01 ^ 00  ->  01
+  i = 2, num = 1:  01 ^ 10 ^ 01  ->  10   = 2
+  ```
+
+  **Algorithm.**
+  1. Set `missing = n` (that is, `len(nums)`).
+  2. For each index `i` and value `num`: `missing ^= i ^ num`.
+  3. Return `missing`.
+
+  **Subtle points.**
+  - **Why start at `n`?** The indices only cover `0..n-1`. The value `n` belongs to the full range too, so it has to be added once. Starting with it does exactly that.
+  - Both edge cases work without special handling. If `0` is missing, nothing cancels the index `0`, and XOR with `0` changes nothing anyway, so everything else cancels and the result is `0`. If `n` is missing, nothing cancels the starting value `n`.
+  - The sum formula (shown in the alternatives) is just as fast and maybe more obvious. XOR's advantage is in fixed-width languages: the running sum `n(n+1)/2` can overflow, while XOR results never need more bits than the inputs. In Python both are safe.
+
+key_insight: XOR every index 0..n together with every value in nums; each present number appears twice and cancels, leaving only the missing one.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** one pass over `nums` with two XORs per element.
+
+  **Space O(1):** a single accumulator, no matter how large `n` is.
+
+data_structures: [Array]
+passes: 1 pass over nums
+
+alternatives:
+  - name: Sort, then find the first index that doesn't match
+    time_complexity: O(n log n)
+    space_complexity: O(n)
+    explanation: |
+      After sorting, a complete range would have `nums[i] == i` at every index. The first index where that fails is the missing number. If every index matches, the missing number is `n`.
+    tradeoff: Easy to reason about, and it shows the same "value should equal index" idea that XOR uses. But sorting costs O(n log n) time, and Python's `sorted` makes an O(n) copy. Sorting in place instead would change the caller's array.
+    code: |
+      class Solution:
+          def missingNumber(self, nums: List[int]) -> int:
+              ordered = sorted(nums)
+              for i, num in enumerate(ordered):
+                  if num != i:
+                      return i  # first slot whose value is off is the gap
+              return len(nums)  # 0..n-1 all present, so n is missing
+  - name: Gauss sum (expected total minus actual total)
+    time_complexity: O(n)
+    space_complexity: O(1)
+    explanation: |
+      The numbers `0..n` add up to `n(n + 1) / 2`. The array has every one of them except the missing value, so its sum falls short by exactly that value: `missing = n(n + 1) / 2 - sum(nums)`.
+    tradeoff: Same O(n) time and O(1) space as XOR, and often the first idea people have. In Python it is equally safe. In C++/Java the sum can overflow for large `n`, which XOR avoids, so interviewers sometimes ask for the XOR version.
+    code: |
+      class Solution:
+          def missingNumber(self, nums: List[int]) -> int:
+              n = len(nums)
+              expected = n * (n + 1) // 2  # sum of 0..n
+              return expected - sum(nums)
+
+tests:
+  - { name: single element missing 1, input: { nums: [0] }, expected: 1 }
+  - { name: single element missing 0, input: { nums: [1] }, expected: 0 }
+  - { name: zero is missing, input: { nums: [3, 1, 2] }, expected: 0 }
+  - { name: n is missing (sorted input), input: { nums: [0, 1, 2, 3, 4, 5, 6, 7, 8] }, expected: 9 }
+  - { name: middle of two, input: { nums: [2, 0] }, expected: 1 }
+  - { name: shuffled, input: { nums: [5, 2, 0, 1, 4, 6, 7] }, expected: 3 }
+  - name: larger shuffled range
+    input: { nums: [14, 3, 19, 0, 8, 11, 1, 17, 6, 20, 2, 9, 15, 4, 12, 18, 7, 10, 16, 5] }
+    expected: 13
+
+benchmark:
+  size_label: length of nums
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # 0..n with one random value removed, in random order.
+        nums = list(range(n + 1))
+        nums.pop(rng.randrange(n + 1))
+        rng.shuffle(nums)
+        return {"nums": nums}

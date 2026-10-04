@@ -1,0 +1,193 @@
+id: "143"
+title: Reorder List
+slug: reorder-list
+leetcode_url: https://leetcode.com/problems/reorder-list/
+category: linked-list
+difficulty: Medium
+patterns: [Linked List, Fast/Slow Pointers, In-place Reversal, Merge]
+
+description: |
+  You are given the `head` of a singly linked list whose nodes are, in order:
+
+  `L0 -> L1 -> L2 -> ... -> L(n-2) -> L(n-1)`
+
+  Rearrange the nodes so the list alternates between the front and the back:
+
+  `L0 -> L(n-1) -> L1 -> L(n-2) -> L2 -> L(n-3) -> ...`
+
+  Do this **in place** by changing `next` pointers. You may not change the values stored in the nodes. The function returns nothing; the tests read the list starting from the original `head` after your function finishes.
+
+  Lists are shown as arrays of node values: `[1, 2, 3]` means `1 -> 2 -> 3`.
+
+examples:
+  - input: { head: [1, 2, 3, 4] }
+    output: [1, 4, 2, 3]
+    explanation: Take the first node, then the last, then the second, then the second-to-last.
+  - input: { head: [1, 2, 3, 4, 5] }
+    output: [1, 5, 2, 4, 3]
+    explanation: With an odd number of nodes, the middle node (`3`) ends up last.
+
+constraints:
+  - "The number of nodes in the list is in the range `[1, 5 * 10^4]`."
+  - "`1 <= Node.val <= 1000`"
+
+function_signature: "def reorderList(self, head: Optional[ListNode]) -> None"
+
+starter_code: |
+  # Definition for singly-linked list.
+  # class ListNode:
+  #     def __init__(self, val=0, next=None):
+  #         self.val = val
+  #         self.next = next
+  class Solution:
+      def reorderList(self, head: Optional[ListNode]) -> None:
+          """
+          Do not return anything, modify head in-place instead.
+          """
+          pass
+
+runner:
+  kind: function
+  method: reorderList
+  params:
+    - { name: head, type: "Optional[ListNode]" }
+  returns: "None"
+  mutates: head
+
+hints:
+  - The new order takes nodes alternately from the front and from the back. A singly linked list cannot walk backwards, so how could you make the back half easy to read from the end?
+  - Split the problem into three smaller linked-list tasks you already know. Look at the first half and the second half of the list separately.
+  - "Find the middle with slow/fast pointers and cut the list there. Reverse the second half in place. Then merge the two halves by alternating nodes: one from the first half, one from the reversed second half."
+
+approach: Find middle, reverse second half, interleave
+optimal_solution: |
+  class Solution:
+      def reorderList(self, head: Optional[ListNode]) -> None:
+          """
+          Do not return anything, modify head in-place instead.
+          """
+          if not head or not head.next:
+              return
+
+          # 1) Find the end of the first half with slow/fast pointers.
+          slow, fast = head, head.next
+          while fast and fast.next:
+              slow = slow.next
+              fast = fast.next.next
+
+          # 2) Cut the list in two and reverse the second half.
+          second = slow.next
+          slow.next = None
+          prev = None
+          while second:
+              nxt = second.next
+              second.next = prev
+              prev = second
+              second = nxt
+          second = prev  # head of the reversed second half
+
+          # 3) Interleave: first-half node, then second-half node, and so on.
+          first = head
+          while second:
+              first_next, second_next = first.next, second.next
+              first.next = second
+              second.next = first_next
+              first, second = first_next, second_next
+
+explanation: |
+  **Intuition.** The target order `L0, L(n-1), L1, L(n-2), ...` is just two lists woven together:
+
+  - the **first half** in normal order: `L0, L1, L2, ...`
+  - the **second half** in reverse order: `L(n-1), L(n-2), ...`
+
+  A singly linked list cannot be walked backwards, but we can **reverse** the second half in place. That turns one tricky problem into three standard ones: find the middle, reverse a list, merge two lists.
+
+  **Algorithm.**
+  1. **Find the middle.** Move `slow` one step and `fast` two steps (starting `fast` at `head.next`). When `fast` runs out, `slow` is the last node of the first half. The first half gets the extra node when `n` is odd.
+  2. **Split and reverse.** Set `second = slow.next`, cut the link with `slow.next = None`, then reverse `second` with the usual `prev`/`curr` loop.
+  3. **Interleave.** Walk both halves together: link a first-half node to the next second-half node, and that node to the following first-half node. Stop when the (shorter or equal) second half is used up.
+
+  For `[1, 2, 3, 4, 5]`: the halves are `1 -> 2 -> 3` and `4 -> 5`; reversing gives `5 -> 4`; weaving gives `1 -> 5 -> 2 -> 4 -> 3`.
+
+  **Subtle points.**
+  - **Cutting the list matters.** Without `slow.next = None`, the last node of the first half would still point into the second half and the result would contain a cycle.
+  - The second half is never longer than the first, so the weaving loop only needs to check `second`. When `n` is odd, the middle node stays at the end of the first half and becomes the new tail.
+  - Save both `next` pointers before relinking during the weave, for the same reason as in list reversal.
+  - Lists of length 1 or 2 are already in the required order.
+
+key_insight: The reordered list is the first half interleaved with the reversed second half, so the problem decomposes into find-middle, reverse and merge, all in place.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** finding the middle takes about n/2 steps, reversing the second half takes n/2 steps, and interleaving takes n/2 steps. Three linear passes are still O(n).
+
+  **Space O(1):** only a handful of pointers are used; every node is reused and nothing is copied into an array.
+
+data_structures: [Linked list]
+passes: 3 passes (middle, reverse, merge)
+
+alternatives:
+  - name: Brute force (repeatedly move the tail forward)
+    time_complexity: O(n²)
+    space_complexity: O(1)
+    explanation: |
+      Start at the head. Walk to the second-to-last node, detach the tail, and splice it in right after the current node. Then move two nodes forward and repeat until fewer than three nodes remain after the current position.
+    tradeoff: Uses O(1) memory and is easy to picture, but every step walks to the end of the list to find the tail, giving roughly n²/4 pointer moves. Reversing the second half once removes all of those walks.
+    code: |
+      class Solution:
+          def reorderList(self, head: Optional[ListNode]) -> None:
+              curr = head
+              while curr and curr.next and curr.next.next:
+                  # Find the node before the tail and detach the tail.
+                  before_tail = curr
+                  while before_tail.next.next:
+                      before_tail = before_tail.next
+                  tail = before_tail.next
+                  before_tail.next = None
+                  # Splice the tail in right after curr, then skip past it.
+                  tail.next = curr.next
+                  curr.next = tail
+                  curr = tail.next
+  - name: Array of nodes + two pointers
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Copy the node references into a Python list so you get random access. Then use two indices, `i` from the front and `j` from the back, linking `nodes[i] -> nodes[j] -> nodes[i + 1]` and moving inwards. Finally set the `next` of the node where the indices meet to `None`.
+    tradeoff: Linear time and arguably the easiest version to get right, but it needs O(n) extra memory for the array. The optimal solution achieves the same with O(1) memory by reversing the second half instead of indexing it.
+    code: |
+      class Solution:
+          def reorderList(self, head: Optional[ListNode]) -> None:
+              nodes = []
+              node = head
+              while node:
+                  nodes.append(node)
+                  node = node.next
+
+              i, j = 0, len(nodes) - 1
+              while i < j:
+                  nodes[i].next = nodes[j]  # front -> back
+                  i += 1
+                  if i == j:
+                      break
+                  nodes[j].next = nodes[i]  # back -> next front
+                  j -= 1
+              if nodes:
+                  nodes[i].next = None  # the node where i and j meet is the new tail
+
+tests:
+  - { name: single node, input: { head: [1] }, expected: [1] }
+  - { name: two nodes, input: { head: [1, 2] }, expected: [1, 2] }
+  - { name: three nodes, input: { head: [1, 2, 3] }, expected: [1, 3, 2] }
+  - { name: six nodes, input: { head: [1, 2, 3, 4, 5, 6] }, expected: [1, 6, 2, 5, 3, 4] }
+  - { name: seven nodes, input: { head: [1, 2, 3, 4, 5, 6, 7] }, expected: [1, 7, 2, 6, 3, 5, 4] }
+  - { name: duplicate values, input: { head: [1, 1, 2, 2] }, expected: [1, 2, 1, 2] }
+  - { name: eight nodes, input: { head: [10, 20, 30, 40, 50, 60, 70, 80] }, expected: [10, 80, 20, 70, 30, 60, 40, 50] }
+
+benchmark:
+  size_label: number of nodes
+  sizes: [100, 1000, 5000, 20000, 50000]
+  generator: |
+    def generate(n, rng):
+        # Random values; the work depends only on the length of the list.
+        return {"head": [rng.randint(1, 1000) for _ in range(n)]}

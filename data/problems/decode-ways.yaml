@@ -1,0 +1,188 @@
+id: "91"
+title: Decode Ways
+slug: decode-ways
+leetcode_url: https://leetcode.com/problems/decode-ways/
+category: dp-1d
+difficulty: Medium
+patterns: [1-D DP, Counting Paths, Memoization]
+
+description: |
+  A message of capital letters was encoded by replacing each letter with its position in the alphabet: `"A" -> "1"`, `"B" -> "2"`, ..., `"Z" -> "26"`. The numbers were then written next to each other with no separators.
+
+  Given the resulting digit string `s`, return **how many different letter messages** could have produced it.
+
+  To decode, split `s` into groups of one or two digits where every group is a number from `1` to `26` written **without a leading zero**. `"06"` is not a valid group, so `"06"` can only be read as `"0"` + `"6"`, and `"0"` maps to no letter.
+
+  If `s` cannot be decoded at all, return `0`. The answer is guaranteed to fit in a 32-bit signed integer.
+
+examples:
+  - input: { s: "12" }
+    output: 2
+    explanation: "`\"AB\"` (1 2) or `\"L\"` (12)."
+  - input: { s: "226" }
+    output: 3
+    explanation: "`\"BZ\"` (2 26), `\"VF\"` (22 6) or `\"BBF\"` (2 2 6)."
+  - input: { s: "06" }
+    output: 0
+    explanation: "`\"0\"` is not a letter, and `\"06\"` is not a valid two-digit code because of its leading zero."
+
+constraints:
+  - "`1 <= s.length <= 100`"
+  - "`s` contains only digits and may contain leading zeros."
+  - The answer fits in a 32-bit signed integer.
+
+function_signature: "def numDecodings(self, s: str) -> int"
+
+starter_code: |
+  class Solution:
+      def numDecodings(self, s: str) -> int:
+          pass
+
+runner:
+  kind: function
+  method: numDecodings
+  params:
+    - { name: s, type: str }
+  returns: int
+
+hints:
+  - Think about how a decoding of the first `i` digits can *end*. How many digits can the last letter use?
+  - The last letter uses either one digit (valid if it is `1`-`9`) or two digits (valid if they form a number from `10` to `26`). The ways for each case are the ways to decode whatever comes before it. Do the two cases ever overlap?
+  - "Let `dp[i]` be the number of decodings of the first `i` digits, with `dp[0] = 1` for the empty prefix. Add `dp[i - 1]` when the last digit is non-zero and add `dp[i - 2]` when the last two digits are between 10 and 26. Only the previous two values are needed."
+
+approach: Bottom-up DP over prefixes with two variables
+optimal_solution: |
+  class Solution:
+      def numDecodings(self, s: str) -> int:
+          # dp[i] = number of ways to decode the prefix s[:i].
+          # Only dp[i - 1] and dp[i - 2] are needed, kept in one_back / two_back.
+          two_back, one_back = 0, 1  # dp[-1] (unused) and dp[0] = 1 for the empty prefix
+
+          for i in range(1, len(s) + 1):
+              current = 0
+              # The last letter uses one digit: s[i-1] must be 1..9.
+              if s[i - 1] != "0":
+                  current += one_back
+              # The last letter uses two digits: s[i-2:i] must be 10..26.
+              if i >= 2 and 10 <= int(s[i - 2:i]) <= 26:
+                  current += two_back
+              two_back, one_back = one_back, current
+
+          return one_back
+
+explanation: |
+  **Intuition.** This is Climbing Stairs with rules. Reading the digits left to right, each letter "steps" over one or two digits, but a step is only allowed if those digits form a real code. Count decodings by their **last letter**: it covers either the last digit alone or the last two digits, and those two groups of decodings never overlap.
+
+  **State & recurrence.**
+  - **State:** `dp[i]` = number of ways to decode the prefix `s[:i]` (the first `i` digits).
+  - **Transition:**
+    - If `s[i-1]` is `1`-`9`, every decoding of `s[:i-1]` can be extended by that one-digit letter: add `dp[i - 1]`.
+    - If `s[i-2:i]` is a number from `10` to `26`, every decoding of `s[:i-2]` can be extended by that two-digit letter: add `dp[i - 2]`.
+  - **Base case:** `dp[0] = 1`. The empty prefix has exactly one decoding (the empty message). It is what makes `"12"` count the single letter `"L"`: `dp[2]` gets `dp[0] = 1` from the two-digit case.
+  - **Order:** increasing `i`. **Space:** each step reads only the two previous values, so two variables replace the array.
+
+  **Algorithm.**
+  1. Start with `two_back = 0`, `one_back = 1` (that is, `dp[0]`).
+  2. For each position `i = 1..n`, set `current = 0`; add `one_back` if `s[i-1] != "0"`; add `two_back` if `i >= 2` and `10 <= int(s[i-2:i]) <= 26`.
+  3. Shift: `two_back, one_back = one_back, current`.
+  4. Return `one_back`, which is `dp[n]`.
+
+  **Zeros are the whole difficulty.**
+  - A `"0"` can never stand alone, so it only survives as the second digit of `"10"` or `"20"`.
+  - `"30"`, `"00"` or a leading `"0"` make `current` zero, and that zero propagates. The answer becomes 0, which is correct.
+  - The range check `10 <= ... <= 26` rejects two-digit groups with a leading zero like `"06"`, because `int("06") = 6`.
+
+key_insight: The last letter uses one digit (if 1-9) or two digits (if 10-26), so dp[i] = dp[i-1]·[valid single] + dp[i-2]·[valid pair], which is Climbing Stairs with validity checks.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** one pass over the string, with O(1) work per position (a character check and a two-digit comparison).
+
+  **Space O(1):** only the last two `dp` values are kept. The two-character slice is constant size.
+
+data_structures: [Two rolling variables]
+passes: 1 pass over s
+
+alternatives:
+  - name: Top-down recursion with memoization
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Define `ways(i)` = number of decodings of the suffix `s[i:]`. If `i == n` you have decoded everything (1 way); if `s[i] == "0"` no letter can start here (0 ways). Otherwise take one digit (`ways(i + 1)`) and, if `s[i:i+2] <= 26`, also two digits (`ways(i + 2)`).
+
+      Without `@cache` this recursion is exponential: a string of forty `1`s would take hundreds of millions of calls, since `ways(i + 2)` is recomputed inside `ways(i + 1)`. With the cache each of the `n + 1` states is solved once.
+    tradeoff: The most natural way to *find* the recurrence, because each call makes one decision. It uses O(n) cache and recursion depth, while the bottom-up loop needs O(1) memory.
+    code: |
+      class Solution:
+          def numDecodings(self, s: str) -> int:
+              n = len(s)
+
+              @cache
+              def ways(i: int) -> int:
+                  """Number of ways to decode the suffix s[i:]."""
+                  if i == n:
+                      return 1  # nothing left: one complete decoding
+                  if s[i] == "0":
+                      return 0  # no letter's code starts with 0
+                  total = ways(i + 1)  # one-digit letter (1-9)
+                  if i + 1 < n and int(s[i:i + 2]) <= 26:
+                      total += ways(i + 2)  # two-digit letter (10-26)
+                  return total
+
+              return ways(0)
+  - name: Bottom-up DP array
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      The same recurrence with the whole table kept: `dp = [0] * (n + 1)`, `dp[0] = 1`, then for each `i` add `dp[i - 1]` and/or `dp[i - 2]` according to the one- and two-digit rules. Printing `dp` for an input like `"226"` (`[1, 1, 2, 3]`) is a great way to check your understanding.
+    tradeoff: Identical logic and time to the optimal solution and easier to debug, at the cost of O(n) memory for values that are each read at most twice.
+    code: |
+      class Solution:
+          def numDecodings(self, s: str) -> int:
+              n = len(s)
+              dp = [0] * (n + 1)  # dp[i] = ways to decode s[:i]
+              dp[0] = 1           # the empty prefix has one (empty) decoding
+              for i in range(1, n + 1):
+                  if s[i - 1] != "0":
+                      dp[i] += dp[i - 1]
+                  if i >= 2 and 10 <= int(s[i - 2:i]) <= 26:
+                      dp[i] += dp[i - 2]
+              return dp[n]
+
+tests:
+  - { name: single zero, input: { s: "0" }, expected: 0 }
+  - { name: ten, input: { s: "10" }, expected: 1 }
+  - { name: double zero, input: { s: "100" }, expected: 0 }
+  - { name: thirty is invalid, input: { s: "30" }, expected: 0 }
+  - { name: twenty-seven is too big, input: { s: "27" }, expected: 1 }
+  - { name: zero forces a pairing, input: { s: "2101" }, expected: 1 }
+  - { name: zero in the middle, input: { s: "11106" }, expected: 2 }
+  - { name: mixed digits, input: { s: "2611055971756562" }, expected: 4 }
+  - { name: ten ones, input: { s: "1111111111" }, expected: 89 }
+  - { name: forty ones, input: { s: "1111111111111111111111111111111111111111" }, expected: 165580141 }
+
+benchmark:
+  size_label: length of s
+  sizes: [10, 25, 50, 75, 100]
+  generator: |
+    def generate(n, rng):
+        # Mostly the ambiguous digits 1 and 2, with zeros only after a 1 or 2 so the
+        # string stays decodable. The count is tracked with the same DP, and a digit
+        # that would push it past 2^31 - 1 (the constraint) is replaced by one that
+        # cannot increase it: "0" after a "1", otherwise "9".
+        limit = 2 ** 31 - 1
+        digits = []
+        two_back, one_back = 0, 1
+        for _ in range(n):
+            prev = digits[-1] if digits else ""
+            first = "0" if prev in ("1", "2") and rng.random() < 0.15 else rng.choice("1112223456789")
+            for c in (first, "0" if prev == "1" else "9"):
+                ways = one_back if c != "0" else 0
+                if prev and 10 <= int(prev + c) <= 26:
+                    ways += two_back
+                if ways <= limit:
+                    break
+            digits.append(c)
+            two_back, one_back = one_back, ways
+        return {"s": "".join(digits)}

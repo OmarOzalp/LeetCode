@@ -1,0 +1,163 @@
+id: "39"
+title: Combination Sum
+slug: combination-sum
+leetcode_url: https://leetcode.com/problems/combination-sum/
+category: backtracking
+difficulty: Medium
+patterns: [Backtracking, DFS, Recursion]
+
+description: |
+  You are given an array of **distinct** positive integers `candidates` and a positive integer `target`. Return every unique combination of candidates whose numbers add up to `target`.
+
+  - The **same number may be used any number of times** in a combination.
+  - Two combinations are the same if they use the same numbers the same number of times, regardless of order. `[2, 3, 5]` and `[5, 2, 3]` count as one combination and must appear only once.
+
+  The combinations, and the numbers inside each one, may be returned in any order. The inputs are guaranteed to produce fewer than `150` combinations.
+
+examples:
+  - input: { candidates: [2, 3, 5], target: 10 }
+    output: [[2, 2, 2, 2, 2], [2, 2, 3, 3], [2, 3, 5], [5, 5]]
+    explanation: "`2` can be used five times, `2 + 2 + 3 + 3 = 10`, `2 + 3 + 5 = 10` and `5 + 5 = 10`. Orderings such as `[5, 3, 2]` are the same combination as `[2, 3, 5]` and are not listed again."
+  - input: { candidates: [3, 4, 5], target: 12 }
+    output: [[3, 3, 3, 3], [3, 4, 5], [4, 4, 4]]
+  - input: { candidates: [4, 6], target: 9 }
+    output: []
+    explanation: Every sum of 4s and 6s is even, so 9 cannot be reached.
+
+constraints:
+  - "`1 <= candidates.length <= 30`"
+  - "`2 <= candidates[i] <= 40`"
+  - "All elements of `candidates` are distinct."
+  - "`1 <= target <= 40`"
+  - "The number of unique combinations for the given input is less than `150`."
+
+function_signature: "def combinationSum(self, candidates: List[int], target: int) -> List[List[int]]"
+
+starter_code: |
+  class Solution:
+      def combinationSum(self, candidates: List[int], target: int) -> List[List[int]]:
+          pass
+
+runner:
+  kind: function
+  method: combinationSum
+  params:
+    - { name: candidates, type: "List[int]" }
+    - { name: target, type: int }
+  returns: "List[List[int]]"
+  compare: unordered_nested
+
+hints:
+  - Build a combination one number at a time and keep track of how much of the target is still left. What should happen when the remainder hits exactly 0, and when it goes negative?
+  - If every step may pick any candidate, you will generate `[2, 3]` and `[3, 2]` separately. How can you force each combination to be built in only one order?
+  - Only allow picking candidates at or after the index of the last one you picked. Because reuse is allowed, the recursive call starts from the *same* index, not the next one. Sorting the candidates first lets you stop the loop as soon as a candidate exceeds the remainder.
+
+approach: Backtracking with a start index
+optimal_solution: |
+  class Solution:
+      def combinationSum(self, candidates: List[int], target: int) -> List[List[int]]:
+          nums = sorted(candidates)  # sorted so we can stop early (and not mutate the input)
+          result = []
+          path = []                  # the combination being built
+
+          def backtrack(start: int, remaining: int) -> None:
+              if remaining == 0:
+                  result.append(path[:])  # copy: path keeps changing afterwards
+                  return
+              for i in range(start, len(nums)):
+                  if nums[i] > remaining:
+                      break               # every later number is even larger
+                  path.append(nums[i])
+                  backtrack(i, remaining - nums[i])  # i, not i + 1: reuse is allowed
+                  path.pop()              # undo the choice before trying the next one
+
+          backtrack(0, target)
+          return result
+
+explanation: |
+  **Intuition.** Think of the answer as a decision tree. Each level picks one more number for the combination, and we stop a branch when the running sum reaches the target (record it) or overshoots it (abandon it). This "choose, explore, un-choose" pattern is **backtracking**.
+
+  The hard part is avoiding duplicates. If every level may pick any candidate, both `[2, 3]` and `[3, 2]` get generated. The fix is to build every combination in **non-decreasing index order**: once we pick `nums[i]`, later picks may only use `nums[i]` or candidates after it. Each multiset then has exactly one path in the tree, so no deduplication is needed.
+
+  **Algorithm.**
+  1. Sort the candidates (a copy, so the input is not modified).
+  2. `backtrack(start, remaining)`:
+     1. If `remaining == 0`, append a **copy** of the current path to the result.
+     2. Otherwise loop `i` from `start` to the end. If `nums[i] > remaining`, `break`: the list is sorted, so no later candidate fits either.
+     3. Append `nums[i]`, recurse with `backtrack(i, remaining - nums[i])`, then pop it.
+  3. Call `backtrack(0, target)`.
+
+  **Subtle points.**
+  - Recurse with `i` (not `i + 1`) because a number may be reused. Using `i + 1` would solve "Combination Sum II" instead, where each number is used at most once.
+  - `path[:]` matters. Appending `path` itself would store a reference to a list that later becomes empty.
+  - Since every candidate is at least 2, the recursion is at most `target / 2` levels deep, so it is always shallow.
+
+key_insight: Only allowing picks at or after the last chosen index builds every combination in exactly one order, so the backtracking produces no duplicates.
+
+time_complexity: O(N^(T/M + 1))
+space_complexity: O(T/M)
+complexity_explanation: |
+  Let `N` be the number of candidates, `T` the target and `M` the smallest candidate.
+
+  **Time.** Every path in the decision tree has at most `T/M` levels (each pick adds at least `M`), and each node branches at most `N` ways. The tree therefore has at most about `N^(T/M + 1)` nodes. This is a loose, exponential upper bound. Sorting plus the `break` prunes most branches, and copying each found combination costs O(T/M) more.
+
+  **Space O(T/M)** for the recursion stack and the current path, not counting the output.
+
+data_structures: [Array (current path), Recursion stack]
+passes: One DFS over the decision tree
+
+alternatives:
+  - name: Dynamic programming over sub-targets
+    time_complexity: O(N · T · C · T/M)
+    space_complexity: O(T · C · T/M)
+    explanation: |
+      Like counting the ways to make change, build `dp[t]`, the list of all combinations summing to `t`, for every `t` from 0 to `target`. Process the candidates one at a time in the outer loop. For each candidate `c`, every combination for `t - c` extended by `c` is a combination for `t`. Because each candidate is fully processed before the next, every combination is built in candidate order exactly once. Here `C` is the largest number of combinations stored for any sub-target, and copying one combination costs up to `T/M`.
+    tradeoff: No recursion, a similar running time at these input sizes, and a good way to connect this problem to coin change. However, it materializes the combinations for *every* sub-target, including many that never contribute to the final answer, so it uses far more memory than backtracking, which only keeps one path at a time.
+    code: |
+      class Solution:
+          def combinationSum(self, candidates: List[int], target: int) -> List[List[int]]:
+              # dp[t] holds every combination (in candidate order) that sums to t.
+              dp = [[] for _ in range(target + 1)]
+              dp[0] = [[]]  # one way to make 0: pick nothing
+              for c in candidates:              # outer loop over candidates avoids permutations
+                  for t in range(c, target + 1):
+                      for combo in dp[t - c]:
+                          dp[t].append(combo + [c])
+              return dp[target]
+
+tests:
+  - name: single candidate equals target
+    input: { candidates: [7], target: 7 }
+    expected: [[7]]
+  - name: one candidate reused
+    input: { candidates: [2], target: 8 }
+    expected: [[2, 2, 2, 2]]
+  - name: every candidate too large
+    input: { candidates: [5, 10], target: 3 }
+    expected: []
+  - name: unsorted candidates
+    input: { candidates: [8, 7, 4, 3], target: 11 }
+    expected: [[3, 4, 4], [3, 8], [4, 7]]
+  - name: greedy choice fails
+    input: { candidates: [3, 5, 7], target: 16 }
+    expected: [[3, 3, 3, 7], [3, 3, 5, 5]]
+  - name: many overlapping options
+    input: { candidates: [2, 4, 6, 8], target: 8 }
+    expected: [[2, 2, 2, 2], [2, 2, 4], [2, 6], [4, 4], [8]]
+  - name: long combination at the limits
+    input: { candidates: [2, 40], target: 40 }
+    expected: [[2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], [40]]
+  - name: same multiset reachable in several orders
+    input: { candidates: [5, 3, 2], target: 9 }
+    expected: [[2, 2, 2, 3], [2, 2, 5], [3, 3, 3]]
+
+benchmark:
+  size_label: target (candidates 2..11)
+  sizes: [10, 20, 30, 40]
+  generator: |
+    def generate(n, rng):
+        # The number of combinations grows quickly with the target
+        # (12, 115, 665 and 2823 for these sizes), which shows the exponential cost.
+        candidates = list(range(2, 12))
+        rng.shuffle(candidates)
+        return {"candidates": candidates, "target": n}

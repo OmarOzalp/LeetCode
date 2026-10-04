@@ -1,0 +1,144 @@
+id: "125"
+title: Valid Palindrome
+slug: valid-palindrome
+leetcode_url: https://leetcode.com/problems/valid-palindrome/
+category: two-pointers
+difficulty: Easy
+patterns: [Two Pointers, String]
+
+description: |
+  A phrase counts as a **palindrome** if, after lowercasing every letter and throwing away every character that is not a letter or a digit, it reads the same from left to right as from right to left.
+
+  Given a string `s`, return `True` if it is a palindrome under this rule, and `False` otherwise.
+
+  Letters **and digits** are both alphanumeric and both take part in the comparison. Spaces, punctuation and symbols such as `_` are ignored.
+
+examples:
+  - input: { s: "Was it a car or a cat I saw?" }
+    output: true
+    explanation: 'Keeping only lowercase letters and digits gives `"wasitacaroracatisaw"`, which is the same reversed.'
+  - input: { s: "0P" }
+    output: false
+    explanation: 'Both characters are alphanumeric, and `"0"` is not the same as `"p"`. Digits are compared, not skipped.'
+  - input: { s: ".,!" }
+    output: true
+    explanation: No alphanumeric characters remain. An empty string reads the same in both directions, so it is a palindrome.
+
+constraints:
+  - "`1 <= s.length <= 2 * 10^5`"
+  - "`s` consists only of printable ASCII characters."
+
+function_signature: "def isPalindrome(self, s: str) -> bool"
+
+starter_code: |
+  class Solution:
+      def isPalindrome(self, s: str) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: isPalindrome
+  params:
+    - { name: s, type: str }
+  returns: bool
+
+hints:
+  - The simplest approach builds a cleaned, lowercased copy and compares it with its reverse. That is O(n) time but also O(n) extra memory. Can you check the original string in place?
+  - A palindrome's first character must match its last, its second must match its second-to-last, and so on. Which two positions should you compare first?
+  - Keep one pointer at each end and move them toward each other. Whenever a pointer sits on a character that is not alphanumeric, move just that pointer. Otherwise compare the two characters ignoring case and stop at the first mismatch.
+
+approach: Two pointers from both ends
+optimal_solution: |
+  class Solution:
+      def isPalindrome(self, s: str) -> bool:
+          left, right = 0, len(s) - 1
+
+          while left < right:
+              if not s[left].isalnum():       # skip ignored characters on the left
+                  left += 1
+              elif not s[right].isalnum():    # ...and on the right
+                  right -= 1
+              elif s[left].lower() != s[right].lower():
+                  return False                # mirrored characters differ
+              else:
+                  left += 1                   # this pair matches; move both inwards
+                  right -= 1
+
+          return True
+
+explanation: |
+  **Intuition.** A string is a palindrome when its outermost characters match, then the next pair inwards, and so on until the middle. Two pointers starting at both ends visit exactly those mirrored pairs.
+
+  The only twist is that some characters do not count. Instead of building a cleaned copy, each pointer simply steps over characters that are not alphanumeric. Case is handled by comparing lowercased characters.
+
+  **Algorithm.**
+  1. Set `left = 0` and `right = len(s) - 1`.
+  2. While `left < right`:
+     - If `s[left]` is not alphanumeric, move `left` right.
+     - Else if `s[right]` is not alphanumeric, move `right` left.
+     - Else compare `s[left].lower()` with `s[right].lower()`. On a mismatch, return `False`; on a match, move both pointers inwards.
+  3. If the pointers meet or cross without a mismatch, return `True`.
+
+  **Subtle points.**
+  - **Digits are alphanumeric.** `"0P"` must be `False`. A solution that only keeps letters would wrongly return `True`.
+  - `"_"` is *not* alphanumeric, so `"ab_a"` is a palindrome.
+  - A string with no alphanumeric characters at all, such as `" "`, is `True`, since the pointers just skip until they cross.
+  - Moving only **one** pointer per iteration when skipping keeps the logic simple and never lets the pointers jump past each other.
+
+key_insight: Compare mirrored characters from both ends while skipping ignored characters in place, so no cleaned copy is ever built.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** every iteration moves at least one pointer one step toward the other, so there are at most n iterations, each doing O(1) work.
+
+  **Space O(1):** only two integer indices are stored. (Lowercasing a single character creates a tiny temporary string, which is constant size.)
+
+data_structures: [String (in place)]
+passes: 1 pass, pointers meeting in the middle
+
+alternatives:
+  - name: Clean the string, then compare with its reverse
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Build a list of the lowercased alphanumeric characters, then check whether it equals its own reverse.
+    tradeoff: Shorter and very readable, with about the same running time in CPython. However, it allocates O(n) extra memory for the cleaned copy and its reverse, and it always processes the whole string, while two pointers can stop at the first mismatch. Interviewers usually ask for the O(1)-space version.
+    code: |
+      class Solution:
+          def isPalindrome(self, s: str) -> bool:
+              cleaned = [ch.lower() for ch in s if ch.isalnum()]
+              return cleaned == cleaned[::-1]
+
+tests:
+  - { name: single character, input: { s: "a" }, expected: true }
+  - { name: single space, input: { s: " " }, expected: true }
+  - { name: case is ignored, input: { s: "Aa" }, expected: true }
+  - { name: two different letters, input: { s: "ab" }, expected: false }
+  - { name: digits only, input: { s: "12321" }, expected: true }
+  - { name: digit mismatch, input: { s: "1a2" }, expected: false }
+  - { name: underscore is not alphanumeric, input: { s: "ab_a" }, expected: true }
+  - { name: punctuation around one letter, input: { s: ".a." }, expected: true }
+  - { name: apostrophes and spaces, input: { s: "Madam, in Eden, I'm Adam." }, expected: true }
+  - { name: not a palindrome after cleaning, input: { s: "ab@#ba!!c" }, expected: false }
+
+benchmark:
+  size_label: length of s
+  sizes: [400, 2000, 10000, 50000, 200000]
+  generator: |
+    def generate(n, rng):
+        # A true palindrome (so the whole string must be checked) with random
+        # letter case and punctuation sprinkled in, which must be ignored.
+        chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+        noise = " ,.:;!?'-_"
+        half = [rng.choice(chars) if rng.random() < 0.8 else None for _ in range(n // 2)]
+        middle = [rng.choice(chars)] if n % 2 else []
+        out = []
+        for ch in half + middle + half[::-1]:
+            if ch is None:
+                out.append(rng.choice(noise))  # need not mirror: it is ignored
+            elif rng.random() < 0.5:
+                out.append(ch.upper())         # case is ignored too
+            else:
+                out.append(ch)
+        return {"s": "".join(out)}

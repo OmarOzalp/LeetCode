@@ -1,0 +1,212 @@
+id: "73"
+title: Set Matrix Zeroes
+slug: set-matrix-zeroes
+leetcode_url: https://leetcode.com/problems/set-matrix-zeroes/
+category: math-geometry
+difficulty: Medium
+patterns: [Matrix, In-place, Markers]
+
+description: |
+  You are given an `m x n` integer matrix. Wherever the matrix holds a `0`, set that cell's **entire row and entire column** to `0`.
+
+  Only zeros that are in the matrix **at the start** count. A zero you write while solving must not clear more rows or columns.
+
+  Change `matrix` **in place**. Your method returns nothing, and the tests look at `matrix` after your call.
+
+  **Follow-up:** a copy of the matrix needs O(m · n) extra space, and remembering the affected rows and columns needs O(m + n). Can you do it with **O(1)** extra space?
+
+examples:
+  - input: { matrix: [[1, 1, 1], [1, 0, 1], [1, 1, 1]] }
+    output: [[1, 0, 1], [0, 0, 0], [1, 0, 1]]
+    explanation: The single zero at row 1, column 1 clears row 1 and column 1.
+  - input: { matrix: [[0, 1, 2, 0], [3, 4, 5, 2], [1, 3, 1, 5]] }
+    output: [[0, 0, 0, 0], [0, 4, 5, 0], [0, 3, 1, 0]]
+    explanation: The zeros at `(0, 0)` and `(0, 3)` clear row 0 plus columns 0 and 3. The cells `4 5` and `3 1` are untouched.
+  - input: { matrix: [[5, 2], [7, 0], [1, 8]] }
+    output: [[5, 0], [0, 0], [1, 0]]
+
+constraints:
+  - "`m == matrix.length`"
+  - "`n == matrix[0].length`"
+  - "`1 <= m, n <= 200`"
+  - "`-2^31 <= matrix[i][j] <= 2^31 - 1`"
+
+function_signature: "def setZeroes(self, matrix: List[List[int]]) -> None"
+
+starter_code: |
+  class Solution:
+      def setZeroes(self, matrix: List[List[int]]) -> None:
+          """
+          Do not return anything, modify matrix in-place instead.
+          """
+          pass
+
+runner:
+  kind: function
+  method: setZeroes
+  params:
+    - { name: matrix, type: "List[List[int]]" }
+  returns: "None"
+  mutates: matrix
+
+hints:
+  - If you write zeros while you are still scanning, a zero you wrote looks exactly like an original one, and soon the whole matrix is cleared. Split the work into a "find" phase and a "clear" phase.
+  - In the find phase you only need one yes/no flag per row and one per column. Two sets (or boolean arrays) give an O(m + n) solution.
+  - "For O(1) space, keep those flags inside the matrix: the first column can flag rows and the first row can flag columns. A flagged cell is going to be zero in the answer anyway, so writing a 0 there loses nothing you need."
+  - The first row and first column are both flags and data, and cell `(0, 0)` cannot stand for both of them. Before writing any flags, record in two booleans whether row 0 and column 0 originally contain a zero. Clear them last.
+
+approach: First row and column as markers
+optimal_solution: |
+  class Solution:
+      def setZeroes(self, matrix: List[List[int]]) -> None:
+          """
+          Do not return anything, modify matrix in-place instead.
+          """
+          m, n = len(matrix), len(matrix[0])
+
+          # Row 0 and column 0 will hold the markers, so first remember
+          # whether they need to be cleared themselves.
+          first_row_zero = any(matrix[0][c] == 0 for c in range(n))
+          first_col_zero = any(matrix[r][0] == 0 for r in range(m))
+
+          # 1. Mark: a zero at (r, c) flags row r in column 0 and column c in row 0.
+          for r in range(1, m):
+              for c in range(1, n):
+                  if matrix[r][c] == 0:
+                      matrix[r][0] = 0
+                      matrix[0][c] = 0
+
+          # 2. Clear the inner cells using the markers.
+          for r in range(1, m):
+              for c in range(1, n):
+                  if matrix[r][0] == 0 or matrix[0][c] == 0:
+                      matrix[r][c] = 0
+
+          # 3. Last, clear the marker row and column if they had a zero at the start.
+          if first_row_zero:
+              for c in range(n):
+                  matrix[0][c] = 0
+          if first_col_zero:
+              for r in range(m):
+                  matrix[r][0] = 0
+
+explanation: |
+  **Intuition.** Clearing as you scan does not work: a zero you just wrote looks exactly like an original zero, so it would go on to clear its own row and column too. Split the work into two phases. First **record** which rows and columns must be cleared, then **clear** them.
+
+  The record is one yes/no flag per row and one per column. Sets would take O(m + n) space. To use O(1), notice that the matrix already has room for the flags: **column 0 has one cell per row and row 0 has one cell per column**. To flag row `r`, set `matrix[r][0] = 0`. To flag column `c`, set `matrix[0][c] = 0`. This is safe because a flagged cell is in a row or column that will be cleared, so it ends up `0` in the answer anyway.
+
+  ```
+  original      after marking      after clearing inner cells
+  1 1 1         1 0 1              1 0 1
+  1 0 1   ->    0 0 1        ->    0 0 0
+  1 1 1         1 1 1              1 0 1
+  ```
+
+  The zero at `(1, 1)` writes a flag to `(1, 0)` (row 1) and to `(0, 1)` (column 1). Every inner cell whose row flag or column flag is `0` is then cleared.
+
+  **Algorithm.**
+  1. Record `first_row_zero` (row 0 has a zero) and `first_col_zero` (column 0 has a zero).
+  2. For every inner cell `(r, c)` with `r, c >= 1` that is `0`, set `matrix[r][0] = 0` and `matrix[0][c] = 0`.
+  3. For every inner cell, if `matrix[r][0] == 0` or `matrix[0][c] == 0`, set it to `0`.
+  4. If `first_row_zero`, clear row 0. If `first_col_zero`, clear column 0.
+
+  **Subtle points.**
+  - **Why two booleans?** Cell `(0, 0)` lies in both row 0 and column 0, so it cannot be the flag for both. Take `[[1, 0, 3], [4, 5, 6], [7, 8, 9]]`: row 0 must be cleared, but column 0 must not (`4` and `7` stay). The two booleans keep these two facts apart.
+  - **Order matters.** Step 3 has to read the flags before step 4 changes row 0 and column 0. If you cleared row 0 first, every `matrix[0][c]` would read as a flag and every column would be cleared.
+  - Avoid "sentinel" tricks such as overwriting cells with `-1` to mean "clear me later". Any 32-bit integer can appear in the input, so no integer is safe as a sentinel. (Writing `None` happens to work in Python, but it would not type-check in most languages.) Using `0` as the flag is safe because the flagged cells end up `0` anyway.
+
+key_insight: Store the "clear this row/column" flags in the first column and first row (cells that end up zero anyway), and use two booleans for the first row and column themselves, clearing them last.
+
+time_complexity: O(m · n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(m · n):** a constant number of passes. Checking row 0 and column 0 is O(m + n), the marking pass and the clearing pass each visit every inner cell once, and the final step is O(m + n) again.
+
+  **Space O(1):** just two booleans and loop variables. All row and column flags are stored in cells of the matrix that would be zeroed anyway.
+
+data_structures: [2D array]
+passes: 2 passes over the matrix (mark, then clear)
+
+alternatives:
+  - name: Copy the matrix, then clear rows and columns
+    time_complexity: O(m · n · (m + n))
+    space_complexity: O(m · n)
+    explanation: |
+      Read zeros from an untouched copy so that written zeros can never be mistaken for original ones. For every zero found in the copy, clear its full row and column in `matrix`.
+    tradeoff: The most direct fix for the "my zeros spread" bug, but it doubles memory (O(m · n)), and each zero costs O(m + n) to clear, so a matrix full of zeros takes O(m · n · (m + n)) time. Both phases of the optimal solution are linear in the matrix size.
+    code: |
+      class Solution:
+          def setZeroes(self, matrix: List[List[int]]) -> None:
+              m, n = len(matrix), len(matrix[0])
+              original = [row[:] for row in matrix]  # zeros are read from here only
+              for r in range(m):
+                  for c in range(n):
+                      if original[r][c] == 0:
+                          for k in range(n):
+                              matrix[r][k] = 0
+                          for k in range(m):
+                              matrix[k][c] = 0
+  - name: Remember zero rows and columns in sets
+    time_complexity: O(m · n)
+    space_complexity: O(m + n)
+    explanation: |
+      First pass: add the row and column index of every zero to `zero_rows` and `zero_cols`. Second pass: clear every cell whose row or column is in one of the sets.
+    tradeoff: Same O(m · n) time and much easier to get right. This is the answer to give first in an interview. It uses O(m + n) extra memory, which the O(1) version removes by keeping the same flags in row 0 and column 0, at the cost of the extra care around those two lines.
+    code: |
+      class Solution:
+          def setZeroes(self, matrix: List[List[int]]) -> None:
+              m, n = len(matrix), len(matrix[0])
+              zero_rows, zero_cols = set(), set()
+              for r in range(m):
+                  for c in range(n):
+                      if matrix[r][c] == 0:
+                          zero_rows.add(r)
+                          zero_cols.add(c)
+
+              for r in range(m):
+                  for c in range(n):
+                      if r in zero_rows or c in zero_cols:
+                          matrix[r][c] = 0
+
+tests:
+  - name: no zeros (unchanged)
+    input: { matrix: [[1, 2], [3, 4]] }
+    expected: [[1, 2], [3, 4]]
+  - name: single zero cell
+    input: { matrix: [[0]] }
+    expected: [[0]]
+  - name: single row
+    input: { matrix: [[1, 0, 3]] }
+    expected: [[0, 0, 0]]
+  - name: single column
+    input: { matrix: [[1], [0], [3]] }
+    expected: [[0], [0], [0]]
+  - name: zero in top-left corner
+    input: { matrix: [[0, 1, 2], [3, 4, 5], [6, 7, 8]] }
+    expected: [[0, 0, 0], [0, 4, 5], [0, 7, 8]]
+  - name: zero in first row only (column 0 must survive)
+    input: { matrix: [[1, 0, 3], [4, 5, 6], [7, 8, 9]] }
+    expected: [[0, 0, 0], [4, 0, 6], [7, 0, 9]]
+  - name: zero in first column only (row 0 must survive)
+    input: { matrix: [[1, 2, 3], [0, 5, 6], [7, 8, 9]] }
+    expected: [[0, 2, 3], [0, 0, 0], [0, 8, 9]]
+  - name: zero in bottom-right corner
+    input: { matrix: [[1, 2, 3], [4, 5, 6], [7, 8, 0]] }
+    expected: [[1, 2, 0], [4, 5, 0], [0, 0, 0]]
+  - name: two zeros in the same row
+    input: { matrix: [[1, 2, 3, 4], [0, 5, 0, 7], [8, 9, 10, 11]] }
+    expected: [[0, 2, 0, 4], [0, 0, 0, 0], [0, 9, 0, 11]]
+  - name: 32-bit extremes and negatives
+    input: { matrix: [[2147483647, -2147483648, 1], [-1, 5, 0]] }
+    expected: [[2147483647, -2147483648, 0], [0, 0, 0]]
+
+benchmark:
+  size_label: n (matrix is n x n)
+  sizes: [25, 50, 100, 200, 400]
+  generator: |
+    def generate(n, rng):
+        # Non-zero values with about n / 4 zeros, so some (not all) rows and columns get cleared.
+        matrix = [[rng.randint(1, 1000) * rng.choice((1, -1)) for _ in range(n)] for _ in range(n)]
+        for _ in range(max(1, n // 4)):
+            matrix[rng.randrange(n)][rng.randrange(n)] = 0
+        return {"matrix": matrix}

@@ -1,0 +1,144 @@
+id: "300"
+title: Longest Increasing Subsequence
+slug: longest-increasing-subsequence
+leetcode_url: https://leetcode.com/problems/longest-increasing-subsequence/
+category: dp-1d
+difficulty: Medium
+patterns: [1-D DP, Binary Search, Patience Sorting]
+
+description: |
+  Given an integer array `nums`, return the length of its longest **strictly increasing subsequence**.
+
+  A **subsequence** keeps some of the elements (possibly all) in their original order but does not have to be contiguous. For example, `[3, 6, 2, 7]` is a subsequence of `[0, 3, 1, 6, 2, 2, 7]`.
+
+  **Strictly** increasing means every element is larger than the one before it, so equal values cannot both be used.
+
+examples:
+  - input: { nums: [10, 9, 2, 5, 3, 7, 101, 18] }
+    output: 4
+    explanation: "One longest choice is `[2, 3, 7, 101]`; `[2, 5, 7, 18]` is another."
+  - input: { nums: [0, 1, 0, 3, 2, 3] }
+    output: 4
+    explanation: "`[0, 1, 2, 3]`."
+  - input: { nums: [7, 7, 7, 7, 7, 7, 7] }
+    output: 1
+    explanation: Equal values do not count as increasing, so any single element is the best you can do.
+
+constraints:
+  - "`1 <= nums.length <= 2500`"
+  - "`-10^4 <= nums[i] <= 10^4`"
+
+function_signature: "def lengthOfLIS(self, nums: List[int]) -> int"
+
+starter_code: |
+  class Solution:
+      def lengthOfLIS(self, nums: List[int]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: lengthOfLIS
+  params:
+    - { name: nums, type: "List[int]" }
+  returns: int
+
+hints:
+  - Focus on where a subsequence **ends**. If you knew the longest increasing subsequence ending at every earlier index, how would you find the one ending at index `i`?
+  - "`dp[i] = 1 + max(dp[j])` over all `j < i` with `nums[j] < nums[i]` (or just 1 if there is none). The answer is the largest `dp[i]`. That is O(n²); can you do better?"
+  - "For the O(n log n) follow-up, keep `tails[k]` = the smallest value that can end an increasing subsequence of length `k + 1`. This list is always sorted, so binary-search where each new number belongs: it either extends the longest length or lowers one tail."
+
+approach: Patience sorting with binary search (O(n log n))
+optimal_solution: |
+  class Solution:
+      def lengthOfLIS(self, nums: List[int]) -> int:
+          # tails[k] = smallest value that can end an increasing subsequence of length k + 1.
+          # tails is always strictly increasing, which is what makes binary search possible.
+          tails = []
+
+          for x in nums:
+              # Leftmost tail >= x. bisect_left (not bisect_right) keeps the subsequence
+              # STRICTLY increasing: an equal value replaces a tail instead of extending.
+              k = bisect.bisect_left(tails, x)
+              if k == len(tails):
+                  tails.append(x)  # x is larger than every tail: a longer subsequence exists
+              else:
+                  tails[k] = x     # x is a smaller (better) ending for length k + 1
+
+          return len(tails)
+
+explanation: |
+  **Intuition.** Among all increasing subsequences of the same length, the one with the **smallest last element** is the most useful, because it is the easiest to extend later. So instead of remembering every subsequence, remember only the best possible ending for each length:
+
+  `tails[k]` = the smallest value that ends any increasing subsequence of length `k + 1` seen so far.
+
+  This list is always strictly increasing. A length-`k + 2` subsequence contains a length-`k + 1` one that ends at a smaller value, so the best tail for a longer length is always larger. A sorted list means each new number can be placed with **binary search**.
+
+  **State & transition.**
+  - **State:** `tails` after processing a prefix of `nums`. Its length is the LIS of that prefix.
+  - **Transition** for a new value `x`: find the leftmost position `k` with `tails[k] >= x`.
+    - If there is none (`x` beats every tail), `x` extends the longest subsequence: append it.
+    - Otherwise `x` can end a subsequence of length `k + 1` (put it after the length-`k` subsequence ending at `tails[k - 1] < x`), and `x <= tails[k]`, so set `tails[k] = x`.
+  - **Base case:** `tails = []` (empty prefix, LIS 0).
+
+  **Algorithm.**
+  1. Start with an empty `tails`.
+  2. For each `x`, compute `k = bisect_left(tails, x)`.
+  3. Append `x` if `k == len(tails)`, else overwrite `tails[k] = x`.
+  4. Return `len(tails)`.
+
+  **The classic DP (and why this is still DP).** The textbook state is `dp[i]` = length of the LIS **ending at index `i`**, with `dp[i] = 1 + max(dp[j] for j < i if nums[j] < nums[i])`, base `dp[i] = 1`, filled left to right, answer `max(dp)`. That is O(n²) (see the alternative). The `tails` array flips the state around. Instead of "for each index, the best length", it stores "for each length, the best ending value", and that representation is sorted, so the inner scan over `j` becomes a binary search.
+
+  **Subtle points.**
+  - `tails` is **not** an actual increasing subsequence of `nums`. For `[3, 4, 1]` it ends as `[1, 4]`, which is not a subsequence. Only its length is meaningful.
+  - Use `bisect_left`. With `bisect_right`, equal values would be appended and `[7, 7, 7]` would wrongly report 3.
+
+key_insight: For each length keep only the smallest possible tail; those tails are sorted, so each number either extends the longest one or replaces a tail found by binary search, giving O(n log n).
+
+time_complexity: O(n log n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n log n):** each of the `n` numbers does one binary search over `tails` (at most `n` long, so O(log n)) and one O(1) append or assignment.
+
+  **Space O(n):** `tails` holds at most one entry per length, which is at most `n` entries (when `nums` is already increasing).
+
+data_structures: [Array (sorted tails)]
+passes: 1 pass over nums
+
+alternatives:
+  - name: O(n²) DP (LIS ending at each index)
+    time_complexity: O(n²)
+    space_complexity: O(n)
+    explanation: |
+      Let `dp[i]` be the length of the longest strictly increasing subsequence that **ends at index `i`**. Every such subsequence is either `[nums[i]]` alone (length 1) or some subsequence ending at an earlier `j` with `nums[j] < nums[i]`, extended by `nums[i]`. So `dp[i] = 1 + max(dp[j])` over those `j` (or 1 if none). Fill `dp` left to right and return `max(dp)`, since the LIS can end anywhere.
+    tradeoff: This is the most common first answer in interviews and is perfectly acceptable. It is easy to derive, easy to explain, and fast enough for n = 2500 (about 3 million comparisons). The O(n log n) patience-sorting version is a strong follow-up when the interviewer asks "can you do better?", and it matters for inputs of 10⁵ or more.
+    code: |
+      class Solution:
+          def lengthOfLIS(self, nums: List[int]) -> int:
+              n = len(nums)
+              # dp[i] = length of the longest increasing subsequence ending at index i
+              dp = [1] * n
+              for i in range(n):
+                  for j in range(i):
+                      if nums[j] < nums[i]:  # nums[i] can extend a subsequence ending at j
+                          dp[i] = max(dp[i], dp[j] + 1)
+              return max(dp)
+
+tests:
+  - { name: single element, input: { nums: [5] }, expected: 1 }
+  - { name: already increasing, input: { nums: [1, 2, 3, 4, 5] }, expected: 5 }
+  - { name: strictly decreasing, input: { nums: [5, 4, 3, 2, 1] }, expected: 1 }
+  - { name: duplicates do not count, input: { nums: [2, 2, 3, 3, 4, 4] }, expected: 3 }
+  - { name: negatives, input: { nums: [-2, -1] }, expected: 2 }
+  - { name: extreme values, input: { nums: [10000, -10000, 0, 10000] }, expected: 3 }
+  - { name: replacing a tail matters, input: { nums: [4, 10, 4, 3, 8, 9] }, expected: 3 }
+  - { name: late long run, input: { nums: [3, 5, 6, 2, 5, 4, 19, 5, 6, 7, 12] }, expected: 6 }
+  - { name: dip in the middle, input: { nums: [1, 3, 6, 7, 9, 4, 10, 5, 6] }, expected: 6 }
+  - { name: interleaved values, input: { nums: [0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15] }, expected: 6 }
+
+benchmark:
+  size_label: length of nums
+  sizes: [100, 500, 1000, 1500, 2500]
+  generator: |
+    def generate(n, rng):
+        # Random values across the full allowed range (n <= 2500).
+        return {"nums": [rng.randint(-10000, 10000) for _ in range(n)]}

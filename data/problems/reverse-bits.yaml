@@ -1,0 +1,150 @@
+id: "190"
+title: Reverse Bits
+slug: reverse-bits
+leetcode_url: https://leetcode.com/problems/reverse-bits/
+category: bit-manipulation
+difficulty: Easy
+patterns: [Bit Manipulation, Bit Shift, Bitmask]
+
+description: |
+  You are given `n`, an **unsigned 32-bit integer** passed in as an ordinary non-negative Python `int`. Treat it as exactly 32 bits, **including its leading zeros**, reverse the order of those 32 bits, and return the result as a non-negative `int`.
+
+  Bit 0 (the lowest) becomes bit 31, bit 1 becomes bit 30, and so on. Because the leading zeros count, a small number like `1` turns into a large one (`2^31`).
+
+  **Follow-up:** if this function were called many times, how would you make it faster?
+
+examples:
+  - input: { n: 43261596 }
+    output: 964176192
+    explanation: "As 32 bits, `00000010100101000001111010011100` reversed is `00111001011110000010100101000000`."
+  - input: { n: 4294967293 }
+    output: 3221225471
+    explanation: "`11111111111111111111111111111101` reversed is `10111111111111111111111111111111`. The single `0` moves from bit 1 to bit 30."
+  - input: { n: 1 }
+    output: 2147483648
+    explanation: "`1` is 31 zeros followed by a `1`. Reversed, the `1` ends up in the top bit: `10000000000000000000000000000000` = `2^31` = `2147483648`."
+
+constraints:
+  - "`0 <= n <= 2^32 - 1` (`n` is the value of a 32-bit unsigned binary string)"
+
+function_signature: "def reverseBits(self, n: int) -> int"
+
+starter_code: |
+  class Solution:
+      def reverseBits(self, n: int) -> int:
+          pass
+
+runner:
+  kind: function
+  method: reverseBits
+  params:
+    - { name: n, type: int }
+  returns: int
+
+hints:
+  - Think of reversing a string. Take characters from one end of the input and build the output from the other end. Bits work the same way, but you must always handle exactly 32 of them, including leading zeros.
+  - You can read the lowest bit of `n` with `n & 1` and throw it away with `n >>= 1`. How can you append a bit to the low end of a result and push the earlier bits up?
+  - "Repeat exactly 32 times: shift the result left by one, OR in `n & 1`, then shift `n` right by one. The first bit you read (bit 0) gets shifted up 31 times and ends in bit 31. Don't stop early when `n` becomes 0, because the remaining shifts are what place the leading zeros."
+
+approach: Bit-by-bit shift (32 iterations)
+optimal_solution: |
+  class Solution:
+      def reverseBits(self, n: int) -> int:
+          result = 0
+          for _ in range(32):                    # always exactly 32 bits
+              result = (result << 1) | (n & 1)   # append n's lowest bit to result
+              n >>= 1                            # move on to n's next bit
+          return result
+
+explanation: |
+  **The 32-bit framing.** Python integers have no fixed width: `bin(1)` is just `'0b1'`. This problem, though, treats `n` as **exactly 32 bits**, padded with leading zeros. Those zeros matter:
+
+  ```
+  n = 1      = 00000000000000000000000000000001
+  reversed   = 10000000000000000000000000000000   = 2^31 = 2147483648
+  ```
+
+  Reversing just `'1'` would give `1`, which is wrong. So the algorithm must always process 32 bit positions. The answer is again an unsigned 32-bit value in `[0, 2^32 - 1]`. It can be bigger than `2^31`, which is no problem for a Python `int`.
+
+  **Intuition.** Reverse the bits like you would reverse a stack of plates: take bits off the **low end** of `n` and add them to the **low end** of `result`. Each time we add a bit we shift `result` left, so earlier bits move up. The first bit taken (bit 0 of `n`) gets shifted 31 more times and ends in bit 31.
+
+  A 4-bit version (the real one does 32) with `n = 0011`:
+
+  ```
+  step   n & 1   result = (result << 1) | bit   n >>= 1
+  1      1       0001                           0001
+  2      1       0011                           0000
+  3      0       0110                           0000
+  4      0       1100                           0000
+  ```
+
+  `0011` reversed is `1100`. Note that steps 3 and 4 still run after `n` is already `0`: they are what move the two `1`s to the top.
+
+  **Algorithm.**
+  1. Set `result = 0`.
+  2. Repeat 32 times:
+     1. `result = (result << 1) | (n & 1)`: make room and append the lowest bit of `n`.
+     2. `n >>= 1`: drop that bit from `n`.
+  3. Return `result`.
+
+  **Subtle points.**
+  - **Exactly 32 iterations.** Stopping when `n == 0` is a classic bug: it skips the shifts that account for leading zeros, so `n = 1` would return `1` instead of `2147483648`.
+  - **No masking needed in Python.** `result` gets exactly 32 shifts and `n` is non-negative, so the result always fits in 32 bits. In Java the same value would come back as a negative `int` once bit 31 is set. Here it is simply a large positive number.
+  - **Follow-up (many calls):** cache the reversal of every 8-bit byte (256 entries) and put a 32-bit answer together from 4 table lookups. Or use the 5-step mask swap shown in the alternatives.
+
+key_insight: Pop bits off the low end of n and push them onto the low end of the result exactly 32 times, so leading zeros are counted and bit i lands in position 31 - i.
+
+time_complexity: O(1)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(1):** the loop always runs exactly 32 times with O(1) work each time, no matter what `n` is. For a general word size `b` this is O(b).
+
+  **Space O(1):** only `result` and the loop counter.
+
+data_structures: [Integer bits]
+passes: 32 iterations (one per bit)
+
+alternatives:
+  - name: Format as a 32-character string and reverse it
+    time_complexity: O(1)
+    space_complexity: O(1)
+    explanation: |
+      `format(n, "032b")` writes `n` as exactly 32 binary digits, leading zeros included. Reverse the string with `[::-1]` and parse it back with `int(..., 2)`. This states the 32-bit framing directly: the `032` padding is the leading zeros.
+    tradeoff: Short and hard to get wrong, which makes it a good way to check your bit-loop answer. But it goes through strings (a 32-character string is created and reversed), and it skips the bit manipulation the interviewer wants to see. It also does not carry over to languages without such easy formatting.
+    code: |
+      class Solution:
+          def reverseBits(self, n: int) -> int:
+              bits = format(n, "032b")  # exactly 32 characters, leading zeros kept
+              return int(bits[::-1], 2)
+  - name: Divide and conquer with masks
+    time_complexity: O(1)
+    space_complexity: O(1)
+    explanation: |
+      Reversing 32 bits = swap the two 16-bit halves, then swap the two bytes inside each half, then the two 4-bit nibbles inside each byte, then the bit pairs, then neighboring bits. Each level is one line: mask out the left and right parts, shift them toward each other, OR them back together.
+
+      ```
+      0xFF00FF00 = 11111111 00000000 11111111 00000000   (left byte of each half)
+      0xAAAAAAAA = 10101010 10101010 10101010 10101010   (left bit of each pair)
+      ```
+    tradeoff: Only 5 steps (log2 of 32) and no loop, so this is the classic answer to the follow-up. Hard to come up with during an interview, and the mask constants are easy to mistype. The 32-step loop is clearer and fast enough for a single call.
+    code: |
+      class Solution:
+          def reverseBits(self, n: int) -> int:
+              n = ((n >> 16) | (n << 16)) & 0xFFFFFFFF               # swap 16-bit halves
+              n = ((n & 0xFF00FF00) >> 8) | ((n & 0x00FF00FF) << 8)  # swap bytes
+              n = ((n & 0xF0F0F0F0) >> 4) | ((n & 0x0F0F0F0F) << 4)  # swap nibbles
+              n = ((n & 0xCCCCCCCC) >> 2) | ((n & 0x33333333) << 2)  # swap bit pairs
+              n = ((n & 0xAAAAAAAA) >> 1) | ((n & 0x55555555) << 1)  # swap neighboring bits
+              return n
+
+tests:
+  - { name: zero, input: { n: 0 }, expected: 0 }
+  - { name: all 32 bits set, input: { n: 4294967295 }, expected: 4294967295 }
+  - { name: top bit only (2^31) becomes 1, input: { n: 2147483648 }, expected: 1 }
+  - { name: 2 becomes 2^30, input: { n: 2 }, expected: 1073741824 }
+  - { name: 6 (110) becomes 0x60000000, input: { n: 6 }, expected: 1610612736 }
+  - { name: high nibble 0xF0000000 becomes 0xF, input: { n: 4026531840 }, expected: 15 }
+  - { name: low 16 bits set (0x0000FFFF), input: { n: 65535 }, expected: 4294901760 }
+  - { name: alternating 0xAAAAAAAA becomes 0x55555555, input: { n: 2863311530 }, expected: 1431655765 }
+  - { name: 0x12345678 becomes 0x1E6A2C48, input: { n: 305419896 }, expected: 510274632 }
+  - { name: palindrome 0x80000001, input: { n: 2147483649 }, expected: 2147483649 }

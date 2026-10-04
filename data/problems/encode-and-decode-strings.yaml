@@ -1,0 +1,192 @@
+id: "271"
+title: Encode and Decode Strings
+slug: encode-and-decode-strings
+leetcode_url: https://leetcode.com/problems/encode-and-decode-strings/
+category: arrays-hashing
+difficulty: Medium
+patterns: [String Encoding, Length Prefix, Design]
+
+description: |
+  Design a way to pack a **list of strings into one single string** and later unpack it back into the exact same list. Think of a sender that can only transmit one string over the network, and a receiver that must rebuild the original list.
+
+  Implement the `Codec` class:
+
+  - `encode(strs)` takes a list of strings and returns **one string**.
+  - `decode(s)` takes a string produced by `encode` and returns the original list.
+
+  The strings may contain **any character**, including the punctuation, digits or whitespace you might be tempted to use as a separator, and the list itself may be empty or contain empty strings. Do not rely on built-in serializers such as `json`, `pickle`, `repr` or `eval`; the point is to design the format yourself.
+
+  **How tests work:** each test gives a list `strs`. The judge calls `encode(strs)` on one `Codec` object, passes the returned string to `decode` on a **fresh** `Codec` object, and checks that the result equals `strs`. Because the objects are different, everything the decoder needs must be inside the encoded string.
+
+examples:
+  - input: { strs: [hello, world] }
+    output: [hello, world]
+    explanation: 'One possible encoding is `"5#hello5#world"`: each string is prefixed with its length and a `#`.'
+  - input: { strs: ["a#b", "", "42"] }
+    output: ["a#b", "", "42"]
+    explanation: The strings contain the `#` character, digits and an empty string. A correct format still recovers all three exactly.
+  - input: { strs: [] }
+    output: []
+    explanation: An empty list must decode back to an empty list, which is different from a list holding one empty string.
+
+constraints:
+  - "`0 <= strs.length <= 200`"
+  - "`0 <= strs[i].length <= 200`"
+  - "`strs[i]` may contain any characters: letters, digits, symbols such as `#`, `,` and `/`, whitespace, and non-ASCII Unicode."
+
+function_signature: "class Codec: encode(strs: List[str]) -> str / decode(s: str) -> List[str]"
+
+starter_code: |
+  class Codec:
+      def encode(self, strs: List[str]) -> str:
+          """Encodes a list of strings to a single string."""
+          pass
+
+      def decode(self, s: str) -> List[str]:
+          """Decodes a single string to a list of strings."""
+          pass
+
+runner:
+  kind: codec
+  class_name: Codec
+  encode: encode
+  decode: decode
+  param: strs
+  type: "List[str]"
+
+hints:
+  - Joining with a separator such as a comma fails as soon as a string contains a comma. It also cannot tell `[]` apart from `[""]`, since both join to an empty string. What extra information does the decoder need?
+  - Instead of marking where each string *ends*, tell the decoder up front *how long* the next string is. If the decoder never has to inspect the content, the content can contain anything.
+  - Write each string as its length, then one fixed separator character, then the string itself. To decode, read digits up to the separator, turn them into a number, and take exactly that many characters. Any separator characters inside the content are skipped over, never parsed.
+
+approach: Length-prefix encoding
+optimal_solution: |
+  class Codec:
+      def encode(self, strs: List[str]) -> str:
+          """Encodes a list of strings to a single string."""
+          # Each string becomes "<length>#<content>". The length tells the
+          # decoder exactly how many characters to take, so the content may
+          # contain '#', digits or anything else.
+          return "".join(f"{len(s)}#{s}" for s in strs)
+
+      def decode(self, s: str) -> List[str]:
+          """Decodes a single string to a list of strings."""
+          result = []
+          i = 0
+          while i < len(s):
+              # The header is digits followed by '#'. The first '#' at or after
+              # i must end the header, because a header contains only digits.
+              sep = s.index("#", i)
+              length = int(s[i:sep])
+              start = sep + 1
+              result.append(s[start:start + length])
+              i = start + length  # jump over the content without parsing it
+          return result
+
+explanation: |
+  **Intuition.** Any scheme that uses a special character to mark the *end* of a string breaks when that character appears *inside* a string. The fix is to describe each string *before* it appears: if the decoder knows the next string is 5 characters long, it can copy exactly 5 characters and never needs to look at what they are.
+
+  So each string is written as a small **header** (its length plus a `#` to end the header) followed by the raw content. `["a#b", "", "42"]` encodes to `"3#a#b0#2#42"`.
+
+  **Algorithm.**
+  - **encode:** for every string `s`, emit `str(len(s)) + "#" + s` and join all pieces together.
+  - **decode:** keep an index `i` at the start of the next header.
+    1. Find the first `#` at or after `i`. The digits between `i` and that `#` are the length.
+    2. Take the next `length` characters as one string.
+    3. Move `i` to just past that content, and repeat until the end of the input.
+
+  **Why is it unambiguous?** The decoder only ever searches for `#` while reading a header, and a header contains nothing but digits. The content, which might contain `#` and digits, is skipped by counting, never searched. For example, in `"3#a#b"` the `#` inside `a#b` is never treated as a separator.
+
+  **Subtle points.**
+  - `[]` encodes to `""` and `[""]` encodes to `"0#"`, so the two stay distinguishable. Naive joins cannot tell them apart.
+  - Build the result with `"".join(...)`. Repeated `+=` on strings can degrade to quadratic time.
+  - Python measures `len` and slices in Unicode code points, so non-ASCII text works as long as encode and decode use the same unit. In a language that sends raw bytes, measure the length in bytes.
+  - A **fixed-width header** (for example, always 4 zero-padded digits, or 4 raw bytes as network protocols do) removes the need for the `#` entirely, at the cost of a maximum string length.
+
+key_insight: Prefix every string with its length so the decoder can skip the content by counting instead of searching for a delimiter that might appear inside it.
+
+time_complexity: O(n)
+space_complexity: O(n)
+complexity_explanation: |
+  Let `n` be the total number of characters across all strings and `m` the number of strings.
+
+  **Time O(n):** encoding writes every character once plus a short header per string. Decoding reads each header and slices each string once, so every character is copied a constant number of times. The headers add O(m · log L) digits for strings of length up to L, which is dominated by the content for any non-trivial input.
+
+  **Space O(n):** the encoded string and the decoded list each hold all `n` characters (plus the small headers). Apart from that output, only a few index variables are used.
+
+data_structures: [String]
+passes: 1 pass to encode, 1 pass to decode
+
+alternatives:
+  - name: Escaping with an end marker
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Reserve `/` as an escape character. Inside the content, write every `/` as `//`, and end each string with the two-character marker `/:`. After escaping, a single `/` followed by `:` can only be an end marker, never content.
+
+      The decoder walks character by character: `//` produces a literal `/`, `/:` finishes the current string, and every other character is copied as-is.
+    tradeoff: Also correct and linear, and it is how many text formats (CSV quoting, string literals) work. But the decoder must inspect and copy every character individually instead of slicing whole strings, and the encoded size grows when the content has many `/` characters. Length-prefixing is simpler to get right and faster to decode.
+    code: |
+      class Codec:
+          def encode(self, strs: List[str]) -> str:
+              # Escape '/' as '//', then terminate each string with '/:'.
+              return "".join(s.replace("/", "//") + "/:" for s in strs)
+
+          def decode(self, s: str) -> List[str]:
+              result = []
+              current = []  # characters of the string being rebuilt
+              i = 0
+              while i < len(s):
+                  if s[i] == "/":
+                      if s[i + 1] == "/":  # escaped slash -> a literal '/'
+                          current.append("/")
+                      else:                # '/:' -> end of the current string
+                          result.append("".join(current))
+                          current = []
+                      i += 2
+                  else:
+                      current.append(s[i])
+                      i += 1
+              return result
+
+tests:
+  - name: empty list
+    input: { strs: [] }
+    expected: []
+  - name: one empty string
+    input: { strs: [""] }
+    expected: [""]
+  - name: several empty strings
+    input: { strs: ["", "", ""] }
+    expected: ["", "", ""]
+  - name: strings that look like length headers
+    input: { strs: ["3#abc", "12#", "#", "##", "0#"] }
+    expected: ["3#abc", "12#", "#", "##", "0#"]
+  - name: digits only
+    input: { strs: ["0", "123", "4567890", "10"] }
+    expected: ["0", "123", "4567890", "10"]
+  - name: commas and spaces
+    input: { strs: ["a,b", " ", "  padded  ", ",", "x, y, z"] }
+    expected: ["a,b", " ", "  padded  ", ",", "x, y, z"]
+  - name: non-ASCII characters
+    input: { strs: ["héllo", "日本語", "🙂🚀", "Ωmega", "naïve café"] }
+    expected: ["héllo", "日本語", "🙂🚀", "Ωmega", "naïve café"]
+  - name: escape-like characters
+    input: { strs: ["/", "//", "/:", "\\", "a/:b", "end/"] }
+    expected: ["/", "//", "/:", "\\", "a/:b", "end/"]
+  - name: multi-digit lengths and control characters
+    input: { strs: ["abcdefghijklmnopqrstuvwxyz", "1", "line1\nline2", "\t", "22#22"] }
+    expected: ["abcdefghijklmnopqrstuvwxyz", "1", "line1\nline2", "\t", "22#22"]
+
+benchmark:
+  size_label: total characters
+  sizes: [400, 2000, 10000, 40000]
+  generator: |
+    def generate(n, rng):
+        # About sqrt(n) strings of about sqrt(n) characters each (at most
+        # 200 x 200), drawn from characters that break naive delimiters.
+        alphabet = "abcxyz0123456789#,/: \\|\u00e9\u65e5\U0001F642"
+        m = max(1, min(200, int(n ** 0.5)))
+        length = min(200, n // m)
+        strs = ["".join(rng.choice(alphabet) for _ in range(length)) for _ in range(m)]
+        return {"strs": strs}

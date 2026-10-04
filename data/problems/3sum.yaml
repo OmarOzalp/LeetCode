@@ -1,0 +1,199 @@
+id: "15"
+title: 3Sum
+slug: 3sum
+leetcode_url: https://leetcode.com/problems/3sum/
+category: two-pointers
+difficulty: Medium
+patterns: [Two Pointers, Sorting, Duplicate Skipping]
+
+description: |
+  Given an integer array `nums`, find every **distinct triplet** of values `[nums[i], nums[j], nums[k]]` that sums to zero, where `i`, `j` and `k` are three **different indices**.
+
+  Two triplets count as the same if they contain the same values (in any order), so each such triplet must appear in the answer **only once**. A value may appear more than once inside a triplet if it occurs at different indices in `nums`.
+
+  Return the triplets in any order. The values inside each triplet may also be in any order.
+
+examples:
+  - input: { nums: [2, -3, 0, 1, -1, 3] }
+    output: [[-3, 0, 3], [-3, 1, 2], [-1, 0, 1]]
+    explanation: These are the only three ways to pick values that sum to zero. For example `-3 + 1 + 2 = 0`.
+  - input: { nums: [1, 1, -2] }
+    output: [[-2, 1, 1]]
+    explanation: The value `1` is used twice, which is allowed because it occurs at two different indices.
+  - input: { nums: [-1, 0, 1, 0] }
+    output: [[-1, 0, 1]]
+    explanation: There are two ways to choose the indices (either `0`), but they give the same triplet of values, so it is listed once.
+
+constraints:
+  - "`3 <= nums.length <= 3000`"
+  - "`-10^5 <= nums[i] <= 10^5`"
+
+function_signature: "def threeSum(self, nums: List[int]) -> List[List[int]]"
+
+starter_code: |
+  class Solution:
+      def threeSum(self, nums: List[int]) -> List[List[int]]:
+          pass
+
+runner:
+  kind: function
+  method: threeSum
+  params:
+    - { name: nums, type: "List[int]" }
+  returns: "List[List[int]]"
+  compare: unordered_nested
+
+hints:
+  - Trying every triple is O(n³). If you fix the first value `a`, what problem is left for the other two values?
+  - Once `a` is fixed you need two values that sum to `-a`. That is Two Sum. On a **sorted** array, Two Sum can be solved with two pointers moving inwards and no extra memory.
+  - Sort `nums`. For each index `i`, run a left pointer from `i + 1` and a right pointer from the end. Move left up when the sum is too small and right down when it is too large. Skip over equal neighbouring values (for `i` and after each match) so no triplet is reported twice.
+
+approach: Sort + two pointers
+optimal_solution: |
+  class Solution:
+      def threeSum(self, nums: List[int]) -> List[List[int]]:
+          nums.sort()
+          n = len(nums)
+          result = []
+
+          for i in range(n - 2):
+              a = nums[i]
+              if a > 0:
+                  break  # all remaining values are positive: no sum can reach 0
+              if i > 0 and a == nums[i - 1]:
+                  continue  # same first value as before -> same triplets
+
+              # Two Sum on the sorted suffix: find nums[lo] + nums[hi] == -a.
+              lo, hi = i + 1, n - 1
+              while lo < hi:
+                  total = a + nums[lo] + nums[hi]
+                  if total < 0:
+                      lo += 1  # need a bigger sum
+                  elif total > 0:
+                      hi -= 1  # need a smaller sum
+                  else:
+                      result.append([a, nums[lo], nums[hi]])
+                      lo += 1
+                      hi -= 1
+                      # Skip repeated second values so this triplet isn't added again.
+                      while lo < hi and nums[lo] == nums[lo - 1]:
+                          lo += 1
+
+          return result
+
+explanation: |
+  **Intuition.** Fix the smallest value `a` of the triplet. The remaining job is to find two values after it that sum to `-a`, which is the Two Sum problem. Sorting the array first unlocks the two-pointer version of Two Sum, and also makes duplicates sit next to each other, which turns de-duplication into "skip equal neighbours".
+
+  **Why the two pointers work.** On a sorted range, let `lo` be the smallest and `hi` the largest candidate:
+  - If `a + nums[lo] + nums[hi] < 0`, then `nums[lo]` is too small even when paired with the *largest* value available, so no triplet can use it. Move `lo` right.
+  - If the sum is `> 0`, then `nums[hi]` is too large even with the *smallest* value, so move `hi` left.
+  - Each step discards one value that provably cannot be part of an answer, so one sweep finds every pair.
+
+  **Algorithm.**
+  1. Sort `nums`.
+  2. For each index `i` (the first value `a = nums[i]`):
+     - If `a > 0`, stop. Everything after it is positive too.
+     - If `a` equals the previous first value, skip it to avoid repeating the same triplets.
+     - Set `lo = i + 1` and `hi = n - 1`, then move them inwards as above. On a match, record it, move both pointers, and advance `lo` past copies of the value just used.
+  3. Return all recorded triplets.
+
+  **Subtle points (de-duplication).**
+  - Skipping duplicates of the **first** value uses `nums[i] == nums[i - 1]`, comparing with the *previous* index. Comparing with `nums[i + 1]` instead would wrongly skip valid triplets like `[-1, -1, 2]`.
+  - After a match, skipping repeated `nums[lo]` values is enough. Once the second value differs, the third value must differ too for the sum to stay zero.
+  - Avoiding duplicates *structurally* like this is cleaner and faster than collecting everything into a set of tuples.
+
+key_insight: Sorting turns each "fix one value, find the other two" subproblem into a linear two-pointer sweep, and makes duplicates adjacent so they can be skipped instead of filtered out.
+
+time_complexity: O(n²)
+space_complexity: O(1) extra
+complexity_explanation: |
+  **Time O(n²):** sorting costs O(n log n). Then, for each of the n choices of the first value, the two pointers together move at most n steps, giving O(n²) overall, which dominates the sort.
+
+  **Space O(1) extra:** besides the output list, only a few indices are used. (Python's `sort` may use up to O(n) temporary memory internally, and the output itself can hold O(n²) triplets in the worst case.)
+
+data_structures: [Sorted array]
+passes: 1 sort + n two-pointer sweeps
+
+alternatives:
+  - name: Brute force (every triple + set)
+    time_complexity: O(n³)
+    space_complexity: O(n²)
+    explanation: |
+      Check every combination of three indices `i < j < k`. When the values sum to zero, sort them and add the tuple to a set, which removes duplicate triplets automatically.
+
+      The set holds at most O(n²) distinct triplets, because once two values are chosen the third is forced to be their negated sum.
+    tradeoff: The most direct translation of the problem, but there are about n³/6 triples. At n = 3000 that is roughly 4.5 billion checks, versus about 4.5 million pointer moves for sort + two pointers.
+    code: |
+      class Solution:
+          def threeSum(self, nums: List[int]) -> List[List[int]]:
+              n = len(nums)
+              found = set()  # sorted tuples, so permutations collapse into one
+              for i in range(n):
+                  for j in range(i + 1, n):
+                      for k in range(j + 1, n):
+                          if nums[i] + nums[j] + nums[k] == 0:
+                              found.add(tuple(sorted((nums[i], nums[j], nums[k]))))
+              return [list(t) for t in found]
+  - name: Sort + hash set Two Sum for each first value
+    time_complexity: O(n²)
+    space_complexity: O(n)
+    explanation: |
+      Sort the array and fix each distinct first value `nums[i]`. Then scan the rest with a hash set, exactly as in Two Sum: for each `nums[j]`, check whether the complement `-nums[i] - nums[j]` was seen earlier in this scan. Because the array is sorted, every found triplet `(nums[i], complement, nums[j])` is already in ascending order, so a set of tuples removes repeats.
+    tradeoff: Same O(n²) time and a natural extension of Two Sum, but it needs an O(n) hash set per first value plus a set of results for de-duplication, and hashing is slower than pointer moves in practice. Two pointers avoid duplicates structurally with O(1) extra memory.
+    code: |
+      class Solution:
+          def threeSum(self, nums: List[int]) -> List[List[int]]:
+              nums = sorted(nums)
+              found = set()
+              for i in range(len(nums) - 2):
+                  if i > 0 and nums[i] == nums[i - 1]:
+                      continue  # same first value -> same triplets
+                  seen = set()
+                  for j in range(i + 1, len(nums)):
+                      complement = -nums[i] - nums[j]
+                      if complement in seen:
+                          found.add((nums[i], complement, nums[j]))
+                      seen.add(nums[j])
+              return [list(t) for t in found]
+
+tests:
+  - name: exactly three zeros
+    input: { nums: [0, 0, 0] }
+    expected: [[0, 0, 0]]
+  - name: many zeros
+    input: { nums: [0, 0, 0, 0] }
+    expected: [[0, 0, 0]]
+  - name: three elements, no solution
+    input: { nums: [0, 1, 1] }
+    expected: []
+  - name: no zero-sum triplet
+    input: { nums: [1, 2, -2, -1] }
+    expected: []
+  - name: all positive
+    input: { nums: [1, 2, 3, 4] }
+    expected: []
+  - name: duplicates collapse to one triplet
+    input: { nums: [-2, 0, 0, 2, 2] }
+    expected: [[-2, 0, 2]]
+  - name: large magnitudes
+    input: { nums: [-100000, 0, 100000, 50000, -50000] }
+    expected: [[-100000, 0, 100000], [-50000, 0, 50000]]
+  - name: duplicate-heavy
+    input: { nums: [-1, -1, -1, 0, 0, 0, 1, 1, 1, 2, 2, -2] }
+    expected: [[-2, 0, 2], [-2, 1, 1], [-1, -1, 2], [-1, 0, 1], [0, 0, 0]]
+  - name: repeated first values
+    input: { nums: [-4, -2, -2, -2, 0, 1, 2, 2, 2, 3, 3, 4, 4, 6, 6] }
+    expected: [[-4, -2, 6], [-4, 0, 4], [-4, 1, 3], [-4, 2, 2], [-2, -2, 4], [-2, 0, 2]]
+  - name: dense small values
+    input: { nums: [8, -9, -12, 11, -4, -5, -5, -8, 11, -9, 9, 11, 5, -10, 6, 1, -11, -12, -10, -6, -5, 4, 7, -12, 5, -6, 10, 8, 10, 5, 1, -5, 2, 6, -4, -12, 12, -7, 10, 1] }
+    expected: [[-12, 1, 11], [-12, 2, 10], [-12, 4, 8], [-12, 5, 7], [-12, 6, 6], [-11, 1, 10], [-11, 2, 9], [-11, 4, 7], [-11, 5, 6], [-10, 1, 9], [-10, 2, 8], [-10, 4, 6], [-10, 5, 5], [-9, 1, 8], [-9, 2, 7], [-9, 4, 5], [-8, -4, 12], [-8, 1, 7], [-8, 2, 6], [-7, -5, 12], [-7, -4, 11], [-7, 1, 6], [-7, 2, 5], [-6, -6, 12], [-6, -5, 11], [-6, -4, 10], [-6, 1, 5], [-6, 2, 4], [-5, -5, 10], [-5, -4, 9], [-5, 1, 4], [-4, -4, 8]]
+
+benchmark:
+  size_label: length of nums
+  sizes: [20, 100, 500, 2000]
+  generator: |
+    def generate(n, rng):
+        # Values in [-20n, 20n] (within the allowed range) give a growing
+        # number of answers with some duplicates at every size.
+        m = 20 * n
+        return {"nums": [rng.randint(-m, m) for _ in range(n)]}

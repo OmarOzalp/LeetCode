@@ -1,0 +1,171 @@
+id: "213"
+title: House Robber II
+slug: house-robber-ii
+leetcode_url: https://leetcode.com/problems/house-robber-ii/
+category: dp-1d
+difficulty: Medium
+patterns: [1-D DP, Take or Skip, Problem Reduction]
+
+description: |
+  This time the houses are arranged in a **circle**: house `0` and house `n - 1` are neighbors. `nums[i]` is the money in house `i`.
+
+  As before, robbing **two adjacent houses** on the same night triggers the alarm, and adjacency now wraps around the circle.
+
+  Return the maximum total you can collect without triggering the alarm.
+
+examples:
+  - input: { nums: [2, 3, 2] }
+    output: 3
+    explanation: Houses 0 and 2 are adjacent on the circle, so you cannot take both 2s. Robbing house 1 alone gives 3.
+  - input: { nums: [1, 2, 3, 1] }
+    output: 4
+    explanation: Rob house 0 (1) and house 2 (3).
+  - input: { nums: [2, 7, 9, 3, 1] }
+    output: 11
+    explanation: "On a straight street the answer would be `2 + 9 + 1 = 12`, but that uses both the first and the last house. The best circular plan is `2 + 9 = 11`."
+
+constraints:
+  - "`1 <= nums.length <= 100`"
+  - "`0 <= nums[i] <= 1000`"
+
+function_signature: "def rob(self, nums: List[int]) -> int"
+
+starter_code: |
+  class Solution:
+      def rob(self, nums: List[int]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: rob
+  params:
+    - { name: nums, type: "List[int]" }
+  returns: int
+
+hints:
+  - Solve House Robber (a straight street) first. The circle adds exactly one new restriction. Which pair of houses does it affect?
+  - The first and last house can never both be robbed. So in any valid plan, at least one of them is left alone. What does the street look like if you simply delete that house?
+  - "Run the straight-line DP twice, once on houses `0..n-2` (last house excluded) and once on houses `1..n-1` (first house excluded), and return the larger result. Handle a single house separately."
+
+approach: Two passes of the linear House Robber DP
+optimal_solution: |
+  class Solution:
+      def rob(self, nums: List[int]) -> int:
+          n = len(nums)
+          if n == 1:
+              return nums[0]  # both "ranges" below would be empty
+
+          # House 0 and house n-1 touch, so at least one is skipped.
+          return max(self._rob_line(nums, 0, n - 2),   # skip the last house
+                     self._rob_line(nums, 1, n - 1))   # skip the first house
+
+      def _rob_line(self, nums: List[int], lo: int, hi: int) -> int:
+          """Classic House Robber on the straight segment nums[lo..hi]."""
+          prev2, prev1 = 0, 0  # best totals two houses back / one house back
+          for i in range(lo, hi + 1):
+              prev2, prev1 = prev1, max(prev1, prev2 + nums[i])
+          return prev1
+
+explanation: |
+  **Intuition.** The only difference from House Robber is that the first and last houses are now neighbors. Any valid plan leaves **at least one** of them unrobbed, so every valid plan is either:
+  - a plan for the straight street `0..n-2` (last house removed), or
+  - a plan for the straight street `1..n-1` (first house removed).
+
+  Conversely, any plan for either straight street is valid on the circle, since it cannot contain both ends. So the answer is the better of two ordinary House Robber runs. The circle is *reduced* to a problem we already know.
+
+  **State & recurrence (for each straight segment).**
+  - **State:** `dp[i]` = best total from the segment's houses up to and including `i`.
+  - **Transition:** `dp[i] = max(dp[i - 1], dp[i - 2] + nums[i])`: skip house `i`, or rob it and add the best from two houses back.
+  - **Base cases:** before the segment starts, both previous totals are 0.
+  - **Order & space:** left to right; only the last two values are needed, so two variables suffice.
+
+  **Algorithm.**
+  1. If there is only one house, return `nums[0]` (there is no neighbor to conflict with).
+  2. Run the linear DP over indices `0..n-2` and over `1..n-1`.
+  3. Return the maximum of the two results.
+
+  **Edge cases.**
+  - `n == 1`: both ranges would be empty and return 0, which is wrong, hence the special case.
+  - `n == 2`: the ranges are the single houses `[0]` and `[1]`, so the answer is the larger one, as it should be (the two houses are adjacent).
+  - Passing index ranges instead of slicing (`nums[:-1]`, `nums[1:]`) keeps the extra space at O(1).
+
+key_insight: The first and last house cannot both be robbed, so the circle splits into two straight-line House Robber problems (drop the first house or drop the last) and the answer is the larger.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** two linear passes, each touching at most `n - 1` houses with O(1) work per house.
+
+  **Space O(1):** each pass keeps two running totals, and the ranges are given by indices rather than by copying the list.
+
+data_structures: [Two rolling variables]
+passes: 2 passes over nums
+
+alternatives:
+  - name: Top-down memoization with a "first house robbed" flag
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Instead of splitting into two problems, carry the circular restriction in the state: `best(i, took_first)` is the best total from houses `i..n-1` given whether house 0 was robbed. At each house choose skip (`best(i + 1, took_first)`) or rob (`nums[i] + best(i + 2, ...)`), and when `took_first` is true the last house counts as unavailable.
+
+      There are `2n` states, each computed once thanks to `@cache`.
+    tradeoff: Shows a general technique, adding a flag to the state to remember a constraint, that works when a clean reduction is not obvious. It needs O(n) memory and recursion, and the extra flag makes it easier to get wrong than two simple passes.
+    code: |
+      class Solution:
+          def rob(self, nums: List[int]) -> int:
+              n = len(nums)
+              if n == 1:
+                  return nums[0]
+
+              @cache
+              def best(i: int, took_first: bool) -> int:
+                  """Max money from houses i..n-1, given whether house 0 was robbed."""
+                  if i >= n or (i == n - 1 and took_first):
+                      return 0  # no houses left (the last one touches house 0)
+                  skip = best(i + 1, took_first)
+                  take = nums[i] + best(i + 2, took_first or i == 0)
+                  return max(skip, take)
+
+              return best(0, False)
+  - name: Bottom-up DP table on both slices
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      The same reduction, written with an explicit table. For a straight list `houses`, `dp[k]` is the best total from the first `k` houses (`dp[0] = 0`, `dp[1] = houses[0]`), and `dp[k] = max(dp[k - 1], dp[k - 2] + houses[k - 1])`. Run it on `nums[:-1]` and `nums[1:]`.
+    tradeoff: Easiest to trace on paper, since you can print the table. It allocates the two slices and a table per run (O(n) memory) where the optimal version uses two variables and index ranges.
+    code: |
+      class Solution:
+          def rob(self, nums: List[int]) -> int:
+              if len(nums) == 1:
+                  return nums[0]
+
+              def rob_line(houses: List[int]) -> int:
+                  # dp[k] = best total using the first k houses of this street
+                  dp = [0] * (len(houses) + 1)
+                  dp[1] = houses[0]
+                  for k in range(2, len(houses) + 1):
+                      dp[k] = max(dp[k - 1], dp[k - 2] + houses[k - 1])
+                  return dp[-1]
+
+              return max(rob_line(nums[:-1]), rob_line(nums[1:]))
+
+tests:
+  - { name: single house, input: { nums: [5] }, expected: 5 }
+  - { name: single empty house, input: { nums: [0] }, expected: 0 }
+  - { name: two houses are neighbors, input: { nums: [1, 2] }, expected: 2 }
+  - { name: three equal houses, input: { nums: [1, 1, 1] }, expected: 1 }
+  - { name: all empty, input: { nums: [0, 0, 0, 0] }, expected: 0 }
+  - { name: rich first house, input: { nums: [200, 3, 140, 20, 10] }, expected: 340 }
+  - { name: rich last house, input: { nums: [1, 3, 1, 3, 100] }, expected: 103 }
+  - { name: skip two in a row, input: { nums: [4, 1, 2, 7, 5, 3, 1] }, expected: 14 }
+  - name: longer circle
+    input: { nums: [94, 40, 49, 65, 21, 21, 106, 80, 92, 81, 679, 4, 61, 6, 237, 12, 72, 74, 29, 95, 265, 35, 47, 1] }
+    expected: 1752
+
+benchmark:
+  size_label: number of houses
+  sizes: [10, 20, 30, 60, 100]
+  generator: |
+    def generate(n, rng):
+        # Constraint: n <= 100 and 0 <= nums[i] <= 1000.
+        return {"nums": [rng.randint(0, 1000) for _ in range(n)]}

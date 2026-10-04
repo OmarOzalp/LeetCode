@@ -1,0 +1,204 @@
+id: "417"
+title: Pacific Atlantic Water Flow
+slug: pacific-atlantic-water-flow
+leetcode_url: https://leetcode.com/problems/pacific-atlantic-water-flow/
+category: graphs
+difficulty: Medium
+patterns: [Multi-source BFS, DFS, Matrix, Reverse Search]
+
+description: |
+  An `m x n` island is described by a matrix `heights`, where `heights[r][c]` is the height of the cell in row `r` and column `c`. The **Pacific Ocean** touches the island's top and left edges, and the **Atlantic Ocean** touches its bottom and right edges.
+
+  Rain water on a cell can flow to any horizontally or vertically adjacent cell whose height is **less than or equal to** the current cell's height. Water on a cell that borders an ocean can flow straight into that ocean.
+
+  Return the coordinates `[r, c]` of every cell from which water can reach **both** oceans. The cells may be returned in any order.
+
+examples:
+  - input: { heights: [[1, 2, 3], [8, 9, 4], [7, 6, 5]] }
+    output: [[0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2]]
+    explanation: |
+      The heights rise in a spiral toward the `9` in the center. Water from `9` can flow down to every edge. `(2, 1)` (height 6) touches the Atlantic directly and reaches the Pacific via `6 → 5 → 4 → 3`. `(0, 0)` and `(0, 1)` touch the Pacific, but every path toward the Atlantic goes uphill, so they are excluded.
+  - input: { heights: [[4, 3], [2, 1]] }
+    output: [[0, 0], [0, 1], [1, 0]]
+    explanation: "`(0, 1)` and `(1, 0)` touch both oceans. `(0, 0)` touches the Pacific and flows down into either of them, so it also reaches the Atlantic. `(1, 1)` touches the Atlantic, but both of its neighbors are higher, so it never reaches the Pacific."
+  - input: { heights: [[3, 3, 3], [3, 1, 3], [3, 3, 3]] }
+    output: [[0, 0], [0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1], [2, 2]]
+    explanation: Water moves freely along the equal-height border, so every border cell reaches both oceans. The center is a pit and cannot flow anywhere.
+
+constraints:
+  - "`m == heights.length`, `n == heights[r].length`"
+  - "`1 <= m, n <= 200`"
+  - "`0 <= heights[r][c] <= 10^5`"
+
+function_signature: "def pacificAtlantic(self, heights: List[List[int]]) -> List[List[int]]"
+
+starter_code: |
+  class Solution:
+      def pacificAtlantic(self, heights: List[List[int]]) -> List[List[int]]:
+          pass
+
+runner:
+  kind: function
+  method: pacificAtlantic
+  params:
+    - { name: heights, type: "List[List[int]]" }
+  returns: "List[List[int]]"
+  compare: unordered
+
+hints:
+  - Simulating the water from every cell separately repeats a lot of work. Instead of asking "where can this cell's water go?", ask "which cells can send water to this ocean?"
+  - Reverse the flow. Start from the cells that touch an ocean and walk **uphill**, moving to a neighbor only if it is at least as high as the current cell. Every cell you reach can drain into that ocean.
+  - Run this reverse search twice, from all Pacific border cells at once and from all Atlantic border cells at once (multi-source BFS or DFS). The answer is the set of cells reached by both searches.
+
+approach: Reverse multi-source BFS from each ocean, then intersect
+optimal_solution: |
+  class Solution:
+      def pacificAtlantic(self, heights: List[List[int]]) -> List[List[int]]:
+          rows, cols = len(heights), len(heights[0])
+
+          def can_drain(starts):
+              """Every cell whose water can reach the ocean bordering `starts`.
+              We walk uphill from the ocean: a neighbor joins if it is at least as high,
+              because water could then flow from it down to the current cell."""
+              reached = set(starts)
+              queue = deque(starts)
+              while queue:
+                  r, c = queue.popleft()
+                  for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                      if (0 <= nr < rows and 0 <= nc < cols and (nr, nc) not in reached
+                              and heights[nr][nc] >= heights[r][c]):
+                          reached.add((nr, nc))
+                          queue.append((nr, nc))
+              return reached
+
+          pacific = [(0, c) for c in range(cols)] + [(r, 0) for r in range(1, rows)]
+          atlantic = [(rows - 1, c) for c in range(cols)] + [(r, cols - 1) for r in range(rows - 1)]
+
+          both = can_drain(pacific) & can_drain(atlantic)
+          return [[r, c] for r, c in both]
+
+explanation: |
+  **Intuition.** The direct question, "can water starting here reach both oceans?", needs a separate search for every cell, and those searches overlap heavily. Reverse it: **which cells can drain into the Pacific?** Water flows from a cell to a neighbor that is no higher. So if we stand on a cell that drains into the Pacific, any neighbor that is **at least as high** can also drain into the Pacific by flowing onto our cell. Starting from all Pacific border cells and walking *uphill* finds every Pacific-draining cell in a single traversal. Do the same for the Atlantic, and the answer is the intersection.
+
+  **Algorithm.**
+  1. Collect the Pacific border cells (the top row and the left column) and the Atlantic border cells (the bottom row and the right column).
+  2. For each ocean, run a **multi-source BFS** that starts with all of its border cells in the queue. From `(r, c)`, move to an unvisited in-bounds neighbor whose height is `>= heights[r][c]`.
+  3. The cells visited by both searches are the answer.
+
+  **Subtle points.**
+  - The reverse search uses `>=` (uphill or flat). Equal heights let water flow in both directions, so flat areas are fully explored.
+  - Corner cells can belong to both oceans: `(0, n-1)` is on the Pacific's top edge and the Atlantic's right edge. A single-row or single-column grid therefore puts every cell in the answer.
+  - Each search keeps its own visited set, so every cell is processed at most once per ocean.
+  - BFS (or an explicit-stack DFS) avoids deep recursion. A 200 × 200 grid can contain a path through all 40,000 cells.
+
+key_insight: Reverse the flow, walking uphill from each ocean's border with a multi-source search, so two traversals replace one search per cell.
+
+time_complexity: O(m · n)
+space_complexity: O(m · n)
+complexity_explanation: |
+  **Time O(m · n):** each of the two searches adds every cell to its visited set at most once and checks four neighbors per cell. Intersecting the two sets is also O(m · n).
+
+  **Space O(m · n)** for the two visited sets and the BFS queue, which can each hold every cell.
+
+data_structures: [Hash set, Queue, 2D grid]
+passes: 2 searches (one per ocean)
+
+alternatives:
+  - name: Brute force (search from every cell)
+    time_complexity: O((m · n)²)
+    space_complexity: O(m · n)
+    explanation: |
+      For every cell, run a DFS that follows the water *downhill* (to neighbors that are no higher) and records whether it ever touches a Pacific edge and an Atlantic edge. Keep the cell if both happened.
+    tradeoff: It follows the problem statement directly and is easy to reason about. But each of the m · n searches can visit every cell again, so a 200 × 200 grid could cost about 1.6 · 10⁹ steps. The reverse search does all of this in two passes.
+    code: |
+      class Solution:
+          def pacificAtlantic(self, heights: List[List[int]]) -> List[List[int]]:
+              rows, cols = len(heights), len(heights[0])
+              result = []
+              for sr in range(rows):
+                  for sc in range(cols):
+                      seen = {(sr, sc)}
+                      stack = [(sr, sc)]
+                      pacific = atlantic = False
+                      while stack and not (pacific and atlantic):
+                          r, c = stack.pop()
+                          if r == 0 or c == 0:
+                              pacific = True
+                          if r == rows - 1 or c == cols - 1:
+                              atlantic = True
+                          for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                              if (0 <= nr < rows and 0 <= nc < cols and (nr, nc) not in seen
+                                      and heights[nr][nc] <= heights[r][c]):
+                                  seen.add((nr, nc))
+                                  stack.append((nr, nc))
+                      if pacific and atlantic:
+                          result.append([sr, sc])
+              return result
+  - name: Reverse recursive DFS from the borders
+    time_complexity: O(m · n)
+    space_complexity: O(m · n)
+    explanation: |
+      The same reverse-flow idea, written as a recursive DFS. Call `dfs(r, c, visited)` from every border cell of an ocean, and recurse into neighbors that are at least as high. Then intersect the two visited sets.
+    tradeoff: The same complexity, and many people find it the quickest version to write. On large inputs (for example, a long monotone staircase across a 200 × 200 grid) the recursion can go tens of thousands of calls deep, which exceeds Python's default recursion limit. The BFS has no such risk.
+    code: |
+      class Solution:
+          def pacificAtlantic(self, heights: List[List[int]]) -> List[List[int]]:
+              rows, cols = len(heights), len(heights[0])
+              pacific, atlantic = set(), set()
+
+              def dfs(r: int, c: int, visited: set) -> None:
+                  visited.add((r, c))
+                  for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                      if (0 <= nr < rows and 0 <= nc < cols and (nr, nc) not in visited
+                              and heights[nr][nc] >= heights[r][c]):
+                          dfs(nr, nc, visited)
+
+              for c in range(cols):
+                  dfs(0, c, pacific)
+                  dfs(rows - 1, c, atlantic)
+              for r in range(rows):
+                  dfs(r, 0, pacific)
+                  dfs(r, cols - 1, atlantic)
+              return [[r, c] for r, c in pacific & atlantic]
+
+tests:
+  - name: single cell touches both oceans
+    input: { heights: [[5]] }
+    expected: [[0, 0]]
+  - name: single row
+    input: { heights: [[1, 2, 3]] }
+    expected: [[0, 0], [0, 1], [0, 2]]
+  - name: single column
+    input: { heights: [[3], [2], [1]] }
+    expected: [[0, 0], [1, 0], [2, 0]]
+  - name: flat grid
+    input: { heights: [[2, 2], [2, 2]] }
+    expected: [[0, 0], [0, 1], [1, 0], [1, 1]]
+  - name: peak in the middle
+    input: { heights: [[1, 1, 1], [1, 5, 1], [1, 1, 1]] }
+    expected: [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2]]
+  - name: rising toward the Atlantic corner
+    input: { heights: [[1, 2], [3, 4]] }
+    expected: [[0, 1], [1, 0], [1, 1]]
+  - name: border sink reaches only one ocean
+    input: { heights: [[3, 2, 1], [4, 9, 0], [5, 6, 7]] }
+    expected: [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [2, 0], [2, 1], [2, 2]]
+  - name: irregular terrain
+    input: { heights: [[1, 2, 2, 3, 5], [3, 2, 3, 4, 4], [2, 4, 5, 3, 1], [6, 7, 1, 4, 5], [5, 1, 1, 2, 4]] }
+    expected: [[0, 4], [1, 3], [1, 4], [2, 2], [3, 0], [3, 1], [4, 0]]
+
+benchmark:
+  size_label: grid side n (n × n heights)
+  sizes: [10, 25, 50, 100, 200]
+  generator: |
+    def generate(n, rng):
+        # A noisy pyramid: height grows with the distance from the nearest edge,
+        # so every cell drains to both oceans and both searches cover the whole grid.
+        heights = []
+        for r in range(n):
+            row = []
+            for c in range(n):
+                ring = min(r, c, n - 1 - r, n - 1 - c)
+                row.append(2 * ring + rng.randint(0, 1))
+            heights.append(row)
+        return {"heights": heights}

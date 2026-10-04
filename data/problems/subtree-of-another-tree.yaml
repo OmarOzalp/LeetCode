@@ -1,0 +1,217 @@
+id: "572"
+title: Subtree of Another Tree
+slug: subtree-of-another-tree
+leetcode_url: https://leetcode.com/problems/subtree-of-another-tree/
+category: trees
+difficulty: Easy
+patterns: [DFS, Recursion, Tree Comparison, String Matching]
+
+description: |
+  You are given the roots of two binary trees, `root` and `subRoot`. Return `True` if `root` contains a subtree that is **identical** to `subRoot` (same shape and same values), and `False` otherwise.
+
+  A **subtree** of a tree consists of one of its nodes together with **all** of that node's descendants. Every tree counts as a subtree of itself.
+
+  Matching only the top part of a subtree is not enough. If the candidate node has extra descendants that `subRoot` doesn't have, it is not a match.
+
+examples:
+  - input: { root: [3, 4, 5, 1, 2], subRoot: [4, 1, 2] }
+    output: true
+    explanation: The node `4` in `root`, together with its children `1` and `2`, is exactly `subRoot`.
+  - input: { root: [3, 4, 5, 1, 2, null, null, null, null, 0], subRoot: [4, 1, 2] }
+    output: false
+    explanation: The node `4` starts out looking like a match, but its child `2` has an extra child `0`. The subtree rooted at `4` therefore has four nodes and is not identical to `subRoot`.
+  - input: { root: [1, 1], subRoot: [1] }
+    output: true
+    explanation: The root `1` does not match because it has a child, but the leaf `1` matches. Several nodes can share `subRoot`'s root value, so keep searching after a failed attempt.
+
+constraints:
+  - "The number of nodes in `root` is in the range `[1, 2000]`."
+  - "The number of nodes in `subRoot` is in the range `[1, 1000]`."
+  - "`-10^4 <= root.val, subRoot.val <= 10^4`"
+
+function_signature: "def isSubtree(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -> bool"
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def isSubtree(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: isSubtree
+  params:
+    - { name: root, type: "Optional[TreeNode]" }
+    - { name: subRoot, type: "Optional[TreeNode]" }
+  returns: bool
+
+hints:
+  - Split the problem in two. One part is deciding whether two trees are identical (the Same Tree problem). The other is deciding which nodes of `root` to try.
+  - A match can start at any node of `root`, and a failed attempt at one node says nothing about the others, since there may be duplicate values. Every node is a candidate.
+  - "Recursively: `subRoot` is inside the tree at `node` if the tree at `node` is identical to `subRoot`, OR `subRoot` is inside `node.left`, OR it is inside `node.right`. An empty `node` can't contain a non-empty `subRoot`."
+
+approach: DFS over root + same-tree check at each node
+optimal_solution: |
+  class Solution:
+      def isSubtree(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -> bool:
+          if root is None:  # subRoot has at least one node, so it can't fit here
+              return False
+          # Try a full match starting here, otherwise look inside each child.
+          if self.isSameTree(root, subRoot):
+              return True
+          return self.isSubtree(root.left, subRoot) or self.isSubtree(root.right, subRoot)
+
+      def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+          """True when the trees at p and q have the same shape and values."""
+          if p is None and q is None:
+              return True
+          if p is None or q is None or p.val != q.val:
+              return False
+          return self.isSameTree(p.left, q.left) and self.isSameTree(p.right, q.right)
+
+explanation: |
+  **Intuition.** By definition, `subRoot` is a subtree of `root` exactly when **some node** of `root` is the root of a tree identical to `subRoot`. That splits the problem into two recursions you already know:
+  - **Which node?** Visit every node of `root` with a DFS.
+  - **Identical from here?** Compare the tree at that node with `subRoot` using the Same Tree check (walk both trees in lockstep; shapes and values must match everywhere).
+
+  The two functions have clear contracts:
+  - `isSameTree(p, q)` returns whether the trees rooted at `p` and `q` are identical.
+  - `isSubtree(node, subRoot)` returns whether `subRoot` appears anywhere inside the tree rooted at `node`.
+
+  **Algorithm.**
+  1. If `root` is `None`, return `False`. A non-empty `subRoot` can't be inside an empty tree, and this also ends the search below the leaves.
+  2. If `isSameTree(root, subRoot)` is true, return `True`. The match starts right here.
+  3. Otherwise return `isSubtree(root.left, subRoot) or isSubtree(root.right, subRoot)`.
+
+  **Subtle points.**
+  - **The match must include all descendants.** `isSameTree` fails as soon as one tree has a child where the other has `None`, which correctly rejects a candidate with extra nodes (Example 2).
+  - **Keep searching after a failed attempt.** Duplicate values mean several nodes can look like the start of a match (Example 3). A failure at one node never rules out the others.
+  - **Short-circuiting** with `or` stops the search at the first successful match.
+  - **Linear-time follow-up.** Each `isSameTree` call can walk up to all of `subRoot`, so the worst case is O(m · n). If an interviewer asks for better, serialize both trees with null markers and run a linear string-matching algorithm such as KMP (see the alternative).
+
+key_insight: subRoot is a subtree exactly when some node of root starts a tree identical to subRoot, so run the Same Tree check from every node of root.
+
+time_complexity: O(m · n)
+space_complexity: O(h_r + h_s)
+complexity_explanation: |
+  Let `m` be the number of nodes in `root` and `n` the number in `subRoot`.
+
+  **Time O(m · n) in the worst case:** `isSameTree` may be started at each of the `m` nodes, and one call can compare up to `n` node pairs before it finds a mismatch. A tree full of equal values, where each attempt fails only at the last node, triggers this. On typical inputs, most attempts fail after a node or two, so the running time is close to O(m).
+
+  **Space O(h_r + h_s):** the `isSubtree` recursion is at most `h_r` (the height of `root`) deep. At the deepest point an `isSameTree` call can add up to `h_s` (the height of `subRoot`) more frames. Both heights are O(log) for balanced trees and become linear for skewed trees.
+
+data_structures: [Binary tree, Recursion stack]
+passes: 1 DFS over root, with a comparison started at each node
+
+alternatives:
+  - name: Serialize with null markers + KMP (linear time)
+    time_complexity: O(m + n)
+    space_complexity: O(m + n)
+    explanation: |
+      Write both trees as preorder token lists that include a `None` marker for every missing child. With the markers, a serialization describes exactly one tree, and the serialization of any subtree appears as one contiguous block inside the serialization of the whole tree. So `subRoot` is a subtree of `root` exactly when its token list occurs as a contiguous run inside `root`'s token list. The search uses the KMP algorithm, which never moves backwards in the text and so takes linear time.
+
+      Comparing whole tokens (not characters of a joined string) matters. With a plain string, `"2"` would match inside `"12"`. If you do build a string, put a separator before *and* after every value.
+    tradeoff: Asymptotically faster (O(m + n) instead of O(m · n)), which is the answer to the "can you do better?" follow-up. It needs O(m + n) extra memory and a correct KMP failure table, which is easy to get subtly wrong under interview pressure. At these constraints the simpler DFS is the usual expected answer.
+    code: |
+      class Solution:
+          def isSubtree(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -> bool:
+              def preorder(node, out):
+                  # None markers make the token list describe exactly one tree.
+                  if node is None:
+                      out.append(None)
+                      return out
+                  out.append(node.val)
+                  preorder(node.left, out)
+                  preorder(node.right, out)
+                  return out
+
+              text, pattern = preorder(root, []), preorder(subRoot, [])
+
+              # fail[i] = length of the longest proper prefix of pattern[:i + 1]
+              # that is also a suffix of it (the KMP failure table).
+              fail = [0] * len(pattern)
+              k = 0
+              for i in range(1, len(pattern)):
+                  while k and pattern[i] != pattern[k]:
+                      k = fail[k - 1]
+                  if pattern[i] == pattern[k]:
+                      k += 1
+                  fail[i] = k
+
+              # Scan text once; k = how many pattern tokens are currently matched.
+              k = 0
+              for token in text:
+                  while k and token != pattern[k]:
+                      k = fail[k - 1]
+                  if token == pattern[k]:
+                      k += 1
+                      if k == len(pattern):
+                          return True
+              return False
+
+tests:
+  - { name: tree is a subtree of itself, input: { root: [1, 2, 3], subRoot: [1, 2, 3] }, expected: true }
+  - { name: single nodes that differ, input: { root: [1], subRoot: [2] }, expected: false }
+  - { name: "value 12 must not match value 2", input: { root: [12], subRoot: [2] }, expected: false }
+  - { name: only the top part matches, input: { root: [1, 2, 3], subRoot: [1, 2] }, expected: false }
+  - { name: same values in a different arrangement, input: { root: [3, 4, 5, 1, null, 2], subRoot: [3, 1, 2] }, expected: false }
+  - name: match deep inside a chain of equal values
+    input: { root: [1, null, 1, null, 1, null, 1, null, 1, null, 1, 2], subRoot: [1, null, 1, 2] }
+    expected: true
+  - { name: negative values, input: { root: [-1, -2, -3, null, null, -4, -5], subRoot: [-3, -4, -5] }, expected: true }
+  - { name: first candidates fail and a later one matches, input: { root: [4, 4, 4, 1, null, 1, 2], subRoot: [4, 1, 2] }, expected: true }
+  - { name: child on the wrong side, input: { root: [1, 2, null, 3], subRoot: [2, null, 3] }, expected: false }
+
+benchmark:
+  size_label: number of nodes in root
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Grow a random tree: each new node takes a uniformly random free child
+        # slot. The height stays around O(log n), so recursion depth is modest.
+        left, right = [-1] * n, [-1] * n
+        free = [(0, 0), (0, 1)]  # (parent index, 0 = left / 1 = right)
+        for i in range(1, n):
+            j = rng.randrange(len(free))
+            free[j], free[-1] = free[-1], free[j]
+            parent, side = free.pop()
+            if side == 0:
+                left[parent] = i
+            else:
+                right[parent] = i
+            free.append((i, 0))
+            free.append((i, 1))
+        # Few distinct values, so many nodes look like the start of a match.
+        vals = [rng.randint(0, 2) for _ in range(n)]
+
+        def level_order(start, values):
+            out, queue = [], deque([start])
+            while queue:
+                i = queue.popleft()
+                if i < 0:
+                    out.append(None)
+                    continue
+                out.append(values[i])
+                queue.append(left[i])
+                queue.append(right[i])
+            while out[-1] is None:
+                out.pop()
+            return out
+
+        # Subtree sizes (children always have larger indices than parents).
+        size = [1] * n
+        for i in range(n - 1, 0, -1):
+            for c in (left[i], right[i]):
+                if c >= 0:
+                    size[i] += size[c]
+        # Copy a subtree of about n / 50 nodes, then change its last value so the
+        # true location fails only after a long comparison and nothing matches.
+        target = min(range(1, n), key=lambda i: abs(size[i] - n // 50))
+        sub = level_order(target, vals)
+        sub[-1] = 3
+        return {"root": level_order(0, vals), "subRoot": sub}

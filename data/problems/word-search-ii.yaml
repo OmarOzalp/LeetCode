@@ -1,0 +1,233 @@
+id: "212"
+title: Word Search II
+slug: word-search-ii
+leetcode_url: https://leetcode.com/problems/word-search-ii/
+category: tries
+difficulty: Hard
+patterns: [Trie, DFS, Backtracking, Matrix]
+
+description: |
+  You are given an `m x n` grid of lowercase letters `board` and a list of **distinct** strings `words`. Return every word from `words` that can be traced on the board.
+
+  A word is traced by starting at any cell and repeatedly stepping to a **horizontally or vertically** adjacent cell (no diagonals), reading one letter per cell. Within a single word, each cell may be used **at most once**. Different words may reuse the same cells.
+
+  Return the found words in any order, each one only once (even if it can be traced in several ways).
+
+examples:
+  - input:
+      board: [["c", "a", "t"], ["r", "e", "d"], ["o", "w", "s"]]
+      words: ["cat", "crow", "dew", "tea", "dog", "area"]
+    output: ["cat", "crow", "dew"]
+    explanation: |
+      `"cat"` runs along the top row, `"crow"` goes down the left column and then right, and `"dew"` goes left from `d` to `e` and then down to `w`. `"tea"` fails because `t` (top right) and `e` (center) only touch diagonally.
+  - input:
+      board: [["a", "b"], ["c", "d"]]
+      words: ["abcd", "abdc"]
+    output: ["abdc"]
+    explanation: "`b` and `c` are diagonal to each other, so `\"abcd\"` cannot be traced, but `a → b → d → c` is a valid path."
+  - input:
+      board: [["a", "a"]]
+      words: ["aaa"]
+    output: []
+    explanation: The board has only two cells and a cell cannot be used twice in one word.
+
+constraints:
+  - "`m == board.length`, `n == board[i].length`"
+  - "`1 <= m, n <= 12`"
+  - "`board[i][j]` is a lowercase English letter (a one-character string)."
+  - "`1 <= words.length <= 3 * 10^4`"
+  - "`1 <= words[i].length <= 10`"
+  - "`words[i]` consists of lowercase English letters, and all strings in `words` are unique."
+
+function_signature: "def findWords(self, board: List[List[str]], words: List[str]) -> List[str]"
+
+starter_code: |
+  class Solution:
+      def findWords(self, board: List[List[str]], words: List[str]) -> List[str]:
+          pass
+
+runner:
+  kind: function
+  method: findWords
+  params:
+    - { name: board, type: "List[List[str]]" }
+    - { name: words, type: "List[str]" }
+  returns: "List[str]"
+  compare: unordered
+
+hints:
+  - Running the single-word "Word Search" once per word repeats the same exploration over and over, because many words share prefixes. How could one walk over the board check many words at once?
+  - Put all the words in a trie. While a DFS walks the board, keep a pointer to the trie node for the letters read so far. If the next cell's letter is not a child of that node, no word can continue this way, so stop immediately.
+  - Store the complete word at the trie node where it ends. When the DFS reaches such a node, record the word and clear it so it is reported only once. Mark cells as used during the DFS and restore them when backtracking. As an extra speed-up, delete trie leaves that have no words left.
+
+approach: Trie + backtracking DFS with pruning
+optimal_solution: |
+  class TrieNode:
+      def __init__(self):
+          self.children = {}  # char -> TrieNode
+          self.word = None    # the full word ending at this node, if any
+
+
+  class Solution:
+      def findWords(self, board: List[List[str]], words: List[str]) -> List[str]:
+          # 1. Build a trie of all the words we are looking for.
+          root = TrieNode()
+          for w in words:
+              node = root
+              for ch in w:
+                  if ch not in node.children:
+                      node.children[ch] = TrieNode()
+                  node = node.children[ch]
+              node.word = w
+
+          rows, cols = len(board), len(board[0])
+          found = []
+
+          def dfs(r: int, c: int, parent: TrieNode) -> None:
+              ch = board[r][c]
+              node = parent.children[ch]
+              if node.word is not None:
+                  found.append(node.word)
+                  node.word = None  # report each word only once
+
+              board[r][c] = "#"  # mark as used on the current path
+              for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                  if 0 <= nr < rows and 0 <= nc < cols and board[nr][nc] in node.children:
+                      dfs(nr, nc, node)
+              board[r][c] = ch   # backtrack: free the cell for other paths
+
+              # Prune: an exhausted leaf can never produce another word.
+              if not node.children and node.word is None:
+                  del parent.children[ch]
+
+          # 2. Start a DFS from every cell whose letter begins some word.
+          for r in range(rows):
+              for c in range(cols):
+                  if board[r][c] in root.children:
+                      dfs(r, c, root)
+          return found
+
+explanation: |
+  **Intuition.** Checking each word separately throws away shared work: `"oath"`, `"oat"` and `"oats"` all begin by finding an `o` next to an `a` next to a `t`. A **trie** merges all the words into one tree of prefixes, so a single DFS over the board can test *all* words at once.
+
+  The trie also gives strong **pruning**. While walking the board we keep the trie node for the letters read so far. If the next cell's letter is not a child of that node, *no* word starts with this prefix, so the path is abandoned right away. The search therefore only explores paths that are prefixes of real words.
+
+  **Algorithm.**
+  1. Insert every word into a trie and store the complete word at the node where it ends (`node.word = w`).
+  2. For every cell whose letter is a child of the root, start `dfs(r, c, parent)`:
+     1. Move to `node = parent.children[letter]`. If `node.word` is set, add it to the answer and set it to `None` so it is not added again.
+     2. Temporarily replace the cell with `#` so the current path cannot reuse it.
+     3. Recurse into each in-bounds neighbor whose letter is a child of `node`.
+     4. Restore the cell's letter (backtracking).
+     5. If `node` now has no children and no word, delete it from its parent. Future paths will not waste time on a branch that has nothing left to find.
+  3. Return the collected words.
+
+  **Subtle points.**
+  - Storing the full word at the end node means we never rebuild strings during the DFS, and clearing it removes duplicates when a word can be traced along several paths.
+  - The `#` marker cannot be confused with a letter because the trie only contains lowercase letters, so `"#" in node.children` is always false.
+  - Leaf pruning is optional for correctness but important for speed. Once every word in a branch has been found, the whole branch disappears, so heavily repeated boards (like all `a`s) stop being re-explored.
+
+key_insight: Merging all words into a trie lets one board DFS test every word at once and abandon a path the moment its prefix matches no word.
+
+time_complexity: O(m · n · 4 · 3^(L-1) + W · L)
+space_complexity: O(W · L)
+complexity_explanation: |
+  **Time.** Building the trie costs `O(W · L)` for `W` words of length up to `L`. The DFS starts from each of the `m · n` cells. The first step has up to 4 directions and every later step at most 3 (it cannot go back to the cell it came from), and a path never goes deeper than `L` because the trie has no deeper nodes. That gives at most `m · n · 4 · 3^(L-1)` steps. In practice, trie pruning keeps the real number far lower, since most paths die after a letter or two.
+
+  **Space.** The trie stores up to `W · L` nodes. The recursion depth is at most `L`, and marking cells in place avoids a separate visited set.
+
+data_structures: [Trie, Hash map, 2D grid]
+passes: One DFS from each starting cell
+
+alternatives:
+  - name: Run Word Search once per word
+    time_complexity: O(W · m · n · 4 · 3^(L-1))
+    space_complexity: O(L)
+    explanation: |
+      For every word, run the classic single-word backtracking search: try every starting cell, then DFS to neighbors while the letters keep matching, marking cells as used and unmarking them on the way back.
+    tradeoff: Simple and reuses a solution you may already know, but it repeats the board exploration for every word, even when words share long prefixes. With up to 3·10^4 words, that multiplies the work by W, while the trie explores each shared prefix only once.
+    code: |
+      class Solution:
+          def findWords(self, board: List[List[str]], words: List[str]) -> List[str]:
+              rows, cols = len(board), len(board[0])
+
+              def exists(word: str) -> bool:
+                  def dfs(r: int, c: int, i: int) -> bool:
+                      if i == len(word):
+                          return True
+                      if not (0 <= r < rows and 0 <= c < cols) or board[r][c] != word[i]:
+                          return False
+                      board[r][c] = "#"  # mark as used
+                      ok = (dfs(r + 1, c, i + 1) or dfs(r - 1, c, i + 1)
+                            or dfs(r, c + 1, i + 1) or dfs(r, c - 1, i + 1))
+                      board[r][c] = word[i]  # restore
+                      return ok
+
+                  return any(dfs(r, c, 0) for r in range(rows) for c in range(cols))
+
+              return [w for w in words if exists(w)]
+
+tests:
+  - name: single cell
+    input: { board: [["z"]], words: ["z", "zz"] }
+    expected: ["z"]
+  - name: word and its prefix are both found
+    input:
+      board: [["o", "a", "b", "n"], ["o", "t", "a", "e"], ["a", "h", "k", "r"], ["a", "f", "l", "v"]]
+      words: ["oa", "oaa"]
+    expected: ["oa", "oaa"]
+  - name: word traceable along many paths is reported once
+    input: { board: [["a", "a"], ["a", "a"]], words: ["aaaa", "aaaaa", "aa"] }
+    expected: ["aaaa", "aa"]
+  - name: diagonals do not count
+    input: { board: [["a", "b"], ["c", "d"]], words: ["xyz", "ad", "bc"] }
+    expected: []
+  - name: shared prefixes and long winding paths
+    input:
+      board: [["a", "b", "c"], ["a", "e", "d"], ["a", "f", "g"]]
+      words: ["abcdefg", "gfedcbaaa", "eaabcdgfa", "befa", "dgc", "ade", "aaa", "abcdefga", "gfa"]
+    expected: ["abcdefg", "gfedcbaaa", "eaabcdgfa", "befa", "aaa", "gfa"]
+  - name: single row, both directions
+    input: { board: [["a", "b", "c", "d", "e", "f"]], words: ["abcdef", "fedcba", "ace", "cde", "fa"] }
+    expected: ["abcdef", "fedcba", "cde"]
+  - name: board of repeated letters
+    input:
+      board: [["a", "a", "a"], ["a", "a", "a"], ["a", "a", "a"]]
+      words: ["a", "aa", "aaa", "aaaa", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaa", "aaaaaaaaa", "aaaaaaaaaa"]
+    expected: ["a", "aa", "aaa", "aaaa", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaa", "aaaaaaaaa"]
+  - name: overlapping words
+    input:
+      board: [["s", "e", "e"], ["e", "n", "d"], ["e", "d", "s"]]
+      words: ["see", "seen", "seed", "need", "needs", "sends", "ends", "dense", "deed", "seeds"]
+    expected: ["see", "seed", "need", "needs", "sends", "ends", "seeds"]
+
+benchmark:
+  size_label: number of words (12 × 12 board)
+  sizes: [10, 100, 1000, 5000, 20000]
+  generator: |
+    def generate(n, rng):
+        size = 12
+        letters = "abcdefghijklmnopqrstuvwxyz"
+        board = [[rng.choice(letters) for _ in range(size)] for _ in range(size)]
+
+        def path_word():
+            # A word read along a random self-avoiding path, so it is on the board.
+            r, c = rng.randrange(size), rng.randrange(size)
+            used, word = {(r, c)}, board[r][c]
+            for _ in range(rng.randint(2, 9)):
+                steps = [(r + dr, c + dc) for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1))
+                         if 0 <= r + dr < size and 0 <= c + dc < size and (r + dr, c + dc) not in used]
+                if not steps:
+                    break
+                r, c = rng.choice(steps)
+                used.add((r, c))
+                word += board[r][c]
+            return word
+
+        words = set()
+        while len(words) < n:
+            if rng.random() < 0.5:
+                words.add(path_word())
+            else:
+                words.add("".join(rng.choice(letters) for _ in range(rng.randint(3, 10))))
+        return {"board": board, "words": sorted(words)}

@@ -1,0 +1,201 @@
+id: "200"
+title: Number of Islands
+slug: number-of-islands
+leetcode_url: https://leetcode.com/problems/number-of-islands/
+category: graphs
+difficulty: Medium
+patterns: [DFS, BFS, Flood Fill, Matrix, Union-Find]
+
+description: |
+  You are given an `m x n` map `grid` where every cell is either `"1"` (land) or `"0"` (water). Return the number of **islands**.
+
+  An island is a group of land cells connected **horizontally or vertically**. Diagonal neighbors are not connected. You may assume the area outside the grid is all water.
+
+  Note that the cells are the **strings** `"1"` and `"0"`, not integers.
+
+examples:
+  - input:
+      grid: [["1", "1", "0", "0"], ["1", "0", "0", "1"], ["0", "0", "1", "1"], ["0", "0", "0", "0"]]
+    output: 2
+    explanation: "One island is the three land cells in the top-left corner. The other is the three cells `(1,3)`, `(2,2)` and `(2,3)` on the right."
+  - input:
+      grid: [["1", "0", "1"], ["0", "1", "0"], ["1", "0", "1"]]
+    output: 5
+    explanation: Every land cell only touches other land diagonally, so each one is its own island.
+  - input:
+      grid: [["1", "1", "1", "0"], ["0", "0", "1", "0"], ["1", "1", "1", "0"], ["1", "0", "0", "0"], ["1", "1", "1", "1"]]
+    output: 1
+    explanation: The land winds back and forth like an S, but every cell is reachable from every other one through vertical and horizontal steps.
+
+constraints:
+  - "`m == grid.length`, `n == grid[i].length`"
+  - "`1 <= m, n <= 300`"
+  - "`grid[i][j]` is `\"0\"` or `\"1\"`."
+
+function_signature: "def numIslands(self, grid: List[List[str]]) -> int"
+
+starter_code: |
+  class Solution:
+      def numIslands(self, grid: List[List[str]]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: numIslands
+  params:
+    - { name: grid, type: "List[List[str]]" }
+  returns: int
+
+hints:
+  - Treat the grid as a graph where each land cell is a node connected to its land neighbors above, below, left and right. In graph terms, what is an island?
+  - An island is a connected component. Scan the grid, and whenever you find a land cell that has not been counted yet, you have found a new island.
+  - When you find a new island, use DFS or BFS to visit all of its land cells and mark them as seen (for example, by turning them into `"0"`). That way, later cells of the same island are never counted again.
+
+approach: DFS flood fill ("sink" each island)
+optimal_solution: |
+  class Solution:
+      def numIslands(self, grid: List[List[str]]) -> int:
+          rows, cols = len(grid), len(grid[0])
+
+          def sink(r: int, c: int) -> None:
+              """Turn the land cell (r, c) and all land connected to it into water."""
+              if r < 0 or r >= rows or c < 0 or c >= cols or grid[r][c] != "1":
+                  return
+              grid[r][c] = "0"  # mark as visited
+              sink(r + 1, c)
+              sink(r - 1, c)
+              sink(r, c + 1)
+              sink(r, c - 1)
+
+          islands = 0
+          for r in range(rows):
+              for c in range(cols):
+                  if grid[r][c] == "1":  # first cell of an island we haven't seen
+                      islands += 1
+                      sink(r, c)         # erase the whole island so it is counted once
+          return islands
+
+explanation: |
+  **Intuition.** Think of every land cell as a graph node with edges to its land neighbors in the four directions. An island is a **connected component** of that graph, so counting islands means counting components.
+
+  Scan the grid in order. The first time we meet a land cell, it must belong to an island we have not counted yet. We count it, then **flood-fill** the whole island so none of its other cells triggers a second count. The easiest flood fill "sinks" the island by overwriting its cells with `"0"`, which uses the grid itself as the visited set.
+
+  **Algorithm.**
+  1. Loop over every cell `(r, c)`.
+  2. If it is `"1"`, increase the island count and call `sink(r, c)`.
+  3. `sink(r, c)` returns immediately for out-of-bounds or water cells. Otherwise it sets the cell to `"0"` and recurses into the four neighbors.
+  4. After the scan, the count is the number of islands.
+
+  **Subtle points.**
+  - Diagonal cells are not neighbors. Only the four orthogonal directions are explored.
+  - The cells are strings: compare with `"1"`, not `1`.
+  - Sinking modifies the input. If the caller must keep the grid, use a `visited` set instead. That is the same algorithm with O(m · n) extra memory.
+  - On a 300 × 300 grid that is all land, the recursion can go about 90,000 calls deep. Python's default limit is 1,000, so in production code prefer the BFS (or an explicit stack) shown in the alternatives. Mentioning this in an interview is a plus.
+
+key_insight: Each island is a connected component, so count a land cell only when it starts a new flood fill that erases its whole island.
+
+time_complexity: O(m · n)
+space_complexity: O(m · n)
+complexity_explanation: |
+  **Time O(m · n):** the scan visits every cell once, and each land cell is sunk exactly once. After that it is water, so later calls return immediately. Each cell is examined only a constant number of times: once by the scan and at most once from each of its four neighbors.
+
+  **Space O(m · n)** in the worst case for the recursion stack, when one island covers the whole grid and the DFS snakes through every cell. No extra visited structure is needed because the grid is marked in place.
+
+data_structures: [2D grid, Recursion stack]
+passes: 1 scan plus one flood fill per island
+
+alternatives:
+  - name: BFS flood fill
+    time_complexity: O(m · n)
+    space_complexity: O(min(m, n))
+    explanation: |
+      Same scan-and-count idea, but each island is explored with a queue. Mark a cell as water when it is **enqueued** (not when it is dequeued), so no cell enters the queue twice.
+    tradeoff: The same O(m · n) time with no risk of hitting the recursion limit, which makes it the safer choice in Python on large grids. The BFS frontier also stays small (at most about min(m, n) cells wide). The code is slightly longer than the recursive DFS.
+    code: |
+      class Solution:
+          def numIslands(self, grid: List[List[str]]) -> int:
+              rows, cols = len(grid), len(grid[0])
+              islands = 0
+              for r in range(rows):
+                  for c in range(cols):
+                      if grid[r][c] != "1":
+                          continue
+                      islands += 1
+                      grid[r][c] = "0"  # mark when enqueued
+                      queue = deque([(r, c)])
+                      while queue:
+                          cr, cc = queue.popleft()
+                          for nr, nc in ((cr + 1, cc), (cr - 1, cc), (cr, cc + 1), (cr, cc - 1)):
+                              if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == "1":
+                                  grid[nr][nc] = "0"
+                                  queue.append((nr, nc))
+              return islands
+  - name: Union-Find (disjoint set union)
+    time_complexity: O(m · n · α(m · n))
+    space_complexity: O(m · n)
+    explanation: |
+      Start with every land cell as its own set and the count equal to the number of land cells. For each land cell, union it with the land cell to its right and the one below (that covers every adjacent pair once). Every union that merges two *different* sets lowers the count by one.
+    tradeoff: About as fast, and it does not modify the grid. Its real strength is incremental updates, as in "Number of Islands II", where land is added cell by cell and the count is needed after every addition. For a one-off count it needs more code and an O(m · n) parent array.
+    code: |
+      class Solution:
+          def numIslands(self, grid: List[List[str]]) -> int:
+              rows, cols = len(grid), len(grid[0])
+              parent = list(range(rows * cols))  # cell r * cols + c
+
+              def find(x: int) -> int:
+                  while parent[x] != x:
+                      parent[x] = parent[parent[x]]  # path halving
+                      x = parent[x]
+                  return x
+
+              count = sum(row.count("1") for row in grid)
+              for r in range(rows):
+                  for c in range(cols):
+                      if grid[r][c] != "1":
+                          continue
+                      for nr, nc in ((r + 1, c), (r, c + 1)):  # down and right
+                          if nr < rows and nc < cols and grid[nr][nc] == "1":
+                              a, b = find(r * cols + c), find(nr * cols + nc)
+                              if a != b:
+                                  parent[a] = b
+                                  count -= 1  # two islands merged into one
+              return count
+
+tests:
+  - name: single water cell
+    input: { grid: [["0"]] }
+    expected: 0
+  - name: single land cell
+    input: { grid: [["1"]] }
+    expected: 1
+  - name: all land
+    input: { grid: [["1", "1", "1"], ["1", "1", "1"], ["1", "1", "1"]] }
+    expected: 1
+  - name: all water
+    input: { grid: [["0", "0", "0"], ["0", "0", "0"]] }
+    expected: 0
+  - name: single row
+    input: { grid: [["1", "0", "1", "1", "0", "1"]] }
+    expected: 3
+  - name: single column
+    input: { grid: [["1"], ["1"], ["0"], ["1"]] }
+    expected: 2
+  - name: island around a lake
+    input: { grid: [["1", "1", "1"], ["1", "0", "1"], ["1", "1", "1"]] }
+    expected: 1
+  - name: U shape joined at the bottom
+    input: { grid: [["1", "0", "1"], ["1", "0", "1"], ["1", "1", "1"]] }
+    expected: 1
+  - name: checkerboard
+    input: { grid: [["1", "0", "1", "0", "1"], ["0", "1", "0", "1", "0"], ["1", "0", "1", "0", "1"]] }
+    expected: 8
+
+benchmark:
+  size_label: grid side n (n × n grid)
+  sizes: [10, 50, 100, 200, 300]
+  generator: |
+    def generate(n, rng):
+        # Each cell is land with probability 0.45. That is below the percolation
+        # threshold (~0.59), so there are many irregular islands and none of them
+        # spans the grid, which keeps recursive solutions well within stack limits.
+        return {"grid": [["1" if rng.random() < 0.45 else "0" for _ in range(n)] for _ in range(n)]}

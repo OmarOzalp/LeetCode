@@ -1,0 +1,174 @@
+id: "371"
+title: Sum of Two Integers
+slug: sum-of-two-integers
+leetcode_url: https://leetcode.com/problems/sum-of-two-integers/
+category: bit-manipulation
+difficulty: Medium
+patterns: [Bit Manipulation, Bitmask, Two's Complement, XOR]
+
+description: |
+  Given two integers `a` and `b`, return `a + b`, but **without using the `+` or `-` operators** anywhere in your solution.
+
+  The inputs can be negative, zero or positive. Build the addition from bitwise operations (`&`, `|`, `^`, `~`, `<<`, `>>`), the same way the adder circuit in a CPU does.
+
+examples:
+  - input: { a: 1, b: 2 }
+    output: 3
+    explanation: "`01 ^ 10 = 11` and there are no carries, so the answer is `11` = 3."
+  - input: { a: 5, b: 3 }
+    output: 8
+    explanation: "`101 + 011`: the carries ripple from bit 0 up to bit 3, giving `1000` = 8."
+  - input: { a: -2, b: 3 }
+    output: 1
+    explanation: In 32-bit two's complement, `-2` is `0xFFFFFFFE`. Adding 3 sends a carry up through all the leading `1`s and out past bit 31, where it is dropped. That leaves `0x00000001`.
+
+constraints:
+  - "`-1000 <= a, b <= 1000`"
+
+function_signature: "def getSum(self, a: int, b: int) -> int"
+
+starter_code: |
+  class Solution:
+      def getSum(self, a: int, b: int) -> int:
+          pass
+
+runner:
+  kind: function
+  method: getSum
+  params:
+    - { name: a, type: int }
+    - { name: b, type: int }
+  returns: int
+
+hints:
+  - Add two single bits by hand. Which bitwise operation gives the sum bit when you ignore the carry? Which one tells you when a carry happens?
+  - "For whole numbers, `a ^ b` is the sum without carries, and `(a & b) << 1` is the carries moved to the column where they land. Their sum equals `a + b`, so repeat the same step on this new pair until there is no carry left."
+  - That loop works in C or Java but never ends in Python for a negative input like `-1 + 1`. Python integers have unlimited width, so a negative number acts as if it had infinitely many leading `1`s, and the carry chases them forever.
+  - Copy what 32-bit hardware does. Mask both inputs and every carry with `0xFFFFFFFF` so a carry past bit 31 is dropped. At the end, if bit 31 of the result is set, the 32-bit pattern stands for a negative number, so convert it back to a negative Python int (`~(x ^ 0xFFFFFFFF)` does this without using minus).
+
+approach: XOR + carry loop with a 32-bit mask
+optimal_solution: |
+  class Solution:
+      def getSum(self, a: int, b: int) -> int:
+          MASK = 0xFFFFFFFF      # keeps the low 32 bits
+          MAX_INT = 0x7FFFFFFF   # largest positive 32-bit signed value
+
+          # Work on the 32-bit two's-complement patterns of a and b.
+          a &= MASK
+          b &= MASK
+          while b:
+              carry = ((a & b) << 1) & MASK  # where carries happen, moved one column left
+              a = a ^ b                      # add without carrying
+              b = carry                      # now add the carries in the next round
+          # a holds the 32-bit pattern of the answer. If bit 31 is set it is negative:
+          # turn it back into a negative Python int without using minus.
+          return a if a <= MAX_INT else ~(a ^ MASK)
+
+explanation: |
+  **Intuition: addition is XOR plus carries.** Add two single bits and you get a sum bit and a carry bit:
+
+  ```
+  x y | sum = x ^ y | carry = x & y
+  0 0 |     0       |     0
+  0 1 |     1       |     0
+  1 0 |     1       |     0
+  1 1 |     0       |     1
+  ```
+
+  For whole numbers, `a ^ b` adds every column but drops the carries, and `(a & b) << 1` is those carries moved one column left, where they land. So `a + b == (a ^ b) + ((a & b) << 1)`. That is still an addition, but we can apply the same step again to the new pair. Each round, the carries can only move left, so they eventually run out.
+
+  ```
+  5 + 3:           a      b (carry)
+  start          0101   0011
+  round 1        0110   0010     a ^ b,  (0101 & 0011) << 1
+  round 2        0100   0100
+  round 3        0000   1000
+  round 4        1000   0000     -> 8
+  ```
+
+  **The Python wrinkle.** In C or Java an `int` has exactly 32 bits. Negative numbers are stored in **two's complement**, and a carry pushed past bit 31 just falls off. That is why the loop above handles negative numbers there with no extra work. Python integers have **unlimited** width, and a negative number acts as if it had *infinitely many* leading `1`s. Try `-1 + 1` without a mask:
+
+  ```
+  a = ...11111111 (-1)   b = 00000001
+  round 1:  a = ...11111110 (-2)   b = 00000010
+  round 2:  a = ...11111100 (-4)   b = 00000100
+  round 3:  a = ...11111000 (-8)   b = 00001000
+  ... the carry keeps moving left and never falls off: infinite loop
+  ```
+
+  The fix is to **simulate a 32-bit machine**:
+
+  1. **Mask the inputs** with `0xFFFFFFFF`. This gives the 32-bit two's-complement pattern as a non-negative Python int. For example `-2 & 0xFFFFFFFF = 0xFFFFFFFE`.
+  2. **Mask every carry**, so a carry out of bit 31 disappears just like in hardware. Here is the same idea with 8 bits for `-2 + 3`:
+
+     ```
+     a = 11111110 (-2)   b = 00000011 (3)
+     a = 11111101        b = 00000100
+     a = 11111001        b = 00001000
+     a = 11110001        b = 00010000
+     a = 11100001        b = 00100000
+     a = 11000001        b = 01000000
+     a = 10000001        b = 10000000
+     a = 00000001        b = 1|00000000 -> masked to 00000000, done: 1
+     ```
+  3. **Convert back to signed.** The final `a` is an unsigned pattern in `[0, 2^32)`. If it is at most `0x7FFFFFFF`, bit 31 is clear and the value is the answer. Otherwise it stands for `a - 2^32`. Since we cannot use minus, compute `~(a ^ MASK)`: `a ^ MASK` flips the low 32 bits, and `~` flips **every** bit, including the infinite leading zeros, which become infinite leading ones. The result is the sign-extended negative number. Example: `0xFFFFFFFE ^ MASK = 1`, and `~1 = -2`.
+
+  **Algorithm.**
+  1. `a &= MASK`, `b &= MASK`.
+  2. While `b != 0`: `carry = ((a & b) << 1) & MASK`, `a = a ^ b`, `b = carry`.
+  3. Return `a` if `a <= 0x7FFFFFFF`, else `~(a ^ MASK)`.
+
+  **Subtle points.**
+  - Why 32 bits? Any width that can hold every answer works. With `|a|, |b| <= 1000` the sum fits easily, and 32 bits matches the `int` type the problem is based on.
+  - Compute `carry` from the **old** `a` and `b` before you overwrite `a`. Python's tuple assignment `a, b = a ^ b, ((a & b) << 1) & MASK` does both at once safely.
+
+key_insight: a + b = (a ^ b) + ((a & b) << 1), repeated until the carry is 0. In Python you must mask to 32 bits so the carry can fall off the top, then turn the 32-bit pattern back into a signed number.
+
+time_complexity: O(1)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(1):** at most 32 loop rounds. In each round the lowest `1` bit of the carry `b` moves at least one position left (a carry is created only where `b` already has a `1`, and then it is shifted left), and the mask removes anything past bit 31. So after at most 32 rounds the carry is `0`. For a word size of `w` bits this is O(w).
+
+  **Space O(1):** a few integer variables, each kept to 32 bits by the mask.
+
+data_structures: [Integer bits]
+passes: At most 32 carry rounds
+
+alternatives:
+  - name: Bit-by-bit full adder (ripple carry)
+    time_complexity: O(1)
+    space_complexity: O(1)
+    explanation: |
+      Model the adder circuit one column at a time. For each of the 32 bit positions, read bit `i` of `a` and `b` (Python's `>>` on a negative number gives its two's-complement bits), then compute
+
+      - sum bit `= x ^ y ^ carry`
+      - carry out `= (x & y) | (x & carry) | (y & carry)` (1 when at least two of the three bits are 1)
+
+      and put the sum bit into position `i` of the result. The carry out of bit 31 is simply dropped. If bit 31 of the result is set, convert it to a negative number exactly as in the optimal solution.
+    tradeoff: Same O(1) bounds, and it shows directly what a hardware adder does, which helps you understand why the XOR/AND loop works. But it always does 32 iterations with more operations each, while the carry loop stops as soon as no carry is left (often after only a few rounds).
+    code: |
+      class Solution:
+          def getSum(self, a: int, b: int) -> int:
+              result = 0
+              carry = 0
+              for i in range(32):
+                  x = (a >> i) & 1
+                  y = (b >> i) & 1
+                  result |= (x ^ y ^ carry) << i                 # sum bit
+                  carry = (x & y) | (x & carry) | (y & carry)    # carry into the next bit
+              # Bit 31 is the sign bit of a 32-bit two's-complement number.
+              if (result >> 31) & 1:
+                  result = ~(result ^ 0xFFFFFFFF)
+              return result
+
+tests:
+  - { name: both zero, input: { a: 0, b: 0 }, expected: 0 }
+  - { name: zero plus negative, input: { a: 0, b: -9 }, expected: -9 }
+  - { name: opposites cancel (-1 + 1), input: { a: -1, b: 1 }, expected: 0 }
+  - { name: two negatives, input: { a: -1, b: -1 }, expected: -2 }
+  - { name: mixed signs with negative result, input: { a: -5, b: 3 }, expected: -2 }
+  - { name: mixed signs with positive result, input: { a: 12, b: -4 }, expected: 8 }
+  - { name: most negative sum, input: { a: -1000, b: -1000 }, expected: -2000 }
+  - { name: most positive sum, input: { a: 1000, b: 1000 }, expected: 2000 }
+  - { name: long carry chain (511 + 1), input: { a: 511, b: 1 }, expected: 512 }
+  - { name: sum is -1 (-1000 + 999), input: { a: -1000, b: 999 }, expected: -1 }

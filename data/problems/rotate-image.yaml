@@ -1,0 +1,198 @@
+id: "48"
+title: Rotate Image
+slug: rotate-image
+leetcode_url: https://leetcode.com/problems/rotate-image/
+category: math-geometry
+difficulty: Medium
+patterns: [Matrix, In-place, Transpose, Index Mapping]
+
+description: |
+  You are given an `n x n` matrix of integers that represents an image. Turn the image **90 degrees clockwise**.
+
+  The rotation must happen **in place**: change the cells of `matrix` itself instead of building and returning a new matrix. Interviewers usually add that you should not allocate a second `n x n` matrix either.
+
+  Your method returns nothing. The tests look at `matrix` after your call.
+
+examples:
+  - input: { matrix: [[1, 2, 3], [4, 5, 6], [7, 8, 9]] }
+    output: [[7, 4, 1], [8, 5, 2], [9, 6, 3]]
+    explanation: The top row `[1, 2, 3]` becomes the right column (read top to bottom), and the left column `[1, 4, 7]` becomes the top row (read right to left).
+  - input: { matrix: [[5, 1, 9, 11], [2, 4, 8, 10], [13, 3, 6, 7], [15, 14, 12, 16]] }
+    output: [[15, 13, 2, 5], [14, 3, 4, 1], [12, 6, 8, 9], [16, 7, 10, 11]]
+    explanation: Each ring rotates on its own. The outer ring moves one side clockwise, and so does the inner 2 x 2 block `[[4, 8], [3, 6]]`, which becomes `[[3, 4], [6, 8]]`.
+  - input: { matrix: [[1, 2], [3, 4]] }
+    output: [[3, 1], [4, 2]]
+
+constraints:
+  - "`n == matrix.length == matrix[i].length`"
+  - "`1 <= n <= 20`"
+  - "`-1000 <= matrix[i][j] <= 1000`"
+
+function_signature: "def rotate(self, matrix: List[List[int]]) -> None"
+
+starter_code: |
+  class Solution:
+      def rotate(self, matrix: List[List[int]]) -> None:
+          """
+          Do not return anything, modify matrix in-place instead.
+          """
+          pass
+
+runner:
+  kind: function
+  method: rotate
+  params:
+    - { name: matrix, type: "List[List[int]]" }
+  returns: "None"
+  mutates: matrix
+
+hints:
+  - Follow one cell. After a clockwise turn, where does the cell at row `r`, column `c` end up? Write the destination as a formula in `r`, `c` and `n`.
+  - The cell at `(r, c)` lands at `(c, n - 1 - r)`. Moving every cell straight to its destination overwrites values you still need. Can you split this mapping into two simpler moves that are each easy to do in place?
+  - "Swapping row and column indices `(r, c) -> (c, r)` is a transpose, a flip across the main diagonal. Mirroring each row left to right then turns column `r` into column `n - 1 - r`. Transpose first, then reverse every row."
+
+approach: Transpose, then reverse each row
+optimal_solution: |
+  class Solution:
+      def rotate(self, matrix: List[List[int]]) -> None:
+          """
+          Do not return anything, modify matrix in-place instead.
+          """
+          n = len(matrix)
+
+          # 1. Transpose: swap across the main diagonal, (r, c) <-> (c, r).
+          #    Start c at r + 1 so each pair is swapped exactly once.
+          for r in range(n):
+              for c in range(r + 1, n):
+                  matrix[r][c], matrix[c][r] = matrix[c][r], matrix[r][c]
+
+          # 2. Mirror each row left to right: column c -> column n - 1 - c.
+          for row in matrix:
+              row.reverse()
+
+explanation: |
+  **Intuition.** Follow one cell. In a clockwise turn the top row becomes the right column, so the value at row `r`, column `c` moves to row `c`, column `n - 1 - r`:
+
+  ```
+  (r, c)  ->  (c, n - 1 - r)
+  ```
+
+  Writing every value straight to its destination would overwrite a value we have not moved yet. Instead, split the mapping into two simpler moves that can each be done in place by swapping:
+
+  1. **Transpose** (flip across the main diagonal): `(r, c) -> (c, r)`.
+  2. **Reverse each row** (mirror left to right): `(c, r) -> (c, n - 1 - r)`.
+
+  Doing one after the other gives `(r, c) -> (c, n - 1 - r)`, which is the rotation.
+
+  ```
+  original      transpose     reverse rows
+  1 2 3         1 4 7         7 4 1
+  4 5 6   ->    2 5 8   ->    8 5 2
+  7 8 9         3 6 9         9 6 3
+  ```
+
+  **Algorithm.**
+  1. For each row `r` and each column `c > r`, swap `matrix[r][c]` with `matrix[c][r]`.
+  2. Reverse every row in place.
+
+  **Subtle points.**
+  - In the transpose, `c` starts at `r + 1`, so we only visit cells above the diagonal. Looping over *every* `(r, c)` swaps each pair twice, which undoes the transpose. Diagonal cells (`r == c`) never move.
+  - Change the lists you were given. `matrix = new_matrix` only rebinds a local name, so the caller's matrix stays the same. This is the most common reason a rotation that looks correct fails the tests. `row.reverse()` and slice assignment (`matrix[r][:] = ...`) both change the object itself.
+  - Odd `n` needs no special case: the center cell maps to itself.
+  - For a counter-clockwise turn, `(r, c) -> (n - 1 - c, r)`. You get it by reversing each row first and then transposing, or by transposing and then reversing the order of the rows.
+
+key_insight: A clockwise rotation (r, c) -> (c, n-1-r) is a transpose followed by reversing each row, and both of those steps are in-place swaps.
+
+time_complexity: O(n²)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n²):** the transpose swaps each of the `n(n-1)/2` pairs above the diagonal once, and reversing the rows does `n/2` swaps in each of the `n` rows. Every cell is touched a constant number of times. No algorithm can beat this, because every cell except the center has to move.
+
+  **Space O(1):** only a few loop variables are used. Python's tuple swap and `list.reverse()` both work in place.
+
+data_structures: [2D array]
+passes: 2 passes over the matrix (transpose, then reverse rows)
+
+alternatives:
+  - name: Copy into a new matrix, then write back
+    time_complexity: O(n²)
+    space_complexity: O(n²)
+    explanation: |
+      Apply the mapping directly: build `rotated` with `rotated[c][n - 1 - r] = matrix[r][c]`, reading only from the untouched original. Then copy each row back with `matrix[r][:] = rotated[r]` so the caller's matrix object is updated (assigning `matrix = rotated` would not be).
+    tradeoff: Easiest to get right because you never read a cell you already overwrote, but it allocates a second n x n matrix, which is O(n²) extra memory and breaks the in-place requirement. Useful for checking the mapping, but not the final interview answer.
+    code: |
+      class Solution:
+          def rotate(self, matrix: List[List[int]]) -> None:
+              n = len(matrix)
+              rotated = [[0] * n for _ in range(n)]
+              for r in range(n):
+                  for c in range(n):
+                      rotated[c][n - 1 - r] = matrix[r][c]
+
+              # Write back into the SAME row lists the caller holds.
+              for r in range(n):
+                  matrix[r][:] = rotated[r]
+  - name: Rotate four cells at a time (layer by layer)
+    time_complexity: O(n²)
+    space_complexity: O(1)
+    explanation: |
+      Applying the mapping four times brings a cell back to where it started, so the cells form groups of four that trade places:
+
+      `(r, c) -> (c, n-1-r) -> (n-1-r, n-1-c) -> (n-1-c, r) -> (r, c)`
+
+      Every group has exactly one member in the top-left block `r < n // 2`, `c < (n + 1) // 2`. For each such cell, save one value in a temporary and shift the other three around the group. For odd `n` the extra column `c = n // 2` covers the middle cell of each edge, and the center cell is its own group.
+    tradeoff: Same O(n²) time and O(1) space, and each cell is written once instead of twice. But the four index expressions are easy to mix up under pressure, while transpose + reverse is quicker to derive and explain.
+    code: |
+      class Solution:
+          def rotate(self, matrix: List[List[int]]) -> None:
+              n = len(matrix)
+              for r in range(n // 2):
+                  for c in range((n + 1) // 2):
+                      tmp = matrix[r][c]                                    # top-left value
+                      matrix[r][c] = matrix[n - 1 - c][r]                   # left   -> top
+                      matrix[n - 1 - c][r] = matrix[n - 1 - r][n - 1 - c]   # bottom -> left
+                      matrix[n - 1 - r][n - 1 - c] = matrix[c][n - 1 - r]   # right  -> bottom
+                      matrix[c][n - 1 - r] = tmp                            # top    -> right
+
+tests:
+  - name: single cell
+    input: { matrix: [[5]] }
+    expected: [[5]]
+  - name: 2 x 2 negatives
+    input: { matrix: [[-1, -2], [-3, -4]] }
+    expected: [[-3, -1], [-4, -2]]
+  - name: duplicate values
+    input: { matrix: [[1, 1, 2], [3, 1, 2], [3, 4, 4]] }
+    expected: [[3, 3, 1], [4, 1, 1], [4, 2, 2]]
+  - name: extreme values
+    input: { matrix: [[1000, -1000, 0], [0, 0, 0], [-1000, 1000, 7]] }
+    expected: [[-1000, 0, 1000], [1000, 0, -1000], [7, 0, 0]]
+  - name: 4 x 4 sequential
+    input: { matrix: [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]] }
+    expected: [[13, 9, 5, 1], [14, 10, 6, 2], [15, 11, 7, 3], [16, 12, 8, 4]]
+  - name: 5 x 5 (odd n, center stays)
+    input: { matrix: [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 18, 19, 20], [21, 22, 23, 24, 25]] }
+    expected: [[21, 16, 11, 6, 1], [22, 17, 12, 7, 2], [23, 18, 13, 8, 3], [24, 19, 14, 9, 4], [25, 20, 15, 10, 5]]
+  - name: 6 x 6 mixed signs
+    input:
+      matrix:
+        - [3, -7, 0, 12, 5, -1]
+        - [8, 4, -9, 2, -6, 10]
+        - [-3, 11, 7, -8, 1, 6]
+        - [0, -5, 13, 9, -2, 4]
+        - [14, 2, -4, 6, 15, -11]
+        - [-12, 9, 1, -10, 3, 16]
+    expected:
+      - [-12, 14, 0, -3, 8, 3]
+      - [9, 2, -5, 11, 4, -7]
+      - [1, -4, 13, 7, -9, 0]
+      - [-10, 6, 9, -8, 2, 12]
+      - [3, 15, -2, 1, -6, 5]
+      - [16, -11, 4, 6, 10, -1]
+
+benchmark:
+  size_label: n (matrix is n x n)
+  sizes: [25, 50, 100, 200, 400]
+  generator: |
+    def generate(n, rng):
+        return {"matrix": [[rng.randint(-1000, 1000) for _ in range(n)] for _ in range(n)]}

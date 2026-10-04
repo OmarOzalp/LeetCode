@@ -1,0 +1,189 @@
+id: "261"
+title: Graph Valid Tree
+slug: graph-valid-tree
+leetcode_url: https://leetcode.com/problems/graph-valid-tree/
+category: graphs
+difficulty: Medium
+patterns: [Union-Find, DFS, BFS, Cycle Detection]
+
+description: |
+  You have `n` nodes labeled `0` to `n - 1` and a list of **undirected** edges, where `edges[i] = [a, b]` connects nodes `a` and `b`.
+
+  Return `True` if these edges form a valid **tree**, and `False` otherwise.
+
+  A tree is an undirected graph that is
+
+  - **connected**, meaning every node can reach every other node, and
+  - **acyclic**, meaning there is no way to leave a node and come back to it without reusing an edge.
+
+examples:
+  - input: { n: 6, edges: [[3, 4], [1, 0], [4, 5], [2, 1], [1, 3]] }
+    output: true
+    explanation: "Node 1 connects to 0, 2 and 3, and the chain `3 - 4 - 5` hangs off node 3. All six nodes are connected and there is no cycle."
+  - input: { n: 4, edges: [[2, 3], [1, 2], [1, 3]] }
+    output: false
+    explanation: "There are exactly `n - 1 = 3` edges, but nodes 1, 2 and 3 form a cycle and node 0 is not connected to anything. Counting edges alone is not enough."
+  - input: { n: 4, edges: [[0, 1], [2, 3]] }
+    output: false
+    explanation: There is no cycle, but the graph splits into two separate pieces.
+
+constraints:
+  - "`1 <= n <= 2000`"
+  - "`0 <= edges.length <= 5000`"
+  - "`edges[i].length == 2`"
+  - "`0 <= a, b < n` and `a != b`"
+  - There are no self-loops or repeated edges.
+
+function_signature: "def validTree(self, n: int, edges: List[List[int]]) -> bool"
+
+starter_code: |
+  class Solution:
+      def validTree(self, n: int, edges: List[List[int]]) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: validTree
+  params:
+    - { name: n, type: int }
+    - { name: edges, type: "List[List[int]]" }
+  returns: bool
+
+hints:
+  - How many edges does a tree with `n` nodes have? If the edge count is different, can the graph still be a tree?
+  - A tree has exactly `n - 1` edges, but some graphs with `n - 1` edges are not trees (a cycle plus an isolated node). Once the count is `n - 1`, which single extra property is enough to prove it is a tree?
+  - With exactly `n - 1` edges, "no cycle" and "connected" each imply the other. Use Union-Find to add the edges one by one. If an edge joins two nodes that are already connected, it creates a cycle, so the answer is false.
+
+approach: Edge count + Union-Find cycle check
+optimal_solution: |
+  class Solution:
+      def validTree(self, n: int, edges: List[List[int]]) -> bool:
+          # A tree on n nodes always has exactly n - 1 edges.
+          if len(edges) != n - 1:
+              return False
+
+          parent = list(range(n))
+          size = [1] * n
+
+          def find(x: int) -> int:
+              while parent[x] != x:
+                  parent[x] = parent[parent[x]]  # path halving
+                  x = parent[x]
+              return x
+
+          for a, b in edges:
+              ra, rb = find(a), find(b)
+              if ra == rb:
+                  return False  # a and b are already connected: this edge closes a cycle
+              if size[ra] < size[rb]:
+                  ra, rb = rb, ra
+              parent[rb] = ra   # union by size
+              size[ra] += size[rb]
+
+          # n - 1 edges and no cycle, so the graph must be connected.
+          return True
+
+explanation: |
+  **Intuition.** A tree on `n` nodes has exactly `n - 1` edges. That is a necessary condition but not a sufficient one: three edges forming a triangle plus one isolated node also has `n - 1 = 3` edges. The key fact is that once the count is `n - 1`, the two tree properties go together:
+
+  - Start with `n` isolated nodes, which is `n` components. Each edge that does **not** close a cycle merges two components, reducing the count by exactly one.
+  - So `n - 1` edges with no cycle leave exactly `n - (n - 1) = 1` component, which means the graph is connected.
+
+  Therefore: **the graph is a tree ⇔ it has `n - 1` edges and no cycle.** Union-Find checks "no cycle" while adding the edges.
+
+  **Algorithm.**
+  1. If `len(edges) != n - 1`, return `False`. With fewer edges the graph cannot be connected, and with more it must contain a cycle.
+  2. Process the edges with Union-Find. If both endpoints already have the same root, they were connected before this edge, so adding it creates a cycle. Return `False`.
+  3. Otherwise merge the two components. If every edge merges something, return `True`.
+
+  **Edge cases.**
+  - `n = 1` with no edges is a valid tree (a single node).
+  - `n = 2` with no edges is not, because the two nodes are disconnected. The edge-count check catches this.
+  - An edge listed as `[b, a]` instead of `[a, b]` makes no difference, since the graph is undirected.
+
+key_insight: With exactly n - 1 edges, "no cycle" already implies "connected", so a single Union-Find pass that rejects any edge joining an already-connected pair decides the question.
+
+time_complexity: O(n + E · α(n))
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n + E · α(n)):** the edge-count check is O(1), initializing Union-Find is O(n), and each edge costs two near-constant `find` operations. After the first check `E = n - 1`, so this is effectively O(n).
+
+  **Space O(n)** for the `parent` and `size` arrays.
+
+data_structures: [Union-Find (disjoint set union), Array]
+passes: 1 pass over edges
+
+alternatives:
+  - name: Edge count + BFS connectivity
+    time_complexity: O(n + E)
+    space_complexity: O(n + E)
+    explanation: |
+      Use the same fact from the other direction. With exactly `n - 1` edges, a tree is just a **connected** graph. Build an adjacency list, BFS from node 0, and check that all `n` nodes were reached.
+    tradeoff: Equally fast and needs no Union-Find, only a basic traversal. It does need an adjacency list (O(n + E) memory). Without the edge-count shortcut you would have to detect cycles explicitly during the traversal (by tracking each node's parent), which is easy to get wrong in undirected graphs, because every edge looks like a 2-cycle back to the parent.
+    code: |
+      class Solution:
+          def validTree(self, n: int, edges: List[List[int]]) -> bool:
+              if len(edges) != n - 1:
+                  return False
+
+              graph = [[] for _ in range(n)]
+              for a, b in edges:
+                  graph[a].append(b)
+                  graph[b].append(a)
+
+              # With n - 1 edges, the graph is a tree exactly when it is connected.
+              seen = {0}
+              queue = deque([0])
+              while queue:
+                  node = queue.popleft()
+                  for nb in graph[node]:
+                      if nb not in seen:
+                          seen.add(nb)
+                          queue.append(nb)
+              return len(seen) == n
+
+tests:
+  - name: single node
+    input: { n: 1, edges: [] }
+    expected: true
+  - name: two nodes, no edge
+    input: { n: 2, edges: [] }
+    expected: false
+  - name: two nodes, one edge
+    input: { n: 2, edges: [[0, 1]] }
+    expected: true
+  - name: n - 1 edges but a cycle and an isolated node
+    input: { n: 4, edges: [[0, 1], [1, 2], [2, 0]] }
+    expected: false
+  - name: too many edges
+    input: { n: 3, edges: [[0, 1], [1, 2], [2, 0]] }
+    expected: false
+  - name: too few edges
+    input: { n: 5, edges: [[0, 1], [2, 3], [3, 4]] }
+    expected: false
+  - name: star
+    input: { n: 5, edges: [[0, 1], [0, 2], [0, 3], [0, 4]] }
+    expected: true
+  - name: branching tree
+    input: { n: 5, edges: [[0, 1], [0, 2], [0, 3], [1, 4]] }
+    expected: true
+  - name: extra edge creates a cycle
+    input: { n: 5, edges: [[0, 1], [1, 2], [2, 3], [1, 3], [1, 4]] }
+    expected: false
+
+benchmark:
+  size_label: number of nodes
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # A random valid tree (so every edge must be processed): each node links to a
+        # random earlier node, then labels are shuffled and the edges listed in random order.
+        label = list(range(n))
+        rng.shuffle(label)
+        edges = []
+        for v in range(1, n):
+            u = rng.randrange(v)
+            a, b = label[u], label[v]
+            edges.append([a, b] if rng.random() < 0.5 else [b, a])
+        rng.shuffle(edges)
+        return {"n": n, "edges": edges}

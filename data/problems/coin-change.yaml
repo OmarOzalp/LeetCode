@@ -1,0 +1,177 @@
+id: "322"
+title: Coin Change
+slug: coin-change
+leetcode_url: https://leetcode.com/problems/coin-change/
+category: dp-1d
+difficulty: Medium
+patterns: [1-D DP, Unbounded Knapsack, BFS, Memoization]
+
+description: |
+  You have coins of several denominations, given as `coins`, and an **unlimited supply** of each one. You need to pay exactly `amount`.
+
+  Return the **fewest number of coins** whose values add up to exactly `amount`. If no combination of coins can make that amount, return `-1`.
+
+  Paying an amount of `0` needs no coins at all.
+
+examples:
+  - input: { coins: [1, 2, 5], amount: 11 }
+    output: 3
+    explanation: "`5 + 5 + 1 = 11`."
+  - input: { coins: [2], amount: 3 }
+    output: -1
+    explanation: Any number of 2-coins adds up to an even total, so 3 is unreachable.
+  - input: { coins: [1, 3, 4], amount: 6 }
+    output: 2
+    explanation: "`3 + 3 = 6`. Grabbing the largest coin first gives `4 + 1 + 1`, which uses 3 coins, so greedy does not work."
+
+constraints:
+  - "`1 <= coins.length <= 12`"
+  - "`1 <= coins[i] <= 2^31 - 1`"
+  - "`0 <= amount <= 10^4`"
+
+function_signature: "def coinChange(self, coins: List[int], amount: int) -> int"
+
+starter_code: |
+  class Solution:
+      def coinChange(self, coins: List[int], amount: int) -> int:
+          pass
+
+runner:
+  kind: function
+  method: coinChange
+  params:
+    - { name: coins, type: "List[int]" }
+    - { name: amount, type: int }
+  returns: int
+
+hints:
+  - Always taking the largest coin that fits is tempting, but try `coins = [1, 3, 4]` with `amount = 6`. What is the smallest decision you could make instead, and what problem would be left over afterwards?
+  - Suppose you knew which coin was paid **last**. If it was coin `c`, the rest is the same question for `amount - c`. So the answer for an amount depends only on answers for smaller amounts.
+  - "Let `dp[a]` be the fewest coins that make exactly `a`, with `dp[0] = 0`. Then `dp[a] = 1 + min(dp[a - c])` over every coin `c <= a`. Fill it for `a = 1..amount`, using infinity for amounts you cannot make."
+
+approach: Bottom-up DP over amounts
+optimal_solution: |
+  class Solution:
+      def coinChange(self, coins: List[int], amount: int) -> int:
+          # dp[a] = fewest coins that add up to exactly a (inf = cannot be made)
+          dp = [0] + [inf] * amount
+
+          for a in range(1, amount + 1):
+              for coin in coins:
+                  if coin <= a:
+                      # Pay `coin` last; the rest is the smaller subproblem a - coin.
+                      dp[a] = min(dp[a], dp[a - coin] + 1)
+
+          return dp[amount] if dp[amount] != inf else -1
+
+explanation: |
+  **Intuition.** Look at the **last coin** of an optimal payment. If it is coin `c`, the remaining coins must be an optimal payment of `amount - c`. If they were not, swapping in a better one would improve the whole. We do not know which coin is last, so try them all and keep the best. Every subproblem is a smaller amount, which gives a one-dimensional DP over amounts `0..amount`.
+
+  **State & recurrence.**
+  - **State:** `dp[a]` = minimum number of coins whose values sum to exactly `a`, or `inf` if `a` cannot be made.
+  - **Transition:** `dp[a] = min(dp[a - c] + 1)` over all coins `c <= a`. The `+ 1` is the last coin itself. Unreachable sub-amounts stay `inf`, and `inf + 1` is still `inf`.
+  - **Base case:** `dp[0] = 0`. Zero coins make zero.
+  - **Order:** increasing `a`, because `dp[a]` reads only smaller amounts.
+  - **Answer:** `dp[amount]`, translated to `-1` if it is still `inf`.
+
+  **Algorithm.**
+  1. Create `dp` of length `amount + 1` filled with `inf`, and set `dp[0] = 0`.
+  2. For every amount `a` from 1 to `amount`, for every coin `c <= a`, relax `dp[a] = min(dp[a], dp[a - c] + 1)`.
+  3. Return `dp[amount]`, or `-1` if it is `inf`.
+
+  **Why it is "unbounded knapsack".** A coin can be used again and again, because `dp[a - c]` may itself already contain coin `c`. In 0/1 knapsack each item may be used once, which needs a different iteration order or a second dimension.
+
+  **Subtle points.**
+  - Greedy (largest coin first) fails, e.g. `[1, 3, 4]` with `6`. It only works for special coin systems like real-world currency.
+  - Use `inf` (or `amount + 1`, which is more than any valid answer) as the "impossible" marker. Using `-1` inside the table would break the `min`.
+  - `amount = 0` returns `0` before any coin is considered.
+  - Coins larger than `amount` are simply never used. They do not cause index errors because of the `coin <= a` check.
+
+key_insight: "The last coin c leaves the subproblem amount - c, so dp[a] = 1 + min(dp[a - c]) over coins c; filling a from 0 upward makes every subproblem ready when needed."
+
+time_complexity: O(amount · k)
+space_complexity: O(amount)
+complexity_explanation: |
+  Let `k` be the number of coin types.
+
+  **Time O(amount · k):** for each of the `amount` table entries we try all `k` coins with O(1) work each. With `amount = 10^4` and `k = 12` that is about 120,000 steps.
+
+  **Space O(amount):** the `dp` array has one entry per amount from 0 to `amount`. It cannot be shrunk to a few variables like Climbing Stairs, because a coin can reach back arbitrarily far.
+
+data_structures: [Array (DP table)]
+passes: amount × k relaxations
+
+alternatives:
+  - name: Top-down recursion with memoization
+    time_complexity: O(amount · k)
+    space_complexity: O(amount)
+    explanation: |
+      `fewest(rem)` returns the fewest coins that make exactly `rem`. It tries every coin as the next one: `1 + fewest(rem - coin)`. `fewest(0) = 0`, and an amount that no coin can reduce to 0 returns `inf`.
+
+      Without `@cache` this explores every ordered sequence of coins, which is exponential in `amount / min(coins)`. With the cache each of the `amount + 1` values is computed once.
+    tradeoff: Mirrors the "which coin do I use next?" reasoning and only visits amounts that are actually reachable from `amount`. But recursion depth can reach `amount / min(coins)` (10⁴ with a 1-coin), which overflows the default recursion limit in many environments. The bottom-up table has no such risk.
+    code: |
+      class Solution:
+          def coinChange(self, coins: List[int], amount: int) -> int:
+              @cache
+              def fewest(rem: int) -> float:
+                  """Fewest coins adding up to exactly rem (inf if impossible)."""
+                  if rem == 0:
+                      return 0
+                  best = inf
+                  for coin in coins:
+                      if coin <= rem:
+                          best = min(best, fewest(rem - coin) + 1)
+                  return best
+
+              result = fewest(amount)
+              return result if result != inf else -1
+  - name: BFS over amounts (shortest path)
+    time_complexity: O(amount · k)
+    space_complexity: O(amount)
+    explanation: |
+      Treat each total `0..amount` as a node and each coin as an edge from `t` to `t + coin`. The fewest coins is then the shortest path from 0 to `amount` in an unweighted graph, which breadth-first search finds level by level: level `k` contains every total reachable with exactly `k` coins. A `seen` set ensures each total is expanded once.
+    tradeoff: Same worst-case bounds, and it can stop early as soon as `amount` is reached, which often makes it faster when the answer uses few coins. It needs a queue plus a visited set, and the shortest-path view is less general than the DP (for example, it does not extend to counting combinations).
+    code: |
+      class Solution:
+          def coinChange(self, coins: List[int], amount: int) -> int:
+              if amount == 0:
+                  return 0
+              seen = {0}
+              frontier = [0]  # totals reachable with exactly `steps` coins
+              steps = 0
+              while frontier:
+                  steps += 1
+                  next_frontier = []
+                  for total in frontier:
+                      for coin in coins:
+                          nxt = total + coin
+                          if nxt == amount:
+                              return steps
+                          if nxt < amount and nxt not in seen:
+                              seen.add(nxt)
+                              next_frontier.append(nxt)
+                  frontier = next_frontier
+              return -1
+
+tests:
+  - { name: zero amount, input: { coins: [7, 3], amount: 0 }, expected: 0 }
+  - { name: single coin exact, input: { coins: [1], amount: 1 }, expected: 1 }
+  - { name: amount below every coin, input: { coins: [5, 10], amount: 3 }, expected: -1 }
+  - { name: unreachable combination, input: { coins: [3, 7], amount: 11 }, expected: -1 }
+  - { name: greedy picks too many, input: { coins: [9, 6, 5, 1], amount: 11 }, expected: 2 }
+  - { name: huge coin, input: { coins: [2147483647], amount: 2 }, expected: -1 }
+  - { name: huge coin with a 1, input: { coins: [1, 2147483647], amount: 2 }, expected: 2 }
+  - { name: unsorted coins, input: { coins: [2, 5, 10, 1], amount: 27 }, expected: 4 }
+  - { name: large amount odd coins, input: { coins: [186, 419, 83, 408], amount: 6249 }, expected: 20 }
+  - { name: maximum amount, input: { coins: [1, 2, 5], amount: 10000 }, expected: 2000 }
+
+benchmark:
+  size_label: amount
+  sizes: [100, 1000, 2500, 5000, 10000]
+  generator: |
+    def generate(n, rng):
+        # n is the amount (constraint: <= 10^4). Eight distinct coins between 3 and
+        # 199, so many sub-amounts need a real search and some may be unreachable.
+        coins = rng.sample(range(3, 200), 8)
+        return {"coins": coins, "amount": n}

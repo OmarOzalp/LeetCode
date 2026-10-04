@@ -1,0 +1,215 @@
+id: "295"
+title: Find Median from Data Stream
+slug: find-median-from-data-stream
+leetcode_url: https://leetcode.com/problems/find-median-from-data-stream/
+category: heap
+difficulty: Hard
+patterns: [Two Heaps, Heap, Design, Data Stream]
+
+description: |
+  The **median** of a sorted list of numbers is its middle value. When the list has an even length there is no single middle value, so the median is the average of the two middle values. For example, the median of `[1, 4, 9]` is `4`, and the median of `[1, 4, 9, 10]` is `(4 + 9) / 2 = 6.5`.
+
+  Numbers arrive one at a time, in no particular order. Implement the `MedianFinder` class:
+
+  - `MedianFinder()` creates an empty structure.
+  - `addNum(num)` adds the integer `num` to the data seen so far.
+  - `findMedian()` returns the median of every number added so far, as a float. Answers within `10^-5` of the exact value are accepted.
+
+  **How tests work:** each test is a sequence of operations. The first creates the object; the expected output lists the return value of every call (`None` for calls that return nothing).
+
+examples:
+  - input:
+      operations: [MedianFinder, addNum, findMedian, addNum, findMedian, addNum, findMedian]
+      arguments: [[], [4], [], [9], [], [1], []]
+    output: [null, null, 4.0, null, 6.5, null, 4.0]
+    explanation: |
+      After `4` the only value is the median. After `4, 9` the median is `(4 + 9) / 2 = 6.5`. After adding `1` the sorted data is `[1, 4, 9]`, so the median is `4`. Note that the new number arrived *below* everything seen so far.
+  - input:
+      operations: [MedianFinder, addNum, findMedian, addNum, findMedian, addNum, findMedian]
+      arguments: [[], [-1], [], [-2], [], [-3], []]
+    output: [null, null, -1.0, null, -1.5, null, -2.0]
+    explanation: Negative numbers work the same way. The sorted data is `[-3, -2, -1]` at the end, so the median is `-2`.
+
+constraints:
+  - "`-10^5 <= num <= 10^5`"
+  - "`findMedian` is only called after at least one number has been added."
+  - "At most `5 * 10^4` calls in total will be made to `addNum` and `findMedian`."
+
+function_signature: "class MedianFinder: addNum(num) / findMedian() -> float"
+
+starter_code: |
+  class MedianFinder:
+
+      def __init__(self):
+          pass
+
+      def addNum(self, num: int) -> None:
+          pass
+
+      def findMedian(self) -> float:
+          pass
+
+runner:
+  kind: design
+  class_name: MedianFinder
+  compare: float
+
+hints:
+  - Keeping everything sorted makes the median easy to read, but inserting into a sorted list costs O(n). Do you actually need the whole order, or only the one or two values in the middle?
+  - Picture the data split into a lower half and an upper half. The median depends only on the largest value of the lower half and the smallest value of the upper half.
+  - Keep the lower half in a max-heap and the upper half in a min-heap, with sizes that differ by at most one. When a number arrives, route it so that everything in the lower heap stays at most everything in the upper heap, then move one element across if the sizes drift apart.
+
+approach: Two heaps (max-heap for the low half, min-heap for the high half)
+optimal_solution: |
+  class MedianFinder:
+
+      def __init__(self):
+          self.low = []   # max-heap of the smaller half (stored negated)
+          self.high = []  # min-heap of the larger half
+          # Invariants: every value in low <= every value in high, and
+          # len(low) == len(high) or len(low) == len(high) + 1.
+
+      def addNum(self, num: int) -> None:
+          # Push through low first: its largest element moves to high, which
+          # guarantees the ordering invariant no matter where num belongs.
+          heapq.heappush(self.low, -num)
+          heapq.heappush(self.high, -heapq.heappop(self.low))
+          # Restore the size invariant (low may hold one extra element).
+          if len(self.high) > len(self.low):
+              heapq.heappush(self.low, -heapq.heappop(self.high))
+
+      def findMedian(self) -> float:
+          if len(self.low) > len(self.high):
+              return float(-self.low[0])        # odd count: the middle value
+          return (-self.low[0] + self.high[0]) / 2  # even count: average of the two middles
+
+explanation: |
+  **Intuition.** The median only depends on the middle of the sorted data, not on the full order. Split the numbers into two halves:
+
+  - `low`: the smaller half, as a **max-heap**, so its top is the largest of the small numbers.
+  - `high`: the larger half, as a **min-heap**, so its top is the smallest of the large numbers.
+
+  If every value in `low` is at most every value in `high`, and the sizes are equal (or `low` has one extra), the two tops are exactly the middle elements of the sorted data. Then the median is either `low`'s top or the average of the two tops.
+
+  **Algorithm.**
+  1. `addNum(num)`:
+     1. Push `num` into `low`, then pop `low`'s maximum and push it into `high`. Whatever `num` was, the value that crosses over is the largest of the lower side, so the ordering between the heaps stays correct.
+     2. If `high` is now bigger than `low`, move `high`'s minimum back to `low`. This keeps `len(low) - len(high)` equal to 0 or 1.
+  2. `findMedian()`: if `low` is larger, return its top. Otherwise return the average of both tops.
+
+  **Python detail.** `heapq` only provides a min-heap. To get a max-heap, store negated values: push `-num`, and read the maximum as `-low[0]`.
+
+  **Why the "push through" trick?** A more explicit version compares `num` with `low`'s top to choose a heap and then rebalances. That works too, but routing every number through `low` first removes the case analysis. It costs a few extra heap operations, which is still O(log n).
+
+  **Follow-ups an interviewer may ask.** If every number is in `[0, 100]`, keep a count per value (101 buckets) and walk the counts to find the median in O(100). If 99% of the numbers are in that range, use the same buckets plus counters (or small heaps) for the outliers below and above.
+
+key_insight: The median only depends on the boundary between the lower and upper halves, and two balanced heaps keep that boundary at their tops in O(log n) per insertion.
+
+time_complexity: O(log n) addNum, O(1) findMedian
+space_complexity: O(n)
+complexity_explanation: |
+  **addNum, O(log n):** a constant number (at most 5) of heap pushes and pops, each O(log n) on a heap of about n/2 elements.
+
+  **findMedian, O(1):** it only reads the tops of the heaps (`heap[0]`).
+
+  **Space O(n):** every number added is stored in exactly one of the two heaps.
+
+data_structures: [Max-heap, Min-heap]
+passes: Constant heap operations per call
+
+alternatives:
+  - name: Store everything, sort on every query
+    time_complexity: O(1) addNum, O(n log n) findMedian
+    space_complexity: O(n)
+    explanation: |
+      Append each number to a list. When the median is requested, sort the list and read the middle element or elements.
+    tradeoff: The easiest thing to write and fine for a few queries, but each query re-sorts all n numbers. With queries interleaved between insertions, the total work grows like n² log n, while the heaps answer each query in O(1).
+    code: |
+      class MedianFinder:
+
+          def __init__(self):
+              self.nums = []
+
+          def addNum(self, num: int) -> None:
+              self.nums.append(num)
+
+          def findMedian(self) -> float:
+              s = sorted(self.nums)
+              mid = len(s) // 2
+              if len(s) % 2:
+                  return float(s[mid])
+              return (s[mid - 1] + s[mid]) / 2
+  - name: Sorted list with binary insertion (bisect.insort)
+    time_complexity: O(n) addNum, O(1) findMedian
+    space_complexity: O(n)
+    explanation: |
+      Keep the numbers in a sorted Python list. `bisect.insort` finds the position by binary search in O(log n), then inserts there. The median is read directly from the middle indices.
+    tradeoff: Short and very fast in practice at this problem's scale, because the O(n) shift of elements is a single memory move in C. Asymptotically, though, each insertion is O(n), so n insertions cost O(n²). The two-heap solution is O(log n) per insertion, and that is the bound interviewers look for.
+    code: |
+      class MedianFinder:
+
+          def __init__(self):
+              self.nums = []  # always sorted
+
+          def addNum(self, num: int) -> None:
+              bisect.insort(self.nums, num)  # binary search + O(n) shift
+
+          def findMedian(self) -> float:
+              n = len(self.nums)
+              mid = n // 2
+              if n % 2:
+                  return float(self.nums[mid])
+              return (self.nums[mid - 1] + self.nums[mid]) / 2
+
+tests:
+  - name: single number, repeated queries
+    input:
+      operations: [MedianFinder, addNum, findMedian, findMedian]
+      arguments: [[], [7], [], []]
+    expected: [null, null, 7.0, 7.0]
+  - name: duplicates
+    input:
+      operations: [MedianFinder, addNum, addNum, addNum, findMedian, addNum, findMedian, addNum, findMedian]
+      arguments: [[], [2], [2], [2], [], [5], [], [5], []]
+    expected: [null, null, null, null, 2.0, null, 2.0, null, 2.0]
+  - name: strictly decreasing input
+    input:
+      operations: [MedianFinder, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian]
+      arguments: [[], [5], [], [4], [], [3], [], [2], [], [1], []]
+    expected: [null, null, 5.0, null, 4.5, null, 4.0, null, 3.5, null, 3.0]
+  - name: extreme values
+    input:
+      operations: [MedianFinder, addNum, addNum, findMedian, addNum, findMedian, addNum, findMedian]
+      arguments: [[], [100000], [-100000], [], [0], [], [1], []]
+    expected: [null, null, null, 0.0, null, 0.0, null, 0.5]
+  - name: mixed order with queries after each step
+    input:
+      operations: [MedianFinder, addNum, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian]
+      arguments: [[], [6], [10], [], [2], [], [6], [], [5], [], [0], []]
+    expected: [null, null, null, 8.0, null, 6.0, null, 6.0, null, 6.0, null, 5.5]
+  - name: increasing, then new minimums
+    input:
+      operations: [MedianFinder, addNum, addNum, addNum, addNum, findMedian, addNum, findMedian, addNum, findMedian]
+      arguments: [[], [1], [2], [3], [4], [], [0], [], [-1], []]
+    expected: [null, null, null, null, null, 2.5, null, 2.0, null, 1.5]
+  - name: median moves up and back down
+    input:
+      operations: [MedianFinder, addNum, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian]
+      arguments: [[], [3], [1], [], [10], [], [10], [], [-5], [], [-5], []]
+    expected: [null, null, null, 2.0, null, 3.0, null, 6.5, null, 3.0, null, 2.0]
+
+benchmark:
+  size_label: number of operations
+  sizes: [1000, 5000, 20000, 50000]
+  generator: |
+    def generate(n, rng):
+        ops, args = ["MedianFinder"], [[]]
+        for i in range(n):
+            # Mostly insertions, with a median query every few calls.
+            if i % 4 == 3:
+                ops.append("findMedian")
+                args.append([])
+            else:
+                ops.append("addNum")
+                args.append([rng.randint(-100000, 100000)])
+        return {"operations": ops, "arguments": args}

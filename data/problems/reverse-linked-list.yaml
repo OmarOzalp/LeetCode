@@ -1,0 +1,158 @@
+id: "206"
+title: Reverse Linked List
+slug: reverse-linked-list
+leetcode_url: https://leetcode.com/problems/reverse-linked-list/
+category: linked-list
+difficulty: Easy
+patterns: [Linked List, Pointer Manipulation, Recursion]
+
+description: |
+  Given the `head` of a singly linked list, reverse the list **in place** and return the head of the reversed list.
+
+  The tests show linked lists as arrays of node values: `[1, 2, 3]` means `1 -> 2 -> 3`, and `[]` means an empty list (`head` is `None`).
+
+  **Follow-up:** can you solve it both iteratively and recursively?
+
+examples:
+  - input: { head: [1, 2, 3, 4, 5] }
+    output: [5, 4, 3, 2, 1]
+    explanation: Every `next` pointer is flipped, so the old tail `5` becomes the new head.
+  - input: { head: [1, 2] }
+    output: [2, 1]
+  - input: { head: [] }
+    output: []
+    explanation: An empty list reversed is still empty, so return `None`.
+
+constraints:
+  - "The number of nodes in the list is in the range `[0, 5000]`."
+  - "`-5000 <= Node.val <= 5000`"
+
+function_signature: "def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]"
+
+starter_code: |
+  # Definition for singly-linked list.
+  # class ListNode:
+  #     def __init__(self, val=0, next=None):
+  #         self.val = val
+  #         self.next = next
+  class Solution:
+      def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:
+          pass
+
+runner:
+  kind: function
+  method: reverseList
+  params:
+    - { name: head, type: "Optional[ListNode]" }
+  returns: "Optional[ListNode]"
+
+hints:
+  - You do not need new nodes. Reversing the list just means every node's `next` should point to the node that used to come **before** it.
+  - Walk the list once while remembering the previous node. When you flip `curr.next` to point backwards, you lose your only link to the rest of the list, so what must you save first?
+  - Keep three pointers, `prev`, `curr` and `next`. At each step save `curr.next`, point `curr.next` at `prev`, then move `prev` and `curr` one step forward. When `curr` runs off the end, `prev` is the new head.
+
+approach: Iterative pointer reversal
+optimal_solution: |
+  class Solution:
+      def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:
+          prev = None   # the already-reversed part (starts empty)
+          curr = head   # the part still to reverse
+
+          while curr:
+              nxt = curr.next   # save the rest of the list before breaking the link
+              curr.next = prev  # flip this node's pointer backwards
+              prev = curr       # grow the reversed part by one node
+              curr = nxt        # move on to the remaining list
+
+          return prev  # the old tail is the new head
+
+explanation: |
+  **Intuition.** Think of the list as two parts: a **reversed** part that starts empty (`prev`) and the **remaining** part (`curr`). Each step takes the first node of the remaining part and moves it to the front of the reversed part by flipping its `next` pointer. When nothing remains, the reversed part is the whole list.
+
+  ```
+  prev     curr
+  None     1 -> 2 -> 3
+  1        2 -> 3          (1.next = None)
+  2 -> 1   3               (2.next = 1)
+  3 -> 2 -> 1   None       (3.next = 2)
+  ```
+
+  **Algorithm.**
+  1. Start with `prev = None` and `curr = head`.
+  2. While `curr` is not `None`:
+     1. Save `nxt = curr.next`.
+     2. Point `curr.next` at `prev`.
+     3. Move forward: `prev = curr`, `curr = nxt`.
+  3. Return `prev`.
+
+  **Subtle points.**
+  - **Order matters.** Saving `curr.next` *before* overwriting it is the whole trick: after `curr.next = prev`, the rest of the list would otherwise be unreachable.
+  - **Return `prev`, not `curr`.** The loop ends when `curr` is `None`; `prev` is the last node processed, the old tail.
+  - The old head's `next` correctly becomes `None` because `prev` starts as `None`. Forgetting this in other approaches creates a cycle between the first two nodes.
+  - The empty list and a single node need no special cases: the loop runs zero or one time.
+
+key_insight: Flip one next pointer at a time while saving the remaining list first, so the reversal needs only three pointers and a single pass.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** each node is visited exactly once and its pointer is changed with a constant amount of work.
+
+  **Space O(1):** only the three pointers `prev`, `curr` and `nxt` are used. The nodes are reused, not copied.
+
+data_structures: [Linked list]
+passes: 1 pass over the list
+
+alternatives:
+  - name: Collect the nodes in an array, then relink
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Walk the list and store every node in a Python list. Then set each node's `next` to the node before it in the array, make the first node's `next` `None`, and return the last node. Having random access makes the relinking easy to see.
+    tradeoff: Same O(n) time, but it uses O(n) extra memory for the array of nodes. The in-place reversal does the same job with three pointers, which is what interviewers expect.
+    code: |
+      class Solution:
+          def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:
+              nodes = []
+              while head:
+                  nodes.append(head)
+                  head = head.next
+              if not nodes:
+                  return None
+              for i in range(len(nodes) - 1, 0, -1):
+                  nodes[i].next = nodes[i - 1]  # point each node back at its predecessor
+              nodes[0].next = None              # the old head becomes the tail
+              return nodes[-1]
+  - name: Recursive
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Trust the recursion to reverse everything **after** `head` and return the new head (the old tail). At that point `head.next` is the last node of the reversed sublist, so attach `head` after it with `head.next.next = head`, and cut `head.next = None` so `head` becomes the tail. The base case is an empty list or a single node, which is already reversed.
+    tradeoff: Elegant and a common follow-up question, but each node adds a stack frame, so it uses O(n) memory and can hit the recursion limit on long lists (Python's default limit is 1000 frames). The iterative version uses O(1) memory.
+    code: |
+      class Solution:
+          def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:
+              if head is None or head.next is None:
+                  return head  # empty or single node: already reversed
+
+              new_head = self.reverseList(head.next)  # reverse everything after head
+              head.next.next = head  # the node after head now points back to it
+              head.next = None       # head is now the tail of the reversed list
+              return new_head
+
+tests:
+  - { name: single node, input: { head: [7] }, expected: [7] }
+  - { name: three nodes, input: { head: [1, 2, 3] }, expected: [3, 2, 1] }
+  - { name: negative and zero values, input: { head: [-1, 0, 1] }, expected: [1, 0, -1] }
+  - { name: duplicate values, input: { head: [2, 2, 1, 1] }, expected: [1, 1, 2, 2] }
+  - { name: extreme values, input: { head: [5000, -5000] }, expected: [-5000, 5000] }
+  - { name: palindrome, input: { head: [1, 2, 1] }, expected: [1, 2, 1] }
+  - { name: ten nodes, input: { head: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }, expected: [10, 9, 8, 7, 6, 5, 4, 3, 2, 1] }
+
+benchmark:
+  size_label: number of nodes
+  sizes: [50, 250, 1000, 5000]
+  generator: |
+    def generate(n, rng):
+        # Any list works: every correct solution touches each node once.
+        return {"head": [rng.randint(-5000, 5000) for _ in range(n)]}

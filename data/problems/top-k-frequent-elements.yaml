@@ -1,0 +1,162 @@
+id: "347"
+title: Top K Frequent Elements
+slug: top-k-frequent-elements
+leetcode_url: https://leetcode.com/problems/top-k-frequent-elements/
+category: arrays-hashing
+difficulty: Medium
+patterns: [Hash Map, Bucket Sort, Frequency Counting, Heap]
+
+description: |
+  Given an integer array `nums` and an integer `k`, return the `k` values that occur **most often** in `nums`. The result may be in any order.
+
+  The input is guaranteed to have a **unique** answer: the `k`-th most frequent value always appears strictly more often than any value outside the top `k`.
+
+  **Follow-up:** can you beat O(n log n), where n is the length of `nums`?
+
+examples:
+  - input: { nums: [4, 1, 4, 6, 1, 4], k: 2 }
+    output: [4, 1]
+    explanation: '`4` appears 3 times, `1` appears twice and `6` once. The two most frequent values are `4` and `1`.'
+  - input: { nums: [9], k: 1 }
+    output: [9]
+  - input: { nums: [3, 0, 3, -2, 0, 3, 5, -2, -2, -2], k: 2 }
+    output: [-2, 3]
+    explanation: 'Counts are `-2: 4`, `3: 3`, `0: 2`, `5: 1`, so the top two are `-2` and `3`.'
+
+constraints:
+  - "`1 <= nums.length <= 10^5`"
+  - "`-10^4 <= nums[i] <= 10^4`"
+  - "`1 <= k <=` the number of distinct values in `nums`"
+  - The answer is guaranteed to be unique.
+
+function_signature: "def topKFrequent(self, nums: List[int], k: int) -> List[int]"
+
+starter_code: |
+  class Solution:
+      def topKFrequent(self, nums: List[int], k: int) -> List[int]:
+          pass
+
+runner:
+  kind: function
+  method: topKFrequent
+  params:
+    - { name: nums, type: "List[int]" }
+    - { name: k, type: int }
+  returns: "List[int]"
+  compare: unordered
+
+hints:
+  - Start by finding out how often every value occurs. Which data structure gives you all the counts in a single pass?
+  - Once you have the counts, sorting values by count answers the question in O(n log n). Do you really need a full sort when you only want the top k?
+  - A value's count is an integer between 1 and n. Make n + 1 buckets where bucket `f` lists the values that occur exactly `f` times, then read the buckets from the highest frequency down until you have collected k values.
+
+approach: Count + bucket sort by frequency
+optimal_solution: |
+  class Solution:
+      def topKFrequent(self, nums: List[int], k: int) -> List[int]:
+          count = Counter(nums)  # value -> how many times it occurs
+
+          # buckets[f] = values that occur exactly f times.
+          # A frequency is at most len(nums), so len(nums) + 1 buckets suffice.
+          buckets = [[] for _ in range(len(nums) + 1)]
+          for num, freq in count.items():
+              buckets[freq].append(num)
+
+          # Collect values from the highest frequency down until we have k.
+          result = []
+          for freq in range(len(buckets) - 1, 0, -1):
+              for num in buckets[freq]:
+                  result.append(num)
+                  if len(result) == k:
+                      return result
+          return result  # unreachable when 1 <= k <= number of distinct values
+
+explanation: |
+  **Intuition.** The problem has two parts: *count* every value, then *rank* values by their count and keep the best k.
+
+  Counting is a single pass with a hash map. Ranking is where the choice of approach matters. A general sort costs O(n log n), but the keys we sort by are special: every frequency is an integer between `1` and `n`. When keys are small integers with a known range, we can **bucket sort**: use the frequency itself as an array index. No comparisons are needed at all.
+
+  **Algorithm.**
+  1. Build `count`, mapping each value to its frequency (`Counter` does this in one pass).
+  2. Create `n + 1` empty buckets. For each `(value, freq)`, append `value` to `buckets[freq]`.
+  3. Walk the buckets from index `n` down to `1`. Append each value you meet to `result`, and return as soon as `result` holds `k` values.
+
+  **Subtle points.**
+  - Bucket `0` is never used (every value that exists occurs at least once), and the largest possible index is `n`, reached when the whole array is one repeated value. That is why the bucket list has length `n + 1`.
+  - Several values can share a bucket. Because the answer is guaranteed to be unique, we never have to choose between tied values at the cut-off.
+  - Most buckets are empty. Scanning them still costs O(n), which is what keeps the whole algorithm linear.
+  - **Big-O versus wall-clock time.** In CPython the sort-based alternative often runs *faster* on realistic sizes, because `sorted` executes in C while the bucket loops run in Python. Bucket sort wins on asymptotic growth, which is what the follow-up asks about. In an interview, mention both.
+
+key_insight: Frequencies are integers in [1, n], so they can index an array of buckets directly, ranking all values in O(n) without comparison sorting.
+
+time_complexity: O(n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n):** counting is one pass over `nums`. There are at most `n` distinct values to place into buckets, and the final scan visits `n + 1` buckets plus at most `k` values. Every step is linear.
+
+  **Space O(n):** the counter holds at most `n` distinct values, and the bucket array has `n + 1` lists whose total size equals the number of distinct values.
+
+data_structures: [Hash map, Array of buckets]
+passes: 1 pass to count + 1 pass over the buckets
+
+alternatives:
+  - name: Sort distinct values by frequency
+    time_complexity: O(n log n)
+    space_complexity: O(n)
+    explanation: |
+      Count every value, sort the distinct values by their count in descending order, and return the first `k`. This is the most natural first solution.
+    tradeoff: Short and easy to get right, but sorting up to n distinct values costs O(n log n), which is exactly what the follow-up asks you to beat. In Python it is still fast in practice because the sort runs in C.
+    code: |
+      class Solution:
+          def topKFrequent(self, nums: List[int], k: int) -> List[int]:
+              count = Counter(nums)
+              by_frequency = sorted(count, key=count.get, reverse=True)
+              return by_frequency[:k]
+  - name: Min-heap of size k
+    time_complexity: O(n log k)
+    space_complexity: O(n)
+    explanation: |
+      Count every value, then push `(frequency, value)` pairs into a min-heap. Whenever the heap grows beyond `k` entries, pop the smallest, so the heap always holds the `k` most frequent values seen so far. (`heapq.nlargest(k, count, key=count.get)` does the same thing in one line.)
+    tradeoff: O(n log k) is better than a full sort when k is much smaller than the number of distinct values, and it also works for streaming data where n is not known in advance. Bucket sort is O(n) but relies on frequencies being bounded by n, so it is the better answer for this exact problem.
+    code: |
+      class Solution:
+          def topKFrequent(self, nums: List[int], k: int) -> List[int]:
+              count = Counter(nums)
+              heap = []  # min-heap of (frequency, value), never larger than k
+              for num, freq in count.items():
+                  heapq.heappush(heap, (freq, num))
+                  if len(heap) > k:
+                      heapq.heappop(heap)  # drop the least frequent candidate
+              return [num for freq, num in heap]
+
+tests:
+  - { name: single element, input: { nums: [7], k: 1 }, expected: [7] }
+  - { name: k equals number of distinct values, input: { nums: [1, 2, 3], k: 3 }, expected: [1, 2, 3] }
+  - { name: one value fills the whole array, input: { nums: [5, 5, 5, 5], k: 1 }, expected: [5] }
+  - { name: negatives, input: { nums: [-1, -1, -2, -2, -2, 3], k: 2 }, expected: [-2, -1] }
+  - { name: zero is most frequent, input: { nums: [0, 0, 0, 1, -1], k: 1 }, expected: [0] }
+  - { name: ties below the cut-off, input: { nums: [1, 1, 1, 2, 2, 3, 3, 4, 4], k: 1 }, expected: [1] }
+  - { name: range extremes, input: { nums: [10000, -10000, 10000], k: 1 }, expected: [10000] }
+  - { name: three distinct frequencies, input: { nums: [4, 4, 4, 4, 1, 1, 1, 2, 2, 3], k: 3 }, expected: [4, 1, 2] }
+  - { name: most frequent value appears last, input: { nums: [6, 7, 8, 9, 9, 9], k: 1 }, expected: [9] }
+
+benchmark:
+  size_label: length of nums
+  sizes: [200, 1000, 5000, 25000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Many distinct values (up to the 20001 allowed), with k "heavy" values
+        # that each occur many times and all other values occurring 1-2 times.
+        # Heavy values occur far more often, so the top k is always unique.
+        u = max(2, min(n // 4, 20001))
+        k = max(1, u // 20)
+        values = rng.sample(range(-10**4, 10**4 + 1), u)
+        heavy, light = values[:k], values[k:]
+        nums = []
+        for v in light:
+            nums += [v] * rng.randint(1, 2)
+        remaining = n - len(nums)  # >= n / 2, so every heavy value gets >= 3 copies
+        for i, v in enumerate(heavy):
+            nums += [v] * (remaining // k + (1 if i < remaining % k else 0))
+        rng.shuffle(nums)
+        return {"nums": nums, "k": k}

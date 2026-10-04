@@ -1,0 +1,175 @@
+id: "62"
+title: Unique Paths
+slug: unique-paths
+leetcode_url: https://leetcode.com/problems/unique-paths/
+category: dp-2d
+difficulty: Medium
+patterns: [2-D DP, Grid DP, Combinatorics]
+
+description: |
+  A robot starts on the **top-left** cell of an `m x n` grid and wants to reach the **bottom-right** cell. Each move takes it exactly one cell **right** or one cell **down**. It can never move left or up, and it can never leave the grid.
+
+  Given the number of rows `m` and the number of columns `n`, return how many **different paths** lead from the start to the finish.
+
+  Two paths are different if their sequences of moves are different.
+
+examples:
+  - input: { m: 3, n: 7 }
+    output: 28
+    explanation: |
+      Every path makes exactly 2 moves down and 6 moves right, in some order. There are 28 different ways to arrange those 8 moves.
+  - input: { m: 3, n: 2 }
+    output: 3
+    explanation: |
+      The robot needs 1 move right (`R`) and 2 moves down (`D`). The three paths are `R D D`, `D R D` and `D D R`.
+
+constraints:
+  - "`1 <= m, n <= 100`"
+  - "On LeetCode the answer is guaranteed to be at most `2 * 10^9`. Python integers never overflow, so the benchmark here also uses grids with much larger answers."
+
+function_signature: "def uniquePaths(self, m: int, n: int) -> int"
+
+starter_code: |
+  class Solution:
+      def uniquePaths(self, m: int, n: int) -> int:
+          pass
+
+runner:
+  kind: function
+  method: uniquePaths
+  params:
+    - { name: m, type: int }
+    - { name: n, type: int }
+  returns: int
+
+hints:
+  - Think about the very last move into any cell. A path that ends at cell `(i, j)` must have arrived either from the cell directly above it or from the cell directly to its left.
+  - So the number of paths to `(i, j)` is the number of paths to the cell above plus the number of paths to the cell on the left. How many paths reach the cells of the first row, or of the first column, where only one of those neighbours exists?
+  - Fill a table row by row, left to right, so both neighbours are ready before you need them. Each row only needs the row above it, so a single array of length `n`, updated in place from left to right, is enough.
+
+approach: Bottom-up 2-D DP with one rolling row
+optimal_solution: |
+  class Solution:
+      def uniquePaths(self, m: int, n: int) -> int:
+          # row[j] = number of paths to cell (i, j) of the row i being filled.
+          # Row 0: exactly one way to reach each cell (keep moving right).
+          row = [1] * n
+
+          for _ in range(1, m):
+              # row[0] stays 1: the only way down the left edge is straight down.
+              for j in range(1, n):
+                  # Before this line row[j] still holds the value of the cell ABOVE;
+                  # row[j - 1] was already updated, so it is the cell to the LEFT.
+                  row[j] += row[j - 1]
+
+          return row[-1]
+
+explanation: |
+  **Intuition.** Every path into cell `(i, j)` makes its final move either *down* from `(i - 1, j)` or *right* from `(i, j - 1)`. Those two groups of paths never overlap (their last moves differ) and together they contain every path, so their counts simply add up. The answer for a big grid is therefore built from the answers for smaller grids, which is exactly what dynamic programming does.
+
+  **The DP, spelled out.**
+  - **State:** `dp[i][j]` = number of distinct paths from `(0, 0)` to `(i, j)`.
+  - **Transition:** `dp[i][j] = dp[i - 1][j] + dp[i][j - 1]` (arrive from above + arrive from the left).
+  - **Base cases:** `dp[0][j] = 1` and `dp[i][0] = 1`. Along the top row the robot can only have moved right, and down the left column it can only have moved down, so each of those cells has exactly one path.
+  - **Order:** row by row, left to right, so `dp[i - 1][j]` and `dp[i][j - 1]` are both known before `dp[i][j]` is computed.
+  - **Answer:** `dp[m - 1][n - 1]`.
+
+  For `m = 3, n = 7` the table is (each entry = the one above + the one to the left):
+
+  |        | c0 | c1 | c2 | c3 | c4 | c5 | c6 |
+  |--------|----|----|----|----|----|----|----|
+  | **r0** | 1  | 1  | 1  | 1  | 1  | 1  | 1  |
+  | **r1** | 1  | 2  | 3  | 4  | 5  | 6  | 7  |
+  | **r2** | 1  | 3  | 6  | 10 | 15 | 21 | **28** |
+
+  Written directly, the table version is:
+
+  ```python
+  dp = [[1] * n for _ in range(m)]
+  for i in range(1, m):
+      for j in range(1, n):
+          dp[i][j] = dp[i - 1][j] + dp[i][j - 1]
+  return dp[m - 1][n - 1]
+  ```
+
+  **Space optimization: one row is enough.** Row `i` only reads row `i - 1` and itself. Keep a single array `row`. Just before `row[j]` is updated it still holds `dp[i - 1][j]` (the cell above), while `row[j - 1]` already holds the new `dp[i][j - 1]` (the cell to the left). So `row[j] += row[j - 1]` performs exactly the transition, and memory drops from `O(m · n)` to `O(n)`.
+
+  **Algorithm.**
+  1. Set `row = [1] * n`. This is row 0 of the table.
+  2. Repeat `m - 1` times: for `j` from `1` to `n - 1`, do `row[j] += row[j - 1]`.
+  3. Return `row[n - 1]`.
+
+  **Subtle points.**
+  - The sweep **must go left to right**. Going right to left would add the *old* left value (from the row above) instead of the freshly computed one.
+  - A `1 x n` or `m x 1` grid has exactly one path. The loops do nothing and the initial `1` is returned.
+  - The grid is symmetric (`uniquePaths(m, n) == uniquePaths(n, m)`), so you can let the row run along the shorter side for `O(min(m, n))` memory.
+  - The same table generalises directly: blocked cells become `0` (Unique Paths II), and replacing `+` with `min` plus a cell cost gives Minimum Path Sum.
+
+key_insight: Every path into a cell comes from the cell above or the cell to the left, so paths(i, j) = paths(i - 1, j) + paths(i, j - 1), and one rolling row of that table is all you need to keep.
+
+time_complexity: O(m · n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(m · n):** the table has `m · n` cells and each interior cell is computed once with a single addition. (Python integers grow with the answer, but for `m, n <= 100` the numbers have at most about 200 bits, so each addition is effectively constant time.)
+
+  **Space O(n):** only one row of `n` counts is kept, instead of the full `m x n` table. Running the row along the shorter side makes it `O(min(m, n))`.
+
+data_structures: [Array (rolling DP row)]
+passes: m - 1 left-to-right sweeps over a row of length n
+
+alternatives:
+  - name: Top-down recursion with memoization
+    time_complexity: O(m · n)
+    space_complexity: O(m · n)
+    explanation: |
+      Write the recurrence literally: the paths to `(i, j)` are the paths to `(i - 1, j)` plus the paths to `(i, j - 1)`, with `1` for any cell in the first row or column. Without the cache the same cells are recomputed over and over (the call tree has one leaf per path, which is astronomically many). With `lru_cache` each `(i, j)` is computed only once.
+    tradeoff: The easiest version to derive from the recurrence, with the same O(m · n) time. But it caches every cell (O(m · n) memory instead of O(n)), pays function-call overhead for each cell, and recurses up to m + n levels deep. The bottom-up rolling row is faster and leaner.
+    code: |
+      class Solution:
+          def uniquePaths(self, m: int, n: int) -> int:
+              @lru_cache(maxsize=None)
+              def paths(i: int, j: int) -> int:
+                  # Number of paths from (0, 0) to (i, j).
+                  if i == 0 or j == 0:
+                      return 1  # first row or first column: only one way in
+                  return paths(i - 1, j) + paths(i, j - 1)
+
+              return paths(m - 1, n - 1)
+  - name: Combinatorics (binomial coefficient)
+    time_complexity: O(min(m, n))
+    space_complexity: O(1)
+    explanation: |
+      Every path consists of exactly `m - 1` down moves and `n - 1` right moves, `m + n - 2` moves in total. A path is fully determined by choosing which of those positions hold the down moves, so the answer is the binomial coefficient `C(m + n - 2, m - 1)`. Computing it multiplicatively keeps every intermediate value an exact integer: after step `i` the running product equals `C(total - k + i, i)`. (`math.comb(m + n - 2, m - 1)` does the same in one call.)
+    tradeoff: The fastest option (only O(min(m, n)) multiplications and O(1) memory), but it depends on a counting trick that only works for an empty grid. The DP extends immediately to obstacles, weighted cells and other grid-walk variants, which is why interviewers usually want to see it first.
+    code: |
+      class Solution:
+          def uniquePaths(self, m: int, n: int) -> int:
+              # Choose which of the (m + n - 2) moves are the (m - 1) down moves.
+              total = m + n - 2
+              k = min(m, n) - 1  # C(total, k) == C(total, total - k): use the smaller k
+              result = 1
+              for i in range(1, k + 1):
+                  # After this line result == C(total - k + i, i), always an integer.
+                  result = result * (total - k + i) // i
+              return result
+
+tests:
+  - { name: single cell, input: { m: 1, n: 1 }, expected: 1 }
+  - { name: single row, input: { m: 1, n: 100 }, expected: 1 }
+  - { name: single column, input: { m: 100, n: 1 }, expected: 1 }
+  - { name: 2 x 2 grid, input: { m: 2, n: 2 }, expected: 2 }
+  - { name: dimensions swapped, input: { m: 7, n: 3 }, expected: 28 }
+  - { name: square 10 x 10, input: { m: 10, n: 10 }, expected: 48620 }
+  - { name: square 17 x 17, input: { m: 17, n: 17 }, expected: 601080390 }
+  - { name: tall and narrow, input: { m: 100, n: 7 }, expected: 1609344100 }
+  - { name: rectangular 23 x 12, input: { m: 23, n: 12 }, expected: 193536720 }
+
+benchmark:
+  size_label: grid side k (m = n = k)
+  sizes: [2, 5, 15, 40, 100]
+  generator: |
+    def generate(n, rng):
+        # A square k x k grid has the most cells for a given side length.
+        # For k > 17 the answer exceeds LeetCode's 2 * 10^9 guarantee, which is
+        # fine here because Python integers are unbounded.
+        return {"m": n, "n": n}

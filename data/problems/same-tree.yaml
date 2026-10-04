@@ -1,0 +1,181 @@
+id: "100"
+title: Same Tree
+slug: same-tree
+leetcode_url: https://leetcode.com/problems/same-tree/
+category: trees
+difficulty: Easy
+patterns: [DFS, Recursion, Simultaneous Traversal]
+
+description: |
+  You are given the roots of two binary trees, `p` and `q`. Return `True` if the two trees are **the same**, and `False` otherwise.
+
+  Two trees are the same when they have exactly the same **shape** and every pair of corresponding nodes holds the **same value**. Having the same set of values is not enough: a `2` hanging on the left is different from a `2` hanging on the right.
+
+examples:
+  - input: { p: [1, 2, 3], q: [1, 2, 3] }
+    output: true
+  - input: { p: [1, 2], q: [1, null, 2] }
+    output: false
+    explanation: Both trees contain the values `1` and `2`, but in `p` the `2` is a left child and in `q` it is a right child. The shapes differ.
+  - input: { p: [1, 2, 1], q: [1, 1, 2] }
+    output: false
+    explanation: The shapes match, but the left children hold different values (`2` vs `1`).
+
+constraints:
+  - "The number of nodes in each tree is in the range `[0, 100]`."
+  - "`-10^4 <= Node.val <= 10^4`"
+
+function_signature: "def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool"
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: isSameTree
+  params:
+    - { name: p, type: "Optional[TreeNode]" }
+    - { name: q, type: "Optional[TreeNode]" }
+  returns: bool
+
+hints:
+  - Walk both trees at the same time, always looking at the node in the same position in each. What must be true at the two current positions?
+  - "Think about the possible combinations of the two current nodes: both missing, exactly one missing, or both present. Which of these let you answer immediately?"
+  - "Two trees are the same exactly when the roots are both None, or when both roots exist with equal values AND the left subtrees are the same AND the right subtrees are the same. That is a recursive definition you can code directly."
+
+approach: Recursive simultaneous DFS
+optimal_solution: |
+  class Solution:
+      def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+          # Both positions are empty: the (sub)trees match here.
+          if p is None and q is None:
+              return True
+          # Exactly one is empty, or the values differ: shape or value mismatch.
+          if p is None or q is None or p.val != q.val:
+              return False
+          # The roots match, so the trees match iff both pairs of subtrees match.
+          return self.isSameTree(p.left, q.left) and self.isSameTree(p.right, q.right)
+
+explanation: |
+  **Intuition.** "Same tree" has a natural recursive definition. Two trees are identical if and only if:
+  - both are empty, **or**
+  - both roots exist and have equal values, **and** their left subtrees are identical, **and** their right subtrees are identical.
+
+  So we walk the two trees **in lockstep**: every call compares the nodes that sit at the same position in `p` and `q`. Each call answers *"are the subtrees rooted at these two positions identical?"*
+
+  **Algorithm.**
+  1. If both `p` and `q` are `None`, return `True`, since two empty subtrees match.
+  2. If exactly one of them is `None`, the shapes differ, so return `False`. If both exist but `p.val != q.val`, the values differ, so return `False`.
+  3. Otherwise return `isSameTree(p.left, q.left) and isSameTree(p.right, q.right)`.
+
+  **Subtle points.**
+  - **Order of checks matters.** Test for `None` before reading `.val`. The combined condition `p is None or q is None` is only reached after the "both None" case is handled, so it means *exactly one* is missing.
+  - **Short-circuiting.** Python's `and` skips the right subtree as soon as the left subtree differs, so the search stops at the first mismatch.
+  - Comparing only the lists of values (for example, two inorder traversals) is **not** enough. `[1, 2]` and `[1, null, 2]` contain the same values, and very different shapes can produce identical traversals. The shape has to be compared too.
+
+key_insight: Traverse both trees in lockstep and compare position by position. Two empty positions match, one empty position or a value difference is a mismatch, and otherwise recurse on both pairs of children.
+
+time_complexity: O(min(m, n))
+space_complexity: O(min(h_p, h_q))
+complexity_explanation: |
+  **Time O(min(m, n)):** for trees with `m` and `n` nodes, each pair of corresponding nodes is compared at most once, and the walk stops at the first position where one tree runs out of nodes or a mismatch appears. When the trees are identical, every node is visited, which is O(n).
+
+  **Space O(min(h_p, h_q)):** the recursion goes no deeper than the shorter of the two trees along the path being compared. That is O(log n) for balanced trees and O(n) for skewed (chain-like) trees.
+
+data_structures: [Binary tree, Recursion stack]
+passes: 1 simultaneous pass over both trees
+
+alternatives:
+  - name: Iterative BFS over node pairs
+    time_complexity: O(min(m, n))
+    space_complexity: O(min(m, n))
+    explanation: |
+      Put the pair `(p, q)` in a queue. Repeatedly pop a pair and apply the same three checks as the recursive version: skip it if both are `None`, fail if exactly one is `None` or the values differ, and otherwise enqueue `(left, left)` and `(right, right)`. If the queue empties without a mismatch, the trees are the same.
+    tradeoff: Same logic and time bound with no recursion, so it cannot hit Python's recursion limit on very deep trees. The queue can hold a whole level of pairs, which is wider than the O(h) recursion stack for balanced trees. The recursive version is shorter and mirrors the definition.
+    code: |
+      class Solution:
+          def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+              queue = deque([(p, q)])
+              while queue:
+                  a, b = queue.popleft()
+                  if a is None and b is None:
+                      continue
+                  if a is None or b is None or a.val != b.val:
+                      return False
+                  queue.append((a.left, b.left))
+                  queue.append((a.right, b.right))
+              return True
+  - name: Serialize both trees and compare
+    time_complexity: O(m + n)
+    space_complexity: O(m + n)
+    explanation: |
+      Write each tree as a preorder list that includes a `None` marker for every missing child, then compare the two lists. With the markers, a preorder sequence describes exactly one tree, so equal sequences mean identical trees.
+    tradeoff: Easy to reason about, and the same idea is the basis of Subtree of Another Tree and Serialize and Deserialize Binary Tree. However, it always serializes both trees completely, even when the roots already differ, and it stores two full lists instead of stopping early with O(h) memory.
+    code: |
+      class Solution:
+          def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+              def serialize(node, out):
+                  if node is None:
+                      out.append(None)  # the marker keeps the shape information
+                      return out
+                  out.append(node.val)
+                  serialize(node.left, out)
+                  serialize(node.right, out)
+                  return out
+
+              return serialize(p, []) == serialize(q, [])
+
+tests:
+  - { name: both empty, input: { p: [], q: [] }, expected: true }
+  - { name: one empty, input: { p: [1], q: [] }, expected: false }
+  - { name: single equal nodes, input: { p: [5], q: [5] }, expected: true }
+  - { name: single different nodes, input: { p: [5], q: [6] }, expected: false }
+  - { name: mirror images, input: { p: [1, 2, 3], q: [1, 3, 2] }, expected: false }
+  - { name: differs only at the deepest leaf, input: { p: [1, 2, 3, 4, 5, 6, 7], q: [1, 2, 3, 4, 5, 6, 8] }, expected: false }
+  - { name: q has one extra node, input: { p: [1, 2, 3], q: [1, 2, 3, 4] }, expected: false }
+  - { name: identical with negatives, input: { p: [-10, -20, 30, null, -40, null, 50], q: [-10, -20, 30, null, -40, null, 50] }, expected: true }
+  - { name: same values but child on a different side, input: { p: [1, null, 2, 3], q: [1, null, 2, null, 3] }, expected: false }
+
+benchmark:
+  size_label: number of nodes in each tree
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Grow a random tree: each new node takes a uniformly random free child
+        # slot. The height stays around O(log n), so recursion depth is modest.
+        left, right = [-1] * n, [-1] * n
+        free = [(0, 0), (0, 1)]  # (parent index, 0 = left / 1 = right)
+        for i in range(1, n):
+            j = rng.randrange(len(free))
+            free[j], free[-1] = free[-1], free[j]
+            parent, side = free.pop()
+            if side == 0:
+                left[parent] = i
+            else:
+                right[parent] = i
+            free.append((i, 0))
+            free.append((i, 1))
+        vals = [rng.randint(-10000, 10000) for _ in range(n)]
+
+        # Serialize to LeetCode level order (None marks a missing child).
+        out, queue = [], deque([0])
+        while queue:
+            i = queue.popleft()
+            if i < 0:
+                out.append(None)
+                continue
+            out.append(vals[i])
+            queue.append(left[i])
+            queue.append(right[i])
+        while out[-1] is None:
+            out.pop()
+        # Identical trees are the worst case: every node pair must be compared.
+        return {"p": out, "q": list(out)}

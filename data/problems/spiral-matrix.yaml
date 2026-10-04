@@ -1,0 +1,205 @@
+id: "54"
+title: Spiral Matrix
+slug: spiral-matrix
+leetcode_url: https://leetcode.com/problems/spiral-matrix/
+category: math-geometry
+difficulty: Medium
+patterns: [Matrix, Simulation, Boundary Pointers]
+
+description: |
+  Given an `m x n` matrix, return all of its elements in **spiral order**.
+
+  Start at the top-left corner and move right along the top row, then down the right column, then left along the bottom row, then up the left column. Then keep going around the next ring inward, turning clockwise each time you reach an edge or a cell you have already visited, until every element has been listed exactly once.
+
+  The matrix does not have to be square. It can be a single row or a single column.
+
+examples:
+  - input: { matrix: [[1, 2, 3], [4, 5, 6], [7, 8, 9]] }
+    output: [1, 2, 3, 6, 9, 8, 7, 4, 5]
+    explanation: The outer ring gives `1 2 3 → 6 9 → 8 7 → 4`, and then only the center `5` is left.
+  - input: { matrix: [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]] }
+    output: [1, 2, 3, 4, 8, 12, 11, 10, 9, 5, 6, 7]
+    explanation: After the outer ring, the inside is the single row `[6, 7]`. It is read once, left to right, and must not be read again on the way back.
+  - input: { matrix: [[1, 2], [3, 4], [5, 6]] }
+    output: [1, 2, 4, 6, 5, 3]
+    explanation: A tall matrix. Right along `1 2`, down `4 6`, left `5`, up `3`, and then nothing is left.
+
+constraints:
+  - "`m == matrix.length`"
+  - "`n == matrix[i].length`"
+  - "`1 <= m, n <= 10`"
+  - "`-100 <= matrix[i][j] <= 100`"
+
+function_signature: "def spiralOrder(self, matrix: List[List[int]]) -> List[int]"
+
+starter_code: |
+  class Solution:
+      def spiralOrder(self, matrix: List[List[int]]) -> List[int]:
+          pass
+
+runner:
+  kind: function
+  method: spiralOrder
+  params:
+    - { name: matrix, type: "List[List[int]]" }
+  returns: "List[int]"
+
+hints:
+  - The spiral is a series of rings, like peeling an onion. Once you have walked the outer ring, what is left is a smaller matrix that you walk the same way.
+  - Keep four boundaries, `top`, `bottom`, `left` and `right`, for the rows and columns not visited yet. After walking a side, move that boundary one step inward.
+  - "Walk the top row left to right, then the right column top to bottom, then the bottom row right to left, then the left column bottom to top, and repeat while `top <= bottom` and `left <= right`. Careful: after the first two sides the remaining region may be gone, so check the boundaries again before the bottom and left sides."
+
+approach: Shrinking boundaries (layer by layer)
+optimal_solution: |
+  class Solution:
+      def spiralOrder(self, matrix: List[List[int]]) -> List[int]:
+          result = []
+          top, bottom = 0, len(matrix) - 1
+          left, right = 0, len(matrix[0]) - 1
+
+          while top <= bottom and left <= right:
+              # 1. Top row, left -> right. Then that row is done.
+              for c in range(left, right + 1):
+                  result.append(matrix[top][c])
+              top += 1
+
+              # 2. Right column, top -> bottom. Then that column is done.
+              for r in range(top, bottom + 1):
+                  result.append(matrix[r][right])
+              right -= 1
+
+              # 3. Bottom row, right -> left, only if a row is still unvisited.
+              if top <= bottom:
+                  for c in range(right, left - 1, -1):
+                      result.append(matrix[bottom][c])
+                  bottom -= 1
+
+              # 4. Left column, bottom -> top, only if a column is still unvisited.
+              if left <= right:
+                  for r in range(bottom, top - 1, -1):
+                      result.append(matrix[r][left])
+                  left += 1
+
+          return result
+
+explanation: |
+  **Intuition.** A spiral walks the outer ring of the matrix and then does the same thing on the smaller matrix inside. So track the part that is still unvisited with four boundaries:
+
+  - `top` / `bottom`: the first and last unvisited **rows**,
+  - `left` / `right`: the first and last unvisited **columns**.
+
+  Each side of the ring is a straight line along one of these boundaries. When a side is finished, that row or column will never be needed again, so move its boundary one step inward:
+
+  ```
+   top row      → then top += 1
+   right col    ↓ then right -= 1
+   bottom row   ← then bottom -= 1
+   left col     ↑ then left += 1
+  ```
+
+  **Algorithm.**
+  1. Set `top = 0`, `bottom = m - 1`, `left = 0`, `right = n - 1`.
+  2. While `top <= bottom` and `left <= right`:
+     1. Append `matrix[top][left..right]`, then `top += 1`.
+     2. Append `matrix[top..bottom][right]`, then `right -= 1`.
+     3. If `top <= bottom`: append `matrix[bottom][right..left]` (going backwards), then `bottom -= 1`.
+     4. If `left <= right`: append `matrix[bottom..top][left]` (going upwards), then `left += 1`.
+  3. Return the collected values.
+
+  **Why the two extra checks?** Steps 1 and 2 move boundaries inward, so by step 3 the unvisited region may have shrunk to nothing. Without the checks, a leftover single row or column gets read twice:
+
+  - `[[1, 2, 3]]`: step 1 reads `1 2 3` and sets `top = 1 > bottom = 0`. Without the check, step 3 would read row 0 backwards again and add `2 1`.
+  - `[[1], [2], [3]]`: steps 1–2 read `1`, then `2 3`, and set `right = -1 < left = 0`. Without the check, step 4 would climb column 0 again and add `2`.
+
+  Steps 1 and 2 need no check of their own: the loop condition guarantees there is at least one row and one column when they start, and if step 1 used up the last row, step 2's range is simply empty.
+
+key_insight: Walk the outer ring and move four boundaries inward after each side, checking them again before the return trips so a leftover single row or column is not read twice.
+
+time_complexity: O(m · n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(m · n):** every element is appended exactly once, and each boundary update is O(1). The loop runs about `min(m, n) / 2` times, and the inner loops together visit each cell once.
+
+  **Space O(1)** extra: only the four boundary variables. The output list holds `m · n` values, but the problem asks for it, so it is usually not counted.
+
+data_structures: [2D array]
+passes: 1 pass (each cell visited once)
+
+alternatives:
+  - name: Simulate with a direction vector and a visited grid
+    time_complexity: O(m · n)
+    space_complexity: O(m · n)
+    explanation: |
+      Walk like a robot. Keep a current position and a direction (right, down, left, up). Before each step, check whether the next cell is outside the matrix or already visited; if so, turn clockwise. Stop after `m · n` cells. A `visited` grid records where you have been.
+    tradeoff: No boundary arithmetic to get wrong, and the "turn when blocked" rule handles every shape. But the visited grid costs O(m · n) extra memory. Marking cells inside the input instead would destroy the caller's data and needs a value that can never appear in it.
+    code: |
+      class Solution:
+          def spiralOrder(self, matrix: List[List[int]]) -> List[int]:
+              m, n = len(matrix), len(matrix[0])
+              visited = [[False] * n for _ in range(m)]
+              directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # right, down, left, up
+              result = []
+              r = c = d = 0
+              for _ in range(m * n):
+                  result.append(matrix[r][c])
+                  visited[r][c] = True
+                  nr, nc = r + directions[d][0], c + directions[d][1]
+                  if not (0 <= nr < m and 0 <= nc < n) or visited[nr][nc]:
+                      d = (d + 1) % 4  # blocked: turn clockwise
+                      nr, nc = r + directions[d][0], c + directions[d][1]
+                  r, c = nr, nc
+              return result
+  - name: Peel the top row, rotate the rest
+    time_complexity: O(m · n · (m + n))
+    space_complexity: O(m · n)
+    explanation: |
+      Take the whole top row, then turn the remaining matrix 90° counter-clockwise (`zip(*rows)` then reverse the order). The old right column becomes the new top row. Repeat until nothing is left. Each "turn the matrix" step replaces one turn of the spiral.
+
+      Every peel copies the whole remaining matrix (up to `m · n` cells), and there are about `2 · min(m, n)` peels, which is at most `m + n`. For a square matrix that is O(n³).
+    tradeoff: Short and elegant in Python, and a nice way to check your understanding. But every rotation rebuilds the whole remaining matrix, so it does far more copying than the boundary walk, and it needs O(m · n) extra memory.
+    code: |
+      class Solution:
+          def spiralOrder(self, matrix: List[List[int]]) -> List[int]:
+              result = []
+              rows = [list(row) for row in matrix]
+              while rows:
+                  result.extend(rows.pop(0))  # take the top row
+                  # Turn the rest counter-clockwise so the right column becomes the top row.
+                  rows = [list(col) for col in zip(*rows)][::-1]
+              return result
+
+tests:
+  - name: single cell
+    input: { matrix: [[7]] }
+    expected: [7]
+  - name: single row
+    input: { matrix: [[1, 2, 3, 4, 5]] }
+    expected: [1, 2, 3, 4, 5]
+  - name: single column
+    input: { matrix: [[1], [2], [3], [4]] }
+    expected: [1, 2, 3, 4]
+  - name: 2 x 2 negatives
+    input: { matrix: [[-1, -2], [-3, -4]] }
+    expected: [-1, -2, -4, -3]
+  - name: wide 2 x 4
+    input: { matrix: [[1, 2, 3, 4], [5, 6, 7, 8]] }
+    expected: [1, 2, 3, 4, 8, 7, 6, 5]
+  - name: tall 4 x 2
+    input: { matrix: [[1, 2], [3, 4], [5, 6], [7, 8]] }
+    expected: [1, 2, 4, 6, 8, 7, 5, 3]
+  - name: 4 x 4 (two full rings)
+    input: { matrix: [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]] }
+    expected: [1, 2, 3, 4, 8, 12, 16, 15, 14, 13, 9, 5, 6, 7, 11, 10]
+  - name: 3 x 5 (leftover middle row)
+    input: { matrix: [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15]] }
+    expected: [1, 2, 3, 4, 5, 10, 15, 14, 13, 12, 11, 6, 7, 8, 9]
+  - name: 5 x 3 (leftover middle column)
+    input: { matrix: [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12], [13, 14, 15]] }
+    expected: [1, 2, 3, 6, 9, 12, 15, 14, 13, 10, 7, 4, 5, 8, 11]
+
+benchmark:
+  size_label: n (matrix is n x n)
+  sizes: [25, 50, 100, 200, 400]
+  generator: |
+    def generate(n, rng):
+        return {"matrix": [[rng.randint(-100, 100) for _ in range(n)] for _ in range(n)]}

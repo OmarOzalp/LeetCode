@@ -1,0 +1,203 @@
+id: "98"
+title: Validate Binary Search Tree
+slug: validate-binary-search-tree
+leetcode_url: https://leetcode.com/problems/validate-binary-search-tree/
+category: trees
+difficulty: Medium
+patterns: [DFS, BST Property, Recursion, Inorder Traversal]
+
+description: |
+  Given the `root` of a binary tree, decide whether it is a **valid binary search tree** (BST).
+
+  A valid BST satisfies all of the following:
+  - Every value in a node's **left subtree** is **strictly less** than the node's value.
+  - Every value in a node's **right subtree** is **strictly greater** than the node's value.
+  - Both the left and right subtrees are themselves valid BSTs.
+
+  The condition applies to **entire subtrees**, not only to a node's direct children. Equal values are not allowed anywhere.
+
+examples:
+  - input: { root: [2, 1, 3] }
+    output: true
+  - input: { root: [5, 1, 4, null, null, 3, 6] }
+    output: false
+    explanation: "The root is `5`, but its right child is `4`. Every value in the right subtree must be greater than `5`."
+  - input: { root: [2, 2, 2] }
+    output: false
+    explanation: The ordering must be strict, so a child equal to its parent breaks the BST property.
+
+constraints:
+  - "The number of nodes in the tree is in the range `[1, 10^4]`."
+  - "`-2^31 <= Node.val <= 2^31 - 1`"
+
+function_signature: "def isValidBST(self, root: Optional[TreeNode]) -> bool"
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def isValidBST(self, root: Optional[TreeNode]) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: isValidBST
+  params:
+    - { name: root, type: "Optional[TreeNode]" }
+  returns: bool
+
+hints:
+  - "Checking only that each node is larger than its left child and smaller than its right child is not enough. Try it on `[5, 4, 6, null, null, 3, 7]`: every parent/child pair looks fine, yet `3` sits in the right subtree of `5`."
+  - A node's value is constrained by all of its ancestors, not only its parent. Each time you step left or right, which constraint do you pick up?
+  - "Pass down an allowed open interval (low, high). The root may be anything. Going left, the upper bound becomes the current value; going right, the lower bound becomes the current value. Every node must lie strictly inside its interval."
+
+approach: DFS passing down (low, high) bounds
+optimal_solution: |
+  class Solution:
+      def isValidBST(self, root: Optional[TreeNode]) -> bool:
+          def valid(node: Optional[TreeNode], low: float, high: float) -> bool:
+              """True if every value in this subtree lies strictly between low and high."""
+              if node is None:
+                  return True
+              if not (low < node.val < high):
+                  return False
+              # Going left tightens the upper bound; going right tightens the lower bound.
+              return valid(node.left, low, node.val) and valid(node.right, node.val, high)
+
+          return valid(root, float("-inf"), float("inf"))
+
+explanation: |
+  **Intuition.** The tempting check, "each node is greater than its left child and less than its right child", only looks at parent/child pairs. The BST rule is about **all** ancestors. In `[5, 4, 6, null, null, 3, 7]`, the node `3` is a valid left child of `6`, but it is in the right subtree of `5`, so it must be greater than `5`.
+
+  Think of each node as having an **allowed open interval** `(low, high)`, determined by the path from the root:
+  - The root may be anything: `(-∞, +∞)`.
+  - Stepping into the **left** child of a node with value `v` means every value there must be `< v`, so the interval becomes `(low, v)`.
+  - Stepping **right** gives `(v, high)`.
+
+  The tree is a valid BST exactly when every node's value lies strictly inside its interval. Each recursive call answers: *"does every value in this subtree lie strictly between `low` and `high`, with every deeper node also inside its own (narrower) interval?"*
+
+  **Algorithm.**
+  1. Call `valid(root, -inf, +inf)`.
+  2. In `valid(node, low, high)`:
+     - An empty subtree is valid, so return `True`.
+     - If `node.val` is not strictly between `low` and `high`, return `False`.
+     - Otherwise return `valid(node.left, low, node.val) and valid(node.right, node.val, high)`.
+
+  **Subtle points.**
+  - **Strict inequalities.** Duplicates are invalid, so `[2, 2, 2]` and `[1, null, 1]` must return `False`. An equal value deeper down also fails, for example a `3` placed in the left subtree of a `3`.
+  - **Sentinels.** Values can be exactly `-2^31` or `2^31 - 1`, so using those numbers as "no bound" would wrongly reject a tree containing them. Python's `float("-inf")`/`float("inf")` (or `None` meaning "unbounded") avoids the problem.
+  - **Equivalent view.** A tree is a valid BST exactly when its inorder traversal is strictly increasing. That gives the alternative below.
+
+key_insight: Every ancestor constrains a node, so pass down the open interval (low, high) its value must fall in. Going left lowers high, and going right raises low.
+
+time_complexity: O(n)
+space_complexity: O(h)
+complexity_explanation: |
+  **Time O(n):** each node is checked once against its interval in constant time. The search stops early at the first violation, but a valid tree requires visiting every node.
+
+  **Space O(h):** the recursion stack is as deep as the tree is tall. That is O(log n) when the tree is balanced and O(n) for a skewed chain.
+
+data_structures: [Binary tree, Recursion stack]
+passes: 1 visit per node
+
+alternatives:
+  - name: Brute force (compare each node with its whole subtrees)
+    time_complexity: O(n²)
+    space_complexity: O(h)
+    explanation: |
+      Apply the definition literally. For every node, compute the maximum value in its left subtree and the minimum value in its right subtree, check `max_left < node.val < min_right`, and then recurse into both children.
+    tradeoff: Correct, and it shows why the parent/child shortcut fails. However, each subtree is rescanned once for every ancestor, so total work is the sum of all subtree sizes, about O(n · h). That is O(n log n) for balanced trees and O(n²) for a skewed chain. The bounds approach gets the same information from the ancestors for free.
+    code: |
+      class Solution:
+          def isValidBST(self, root: Optional[TreeNode]) -> bool:
+              def subtree_max(node):
+                  if node is None:
+                      return float("-inf")
+                  return max(node.val, subtree_max(node.left), subtree_max(node.right))
+
+              def subtree_min(node):
+                  if node is None:
+                      return float("inf")
+                  return min(node.val, subtree_min(node.left), subtree_min(node.right))
+
+              def check(node):
+                  if node is None:
+                      return True
+                  if not (subtree_max(node.left) < node.val < subtree_min(node.right)):
+                      return False
+                  return check(node.left) and check(node.right)
+
+              return check(root)
+  - name: Iterative inorder traversal (must be strictly increasing)
+    time_complexity: O(n)
+    space_complexity: O(h)
+    explanation: |
+      An inorder traversal (left, node, right) of a BST lists its values in sorted order, and any tree whose inorder sequence is strictly increasing is a BST. So walk the tree in order with an explicit stack and compare each value with the previous one. If a value is less than or equal to the previous one, the tree is invalid.
+    tradeoff: Same O(n) time and O(h) space. It avoids recursion and makes the "sorted order" property explicit, which is a pattern that also solves Kth Smallest Element in a BST. The bounds approach is often easier to explain from the definition, and it reports a violation at the node where it happens.
+    code: |
+      class Solution:
+          def isValidBST(self, root: Optional[TreeNode]) -> bool:
+              stack, node, prev = [], root, None
+              while stack or node:
+                  while node:              # walk as far left as possible
+                      stack.append(node)
+                      node = node.left
+                  node = stack.pop()       # next value in sorted order
+                  if prev is not None and node.val <= prev:
+                      return False
+                  prev = node.val
+                  node = node.right
+              return True
+
+tests:
+  - { name: deeper node violates the root (right side), input: { root: [5, 4, 6, null, null, 3, 7] }, expected: false }
+  - { name: deeper node violates the root (left side), input: { root: [5, 3, 8, 1, 6] }, expected: false }
+  - { name: value equal to a distant ancestor, input: { root: [3, 1, 5, 0, 2, 4, 6, null, null, null, 3] }, expected: false }
+  - { name: duplicate as right child, input: { root: [1, null, 1] }, expected: false }
+  - { name: single node, input: { root: [0] }, expected: true }
+  - { name: single node at INT_MAX, input: { root: [2147483647] }, expected: true }
+  - { name: 32-bit extremes, input: { root: [-2147483648, null, 2147483647] }, expected: true }
+  - { name: duplicate at INT_MIN, input: { root: [-2147483648, -2147483648] }, expected: false }
+  - { name: valid left-skewed chain, input: { root: [5, 4, null, 3, null, 2, null, 1] }, expected: true }
+  - name: valid perfect BST
+    input: { root: [8, 4, 12, 2, 6, 10, 14, 1, 3, 5, 7, 9, 11, 13, 15] }
+    expected: true
+
+benchmark:
+  size_label: number of nodes
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # A valid BST (the worst case: no early exit, every node is checked).
+        vals = sorted(rng.sample(range(-2**31, 2**31), n))
+        # Random BST shape: node i holds vals[i]. Each value range picks a random
+        # root (like quicksort pivots), so the expected height is O(log n).
+        left, right = [-1] * n, [-1] * n
+        root = rng.randrange(n)
+        stack = [(root, 0, n)]  # (node, lo, hi): node is the root of vals[lo:hi]
+        while stack:
+            i, lo, hi = stack.pop()
+            if lo < i:
+                left[i] = rng.randrange(lo, i)
+                stack.append((left[i], lo, i))
+            if i + 1 < hi:
+                right[i] = rng.randrange(i + 1, hi)
+                stack.append((right[i], i + 1, hi))
+
+        # Serialize to LeetCode level order (None marks a missing child).
+        out, queue = [], deque([root])
+        while queue:
+            i = queue.popleft()
+            if i < 0:
+                out.append(None)
+                continue
+            out.append(vals[i])
+            queue.append(left[i])
+            queue.append(right[i])
+        while out[-1] is None:
+            out.pop()
+        return {"root": out}

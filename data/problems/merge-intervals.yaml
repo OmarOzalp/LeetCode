@@ -1,0 +1,148 @@
+id: "56"
+title: Merge Intervals
+slug: merge-intervals
+leetcode_url: https://leetcode.com/problems/merge-intervals/
+category: intervals
+difficulty: Medium
+patterns: [Intervals, Sorting, Merging]
+
+description: |
+  You are given an array `intervals` where `intervals[i] = [start_i, end_i]`. Merge every group of overlapping intervals and return the resulting list of **non-overlapping** intervals, which together must cover exactly the same points as the input.
+
+  Two intervals overlap if they share at least one point, so intervals that only **touch** (like `[1, 4]` and `[4, 5]`) also merge. The input is **not** necessarily sorted, and you may return the merged intervals in any order.
+
+examples:
+  - input: { intervals: [[1, 3], [2, 6], [8, 10], [15, 18]] }
+    output: [[1, 6], [8, 10], [15, 18]]
+    explanation: |
+      `[1, 3]` and `[2, 6]` overlap, so they merge into `[1, 6]`. The other two intervals do not touch anything.
+  - input: { intervals: [[1, 4], [4, 5]] }
+    output: [[1, 5]]
+    explanation: |
+      The intervals share the point 4, which counts as overlapping.
+  - input: { intervals: [[4, 7], [1, 4]] }
+    output: [[1, 7]]
+    explanation: |
+      The input is not sorted. In chronological order the intervals are `[1, 4]` and `[4, 7]`, which touch and merge.
+
+constraints:
+  - "`1 <= intervals.length <= 10^4`"
+  - "`intervals[i].length == 2`"
+  - "`0 <= start_i <= end_i <= 10^4`"
+
+function_signature: "def merge(self, intervals: List[List[int]]) -> List[List[int]]"
+
+starter_code: |
+  class Solution:
+      def merge(self, intervals: List[List[int]]) -> List[List[int]]:
+          pass
+
+runner:
+  kind: function
+  method: merge
+  params:
+    - { name: intervals, type: "List[List[int]]" }
+  returns: "List[List[int]]"
+  compare: unordered
+
+hints:
+  - In an unsorted list, an interval could overlap any other interval anywhere, which forces you to compare pairs. Is there an ordering of the intervals in which overlapping ones are guaranteed to sit next to each other?
+  - Sort by start time. Then an interval can only overlap the merged interval you have been building most recently, never an older one.
+  - After sorting, walk through the intervals with a result list. If the current interval starts at or before the end of the last merged interval, extend that end to the larger of the two ends; otherwise append the current interval as a new merged interval.
+
+approach: Sort by start, then sweep
+optimal_solution: |
+  class Solution:
+      def merge(self, intervals: List[List[int]]) -> List[List[int]]:
+          merged = []
+
+          for start, end in sorted(intervals, key=lambda iv: iv[0]):  # by start
+              if merged and start <= merged[-1][1]:
+                  # Overlaps (or touches) the last merged interval: extend it.
+                  # Use max: the current interval may lie entirely inside it.
+                  merged[-1][1] = max(merged[-1][1], end)
+              else:
+                  # Starts after everything so far has ended: begin a new group.
+                  merged.append([start, end])
+
+          return merged
+
+explanation: |
+  **Intuition.** In an arbitrary order, any interval might overlap any other, which forces pairwise comparisons. Once the intervals are **sorted by start**, overlaps become *local*: the intervals that end up in the same merged group appear one after another. A single left-to-right sweep can then build the answer, comparing each interval only with the most recent merged interval.
+
+  **Why sorting by start is the key step.** Process the intervals in order of start and let `last` be the merged interval currently being built. The next interval `[s, e]` starts no earlier than anything seen so far.
+  - If `s <= last.end`, it overlaps `last`, so it joins that group and may extend its end.
+  - If `s > last.end`, there is a gap. Every *later* interval starts at `s` or later, so it is also past the gap, and nothing can ever reach back into `last` again. That group is final.
+
+  So a group is closed for good the moment we see a gap, and we never need to look further back than `merged[-1]`.
+
+  **Algorithm.**
+  1. Sort the intervals by start.
+  2. For each `[s, e]`: if `merged` is non-empty and `s <= merged[-1][1]`, set `merged[-1][1] = max(merged[-1][1], e)`. Otherwise append `[s, e]`.
+  3. Return `merged`.
+
+  **Subtle points.**
+  - **Take the max of the ends.** In `[[1, 10], [2, 3]]` the second interval is nested inside the first. Overwriting the end with `3` would wrongly shrink the merged interval.
+  - **Touching intervals merge** because the test is `s <= last_end`, not `s < last_end`.
+  - Append a **new list** `[s, e]` rather than the original sublist. We later modify `merged[-1][1]`, and doing that to an original sublist would silently change the caller's input.
+  - `sorted(...)` leaves the input untouched. `intervals.sort(...)` saves the copy if mutating the input is acceptable.
+
+key_insight: After sorting by start, every interval can only overlap the most recently merged one, so one linear sweep merges everything.
+
+time_complexity: O(n log n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n log n):** sorting dominates. The sweep afterwards is O(n), with O(1) work per interval.
+
+  **Space O(n):** the sorted copy and the output list can each hold up to `n` intervals (Python's sort also uses up to O(n) auxiliary memory).
+
+data_structures: [Array]
+passes: Sort, then 1 pass
+
+alternatives:
+  - name: Brute force (absorb overlapping groups)
+    time_complexity: O(n²)
+    space_complexity: O(n)
+    explanation: |
+      Keep a list `merged` whose intervals never overlap each other. For each new interval, scan `merged`: every interval that overlaps it is absorbed (start = min, end = max) and removed, and the others are kept. Then add the grown interval. Absorbing an interval can never make the new one overlap a *kept* interval it had missed, because the kept intervals did not overlap the absorbed ones either. The invariant therefore holds.
+    tradeoff: No sorting is needed and the invariant is easy to reason about, but each new interval is compared with everything merged so far. That is up to ~5·10^7 comparisons for 10^4 intervals, versus about 1.3·10^5 for sort-and-sweep. The output also comes out in no particular order.
+    code: |
+      class Solution:
+          def merge(self, intervals: List[List[int]]) -> List[List[int]]:
+              merged = []  # invariant: no two intervals in merged overlap
+              for start, end in intervals:
+                  kept = []
+                  for s, e in merged:
+                      if s <= end and start <= e:  # overlap (touching counts)
+                          start, end = min(start, s), max(end, e)
+                      else:
+                          kept.append([s, e])
+                  kept.append([start, end])
+                  merged = kept
+              return merged
+
+tests:
+  - { name: single interval, input: { intervals: [[1, 4]] }, expected: [[1, 4]] }
+  - { name: nested intervals, input: { intervals: [[1, 10], [2, 3], [4, 5]] }, expected: [[1, 10]] }
+  - { name: contained interval ends earlier, input: { intervals: [[1, 4], [2, 3]] }, expected: [[1, 4]] }
+  - { name: unsorted and disjoint, input: { intervals: [[5, 6], [1, 2], [3, 4]] }, expected: [[1, 2], [3, 4], [5, 6]] }
+  - { name: chain of touching intervals, input: { intervals: [[3, 4], [1, 2], [2, 3], [4, 5]] }, expected: [[1, 5]] }
+  - { name: duplicates, input: { intervals: [[1, 3], [1, 3], [1, 3]] }, expected: [[1, 3]] }
+  - { name: point intervals, input: { intervals: [[1, 1], [2, 2], [2, 3]] }, expected: [[1, 1], [2, 3]] }
+  - { name: point before a gap, input: { intervals: [[1, 4], [0, 0]] }, expected: [[0, 0], [1, 4]] }
+  - { name: merging cascades through unsorted input, input: { intervals: [[8, 10], [1, 3], [2, 6], [15, 18], [6, 8]] }, expected: [[1, 10], [15, 18]] }
+  - { name: boundary values, input: { intervals: [[0, 10000], [10000, 10000], [5000, 6000]] }, expected: [[0, 10000]] }
+
+benchmark:
+  size_label: number of intervals
+  sizes: [100, 500, 2000, 10000]
+  generator: |
+    def generate(n, rng):
+        # Random short intervals inside [0, 10^4]; larger n means denser,
+        # longer chains of overlapping intervals to merge.
+        intervals = []
+        for _ in range(n):
+            start = rng.randint(0, 10000)
+            end = min(10000, start + rng.randint(0, 20))
+            intervals.append([start, end])
+        return {"intervals": intervals}

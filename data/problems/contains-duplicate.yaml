@@ -1,0 +1,143 @@
+id: "217"
+title: Contains Duplicate
+slug: contains-duplicate
+leetcode_url: https://leetcode.com/problems/contains-duplicate/
+category: arrays-hashing
+difficulty: Easy
+patterns: [Hash Set, Early Exit]
+
+description: |
+  You are given an integer array `nums`. Decide whether **any value occurs more than once** in it.
+
+  Return `True` as soon as some value appears at least twice, and `False` if every element is distinct.
+
+examples:
+  - input: { nums: [3, 1, 4, 1] }
+    output: true
+    explanation: The value `1` appears at index 1 and again at index 3.
+  - input: { nums: [2, 7, 1, 8] }
+    output: false
+    explanation: All four values are different.
+  - input: { nums: [5, 5, 5, 0, 2, 2] }
+    output: true
+    explanation: Both `5` and `2` repeat. One repeated value is already enough to answer `True`.
+
+constraints:
+  - "`1 <= nums.length <= 10^5`"
+  - "`-10^9 <= nums[i] <= 10^9`"
+
+function_signature: "def containsDuplicate(self, nums: List[int]) -> bool"
+
+starter_code: |
+  class Solution:
+      def containsDuplicate(self, nums: List[int]) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: containsDuplicate
+  params:
+    - { name: nums, type: "List[int]" }
+  returns: bool
+
+hints:
+  - Comparing every element with every other element works, but that is about n²/2 comparisons. What would let you answer "have I seen this value before?" without looking back through the array?
+  - If the array were sorted, where would two equal values have to be? That gives an O(n log n) idea. Can you do better without sorting?
+  - Walk through the array once while remembering every value you have visited in a structure with O(1) average membership checks. The moment the current value is already remembered, you have found a duplicate.
+
+approach: Hash set with early exit
+optimal_solution: |
+  class Solution:
+      def containsDuplicate(self, nums: List[int]) -> bool:
+          seen = set()  # every value visited so far
+
+          for num in nums:
+              if num in seen:
+                  return True  # second occurrence found: stop immediately
+              seen.add(num)
+
+          return False  # every value was new when we reached it
+
+explanation: |
+  **Intuition.** A value is a duplicate exactly when, at the moment we reach it, we have *already seen it earlier* in the array. So the only question we ever need answered is "is this value in the set of things I've visited?"
+
+  A hash set answers that membership question in O(1) average time, instead of the O(n) it would take to scan back through the array. That turns an O(n²) pairwise check into a single linear pass.
+
+  **Algorithm.**
+  1. Start with an empty set `seen`.
+  2. For each `num` in `nums`:
+     - If `num` is already in `seen`, return `True`: this is its second occurrence.
+     - Otherwise add `num` to `seen`.
+  3. If the loop finishes, no value was ever seen twice, so return `False`.
+
+  **Subtle points.**
+  - **Check before you add.** Adding first would make every number look like a duplicate of itself.
+  - **Early exit matters.** The one-liner `len(set(nums)) != len(nums)` has the same O(n) bound and is perfectly fine in an interview, but it always builds the full set. The loop stops at the first repeat, which is much faster when duplicates appear early.
+  - A single-element array can never contain a duplicate, and the loop handles that without a special case.
+
+key_insight: A hash set turns "have I seen this value before?" into an O(1) average-time check, so one pass with early exit replaces comparing every pair.
+
+time_complexity: O(n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n):** each element is processed once, and both the membership test and the insertion into a hash set take O(1) time on average. When a duplicate exists we may stop even earlier.
+
+  **Space O(n):** if all values are distinct (or the only repeat is at the very end), the set ends up holding almost every element.
+
+data_structures: [Hash set]
+passes: 1 pass over nums (stops at the first repeat)
+
+alternatives:
+  - name: Brute force (compare every pair)
+    time_complexity: O(n²)
+    space_complexity: O(1)
+    explanation: |
+      For every index `i`, compare `nums[i]` with every later element `nums[j]`. If any pair is equal, return `True`; if no pair matches, return `False`.
+    tradeoff: Needs no extra memory, but performs about n²/2 comparisons. At n = 10⁵ that is roughly 5 billion comparisons versus 10⁵ set operations, far too slow for the constraints.
+    code: |
+      class Solution:
+          def containsDuplicate(self, nums: List[int]) -> bool:
+              n = len(nums)
+              for i in range(n):
+                  for j in range(i + 1, n):
+                      if nums[i] == nums[j]:
+                          return True
+              return False
+  - name: Sort, then compare neighbours
+    time_complexity: O(n log n)
+    space_complexity: O(1) extra (in-place sort)
+    explanation: |
+      After sorting, equal values must sit next to each other, so it is enough to compare each element with the one right before it. This version sorts `nums` in place.
+
+      Python's Timsort may still allocate up to about n/2 temporary slots internally, so "O(1) extra" assumes an in-place sort is acceptable and ignores the sort's own workspace.
+    tradeoff: Avoids the hash set's O(n) memory, but sorting costs O(n log n), always touches the whole array (no early exit before the sort) and modifies the input, which a caller may not expect. The hash set is faster and leaves `nums` untouched.
+    code: |
+      class Solution:
+          def containsDuplicate(self, nums: List[int]) -> bool:
+              nums.sort()  # note: modifies the input list
+              for i in range(1, len(nums)):
+                  if nums[i] == nums[i - 1]:
+                      return True
+              return False
+
+tests:
+  - { name: single element, input: { nums: [1] }, expected: false }
+  - { name: two equal elements, input: { nums: [7, 7] }, expected: true }
+  - { name: two different elements, input: { nums: [7, -7] }, expected: false }
+  - { name: repeated negative, input: { nums: [-1, -2, -3, -1] }, expected: true }
+  - { name: extreme values all distinct, input: { nums: [1000000000, -1000000000, 0, 999999999] }, expected: false }
+  - { name: duplicate at both ends, input: { nums: [9, 1, 2, 3, 4, 5, 6, 7, 8, 9] }, expected: true }
+  - { name: all identical, input: { nums: [0, 0, 0, 0, 0] }, expected: true }
+  - { name: strictly decreasing, input: { nums: [5, 4, 3, 2, 1, 0, -1] }, expected: false }
+  - { name: repeat only at the end, input: { nums: [10, 20, 30, 40, 50, 60, 70, 80, 80] }, expected: true }
+
+benchmark:
+  size_label: length of nums
+  sizes: [100, 1000, 5000, 20000, 100000]
+  generator: |
+    def generate(n, rng):
+        # n - 1 distinct values, then the only repeat is appended at the very end,
+        # so every approach has to look at (almost) the entire array.
+        nums = rng.sample(range(-10**9, 10**9), n - 1)
+        nums.append(nums[-1])
+        return {"nums": nums}

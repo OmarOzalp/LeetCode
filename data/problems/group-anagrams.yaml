@@ -1,0 +1,180 @@
+id: "49"
+title: Group Anagrams
+slug: group-anagrams
+leetcode_url: https://leetcode.com/problems/group-anagrams/
+category: arrays-hashing
+difficulty: Medium
+patterns: [Hash Map, Canonical Key, Frequency Counting]
+
+description: |
+  You are given a list of strings `strs`. Partition it into groups so that two strings end up in the same group **exactly when they are anagrams** of each other (they contain the same letters with the same counts, in any order).
+
+  Return the list of groups. The groups may be returned in any order, and the strings inside each group may also be in any order. If a string occurs several times in `strs`, every occurrence belongs in its group.
+
+examples:
+  - input: { strs: [stop, pots, tops, opts, cat, act, dog] }
+    output: [[stop, pots, tops, opts], [cat, act], [dog]]
+    explanation: '`stop`, `pots`, `tops` and `opts` are all rearrangements of the letters `o, p, s, t`. `cat` and `act` form a second group, and `dog` has no anagram partner, so it is alone.'
+  - input: { strs: ["", b, ""] }
+    output: [["", ""], [b]]
+    explanation: The empty string is an anagram of itself, so both empty strings share a group.
+  - input: { strs: [z] }
+    output: [[z]]
+
+constraints:
+  - "`1 <= strs.length <= 10^4`"
+  - "`0 <= strs[i].length <= 100`"
+  - "`strs[i]` consists of lowercase English letters."
+
+function_signature: "def groupAnagrams(self, strs: List[str]) -> List[List[str]]"
+
+starter_code: |
+  class Solution:
+      def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+          pass
+
+runner:
+  kind: function
+  method: groupAnagrams
+  params:
+    - { name: strs, type: "List[str]" }
+  returns: "List[List[str]]"
+  compare: unordered_nested
+
+hints:
+  - Comparing every pair of strings with an anagram check works but is quadratic in the number of strings. Could you compute something from each string *on its own* that is identical for all of its anagrams?
+  - If all anagrams of a word map to the same "signature", you can use that signature as a dictionary key and drop each word into its bucket in one pass.
+  - Two good signatures are the sorted letters of the word, or a tuple of 26 letter counts. The count tuple can be built in O(k) for a word of length k, without sorting.
+
+approach: Hash map keyed by letter-count signature
+optimal_solution: |
+  class Solution:
+      def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+          # signature (26 letter counts) -> every word with that signature
+          groups = defaultdict(list)
+
+          for word in strs:
+              count = [0] * 26
+              for ch in word:
+                  count[ord(ch) - ord("a")] += 1
+              # Lists are not hashable, so freeze the counts into a tuple key.
+              groups[tuple(count)].append(word)
+
+          return list(groups.values())
+
+explanation: |
+  **Intuition.** "Are these two words anagrams?" is a question about a *pair*, and asking it for every pair is slow. Instead, compute a **canonical signature** for each word on its own, chosen so that two words have the same signature exactly when they are anagrams. Then grouping is just "put each word in the bucket for its signature", which a hash map does in one pass.
+
+  Since anagrams are defined by letter counts, the most direct signature is the vector of 26 counts. `"stop"` and `"pots"` both produce one `o`, one `p`, one `s`, one `t` and zeros elsewhere.
+
+  **Algorithm.**
+  1. Create `groups`, a `defaultdict(list)` from signature to list of words.
+  2. For each `word`, count its letters into a 26-slot array.
+  3. Convert the array to a `tuple` (dictionary keys must be immutable) and append `word` to `groups[signature]`.
+  4. Return all the lists in `groups`.
+
+  **Subtle points.**
+  - **Why a tuple and not a joined string?** Joining the counts without separators is ambiguous: `"a" + "b"*11` gives counts `1, 11, 0, ...` and `"a"*11 + "b"` gives `11, 1, 0, ...`, and both concatenate to `"1110..."`. A tuple (or a separator such as `"#"` between counts) keeps the numbers apart.
+  - The empty string has an all-zero signature, so all empty strings correctly land together.
+  - Duplicate words are simply appended to the same bucket; nothing special is needed.
+  - Sorting each word (`"".join(sorted(word))`) is an equally valid signature and is often what people write first; see the alternative below.
+
+key_insight: Map every word to a signature shared exactly by its anagrams (its letter counts), then group with a single hash-map pass instead of comparing pairs.
+
+time_complexity: O(n · k)
+space_complexity: O(n · k)
+complexity_explanation: |
+  Let `n` be the number of strings and `k` the maximum string length.
+
+  **Time O(n · k):** each word is scanned once to build its counts (O(k)), and turning the 26 counts into a tuple and hashing it is O(26) = O(1) per word.
+
+  **Space O(n · k):** the output groups hold every input string (n · k characters in total), and the dictionary stores at most n signature tuples of 26 integers each.
+
+data_structures: [Hash map, Array (26 counters)]
+passes: 1 pass over strs
+
+alternatives:
+  - name: Brute force (pairwise anagram checks)
+    time_complexity: O(n² · k log k)
+    space_complexity: O(n)
+    explanation: |
+      Take the first string that has not been placed yet and start a new group with it. Scan every later unplaced string, test whether it is an anagram (same length and same sorted letters), and if so add it to the group and mark it as used. Repeat until every string is placed.
+    tradeoff: Needs no hashing insight, but each new group rescans all remaining strings, so the work grows quadratically with the number of strings (about n²/2 anagram checks when most strings are in different groups). The signature approach touches each string once.
+    code: |
+      class Solution:
+          def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+              def is_anagram(a: str, b: str) -> bool:
+                  return len(a) == len(b) and sorted(a) == sorted(b)
+
+              used = [False] * len(strs)
+              result = []
+              for i in range(len(strs)):
+                  if used[i]:
+                      continue
+                  used[i] = True
+                  group = [strs[i]]
+                  for j in range(i + 1, len(strs)):
+                      if not used[j] and is_anagram(strs[i], strs[j]):
+                          used[j] = True
+                          group.append(strs[j])
+                  result.append(group)
+              return result
+  - name: Hash map keyed by sorted word
+    time_complexity: O(n · k log k)
+    space_complexity: O(n · k)
+    explanation: |
+      Sorting a word's letters puts all of its anagrams into the same canonical form (`"tops"` and `"stop"` both become `"opst"`), so the sorted string can serve as the dictionary key.
+    tradeoff: The most common interview answer and very concise. Asymptotically it pays O(k log k) per word instead of O(k), but for short words in Python it is often just as fast or faster in practice because `sorted` runs in C while the counting loop runs in Python. Either is a strong answer.
+    code: |
+      class Solution:
+          def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+              groups = defaultdict(list)  # sorted letters -> words
+              for word in strs:
+                  groups["".join(sorted(word))].append(word)
+              return list(groups.values())
+
+tests:
+  - name: single empty string
+    input: { strs: [""] }
+    expected: [[""]]
+  - name: empty strings and a letter
+    input: { strs: ["", "", a] }
+    expected: [["", ""], [a]]
+  - name: no anagram pairs
+    input: { strs: [abc, def, ghi] }
+    expected: [[abc], [def], [ghi]]
+  - name: all permutations of one word
+    input: { strs: [abc, bca, cab, acb, bac, cba] }
+    expected: [[abc, bca, cab, acb, bac, cba]]
+  - name: same letters, different counts
+    input: { strs: [aab, abb, bab, aba, baa, bba] }
+    expected: [[aab, aba, baa], [abb, bab, bba]]
+  - name: repeated letter of different lengths
+    input: { strs: [a, aa, aaa, a] }
+    expected: [[a, a], [aa], [aaa]]
+  - name: naive count-string keys would collide
+    input: { strs: [abbbbbbbbbbb, aaaaaaaaaaab] }
+    expected: [[abbbbbbbbbbb], [aaaaaaaaaaab]]
+  - name: duplicate words
+    input: { strs: [listen, silent, listen, enlist, google, gogole] }
+    expected: [[listen, silent, listen, enlist], [google, gogole]]
+  - name: mixed lengths
+    input: { strs: [ab, ba, abc, cab, a, b] }
+    expected: [[ab, ba], [abc, cab], [a], [b]]
+
+benchmark:
+  size_label: number of strings
+  sizes: [50, 300, 2000, 10000]
+  generator: |
+    def generate(n, rng):
+        letters = "abcdefghijklmnopqrstuvwxyz"
+        # Roughly n / 4 anagram families, so there are many groups and pairwise
+        # approaches must compare most strings against most others.
+        bases = ["".join(rng.choice(letters) for _ in range(rng.randint(4, 10)))
+                 for _ in range(max(1, n // 4))]
+        strs = []
+        for _ in range(n):
+            chars = list(rng.choice(bases))
+            rng.shuffle(chars)  # a random anagram of the chosen base word
+            strs.append("".join(chars))
+        return {"strs": strs}

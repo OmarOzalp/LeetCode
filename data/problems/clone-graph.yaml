@@ -1,0 +1,183 @@
+id: "133"
+title: Clone Graph
+slug: clone-graph
+leetcode_url: https://leetcode.com/problems/clone-graph/
+category: graphs
+difficulty: Medium
+patterns: [DFS, BFS, Hash Map, Graph Traversal]
+
+description: |
+  You are given a reference to one node of a **connected, undirected** graph. Return a **deep copy** (clone) of the whole graph.
+
+  Each node has an integer value `val` and a list of its neighbors `neighbors`:
+
+  ```python
+  class Node:
+      def __init__(self, val=0, neighbors=None):
+          self.val = val
+          self.neighbors = neighbors if neighbors is not None else []
+  ```
+
+  A deep copy uses **brand-new** `Node` objects. The clone must have the same values, the same edges and the same neighbor order as the original, and it must not share a single node with it.
+
+  **Test format:** the graph is written as a 1-indexed adjacency list. Node `i` has value `i`, and entry `i - 1` lists the values of its neighbors. The given node is always node `1`. `[]` means an empty graph (`node` is `None`), and `[[]]` is a single node with no neighbors. Your returned node is converted back to this format and compared, and the checker also verifies that no original node was reused.
+
+examples:
+  - input: { node: [[2, 4], [1, 3], [2, 4], [1, 3]] }
+    output: [[2, 4], [1, 3], [2, 4], [1, 3]]
+    explanation: "A square: 1 is connected to 2 and 4, 2 to 1 and 3, 3 to 2 and 4, and 4 to 1 and 3. The clone has exactly the same shape, made of new nodes."
+  - input: { node: [[]] }
+    output: [[]]
+    explanation: A single node with value 1 and no neighbors.
+  - input: { node: [] }
+    output: []
+    explanation: The graph is empty, so return `None`.
+
+constraints:
+  - "The number of nodes in the graph is in the range `[0, 100]`."
+  - "`1 <= Node.val <= 100`, and `Node.val` is unique for each node."
+  - "There are no repeated edges and no self-loops."
+  - "The graph is connected, and every node can be reached from the given node."
+
+function_signature: "def cloneGraph(self, node: Optional['Node']) -> Optional['Node']"
+
+starter_code: |
+  """
+  # Definition for a Node.
+  class Node:
+      def __init__(self, val = 0, neighbors = None):
+          self.val = val
+          self.neighbors = neighbors if neighbors is not None else []
+  """
+
+  class Solution:
+      def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
+          pass
+
+runner:
+  kind: function
+  method: cloneGraph
+  params:
+    - { name: node, type: "Optional[Node]" }
+  returns: "Optional[Node]"
+
+hints:
+  - Copying a node is easy. The hard part is wiring its neighbors, because those neighbors may already have been copied, or may even point back to the node you are copying right now (the graph has cycles).
+  - Keep a hash map from each original node to its copy. Before creating a copy, check the map. If the node is already there, reuse that copy instead of making another.
+  - Traverse the graph with DFS or BFS. Create the copy and store it in the map *before* visiting the neighbors, so that a cycle leading back to this node finds the existing copy instead of recursing forever.
+
+approach: DFS with an original → copy hash map
+optimal_solution: |
+  class Solution:
+      def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
+          if node is None:
+              return None
+          copies = {}  # original node -> its clone
+
+          def clone(original: 'Node') -> 'Node':
+              if original in copies:
+                  return copies[original]  # already cloned (this also handles cycles)
+              twin = Node(original.val)
+              copies[original] = twin      # register BEFORE visiting neighbors
+              twin.neighbors = [clone(nb) for nb in original.neighbors]
+              return twin
+
+          return clone(node)
+
+explanation: |
+  **Intuition.** A graph clone is a traversal where "visiting" a node means building its copy. Two things make it tricky:
+
+  1. **Shared nodes:** node 3 may be a neighbor of both node 2 and node 4, yet the clone must contain exactly one copy of node 3.
+  2. **Cycles:** in an undirected graph, every edge is a cycle of length two (`1 → 2 → 1`), so a naive recursion never stops.
+
+  A hash map from **original node to copy** solves both. It works as the "visited" set and also tells us *which* copy to link to.
+
+  **Algorithm (DFS).**
+  1. If the input is `None`, return `None`.
+  2. `clone(original)`:
+     1. If `original` is already in the map, return its copy.
+     2. Otherwise create `twin = Node(original.val)` and store `copies[original] = twin` right away.
+     3. Set `twin.neighbors` to the clones of each neighbor, in the original order, by calling `clone` recursively.
+  3. Return `clone(node)`.
+
+  **Why register before recursing?** Consider the edge `1 – 2`. Cloning 1 visits neighbor 2, and cloning 2 visits neighbor 1 again. Because 1 is already in the map, that call returns the half-built copy of 1 immediately, so the recursion stops. If we registered *after* the neighbors, it would recurse forever.
+
+  **What "deep copy" is checked for.** Returning the input node, or linking copies to original neighbors, produces the right *shape* but shares objects with the original. The tests reject that.
+
+key_insight: A map from original node to clone acts as the visited set and as the lookup for wiring edges, so each node is copied exactly once, even with cycles.
+
+time_complexity: O(V + E)
+space_complexity: O(V)
+complexity_explanation: |
+  **Time O(V + E):** each node is cloned once (later visits are O(1) map hits), and each adjacency entry is looked at once while building neighbor lists. In an undirected graph that is 2E entries in total.
+
+  **Space O(V)** for the map, plus up to O(V) recursion depth when the graph is a long path. The cloned graph itself is the output and is not counted.
+
+data_structures: [Hash map, Recursion stack]
+passes: One traversal of the graph
+
+alternatives:
+  - name: BFS with a queue
+    time_complexity: O(V + E)
+    space_complexity: O(V)
+    explanation: |
+      Clone the start node, put it in the map and in a queue. Pop a node, and for each original neighbor create its copy if it is not in the map yet (then enqueue it). Append the neighbor's copy to the popped node's copy. Neighbors are appended in their original order, so neighbor order is preserved.
+    tradeoff: The same time and space. It has no recursion, so a long path-shaped graph cannot hit Python's recursion limit. The DFS is shorter, and some find it more natural because "clone this node" maps directly onto a recursive function.
+    code: |
+      class Solution:
+          def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
+              if node is None:
+                  return None
+              copies = {node: Node(node.val)}
+              queue = deque([node])
+              while queue:
+                  current = queue.popleft()
+                  for nb in current.neighbors:
+                      if nb not in copies:
+                          copies[nb] = Node(nb.val)  # first time we see nb
+                          queue.append(nb)
+                      copies[current].neighbors.append(copies[nb])
+              return copies[node]
+
+tests:
+  - name: two connected nodes
+    input: { node: [[2], [1]] }
+    expected: [[2], [1]]
+  - name: triangle
+    input: { node: [[2, 3], [1, 3], [1, 2]] }
+    expected: [[2, 3], [1, 3], [1, 2]]
+  - name: path of five nodes
+    input: { node: [[2], [1, 3], [2, 4], [3, 5], [4]] }
+    expected: [[2], [1, 3], [2, 4], [3, 5], [4]]
+  - name: star centered on the start node
+    input: { node: [[2, 3, 4, 5], [1], [1], [1], [1]] }
+    expected: [[2, 3, 4, 5], [1], [1], [1], [1]]
+  - name: complete graph on four nodes
+    input: { node: [[2, 3, 4], [1, 3, 4], [1, 2, 4], [1, 2, 3]] }
+    expected: [[2, 3, 4], [1, 3, 4], [1, 2, 4], [1, 2, 3]]
+  - name: neighbor order is preserved
+    input: { node: [[3, 2], [1, 3], [2, 1]] }
+    expected: [[3, 2], [1, 3], [2, 1]]
+  - name: start node is a leaf of a longer graph
+    input: { node: [[3], [3, 4], [1, 2, 5], [2, 5], [3, 4, 6], [5]] }
+    expected: [[3], [3, 4], [1, 2, 5], [2, 5], [3, 4, 6], [5]]
+
+benchmark:
+  size_label: number of nodes
+  sizes: [100, 500, 1000, 2000, 4000]
+  generator: |
+    def generate(n, rng):
+        # Connected undirected graph on nodes 1..n: a random spanning tree
+        # plus extra random edges, about 2n edges in total.
+        edges = set()
+        for v in range(2, n + 1):
+            edges.add((rng.randint(1, v - 1), v))
+        target = min(2 * (n - 1), n * (n - 1) // 2)
+        while len(edges) < target:
+            u, v = sorted(rng.sample(range(1, n + 1), 2))
+            edges.add((u, v))
+        adj = [[] for _ in range(n)]
+        for u, v in sorted(edges):
+            adj[u - 1].append(v)
+            adj[v - 1].append(u)
+        return {"node": adj}

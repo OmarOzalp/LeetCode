@@ -1,0 +1,231 @@
+id: "297"
+title: Serialize and Deserialize Binary Tree
+slug: serialize-and-deserialize-binary-tree
+leetcode_url: https://leetcode.com/problems/serialize-and-deserialize-binary-tree/
+category: trees
+difficulty: Hard
+patterns: [DFS, Preorder Traversal, Recursion, Design, BFS]
+
+description: |
+  **Serialization** turns a data structure into a string so it can be saved to a file or sent over a network, and **deserialization** rebuilds the original structure from that string.
+
+  Design a `Codec` class with two methods:
+  - `serialize(root)` encodes a binary tree as a single string.
+  - `deserialize(data)` decodes such a string back into a tree and returns its root.
+
+  You can choose any format, as long as decoding the encoded string gives back a tree with **exactly the same shape and values** as the original. Values can be negative and can have several digits, and the tree can be empty.
+
+  **How tests work:** the tree is encoded with one `Codec` instance and the string is decoded with a **separate** instance, so you can't keep the tree in `self`. Everything must go through the string. The rebuilt tree is compared with the original (shown here in LeetCode's level-order format), and `serialize` must return a `str`.
+
+examples:
+  - input: { root: [1, 2, 3, null, null, 4, 5] }
+    output: [1, 2, 3, null, null, 4, 5]
+    explanation: "One possible encoding is the preorder string `\"1,2,#,#,3,4,#,#,5,#,#\"`, where `#` marks a missing child. Decoding it must rebuild the same tree."
+  - input: { root: [] }
+    output: []
+    explanation: An empty tree must survive the round trip too, so it needs its own encoding, such as `"#"`.
+  - input: { root: [-12, 345, null, 6] }
+    output: [-12, 345, null, 6]
+    explanation: Negative and multi-digit values are why the encoding needs a separator between values, so that `-12` and `345` can't run together.
+
+constraints:
+  - "The number of nodes in the tree is in the range `[0, 10^4]`."
+  - "`-1000 <= Node.val <= 1000`"
+
+function_signature: "class Codec: serialize(root) -> str / deserialize(data: str) -> Optional[TreeNode]"
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Codec:
+
+      def serialize(self, root: Optional[TreeNode]) -> str:
+          """Encodes a tree to a single string."""
+          pass
+
+      def deserialize(self, data: str) -> Optional[TreeNode]:
+          """Decodes your encoded data to tree."""
+          pass
+
+  # Your Codec object will be instantiated and called as such:
+  # ser = Codec()
+  # deser = Codec()
+  # ans = deser.deserialize(ser.serialize(root))
+
+runner:
+  kind: codec
+  class_name: Codec
+  encode: serialize
+  decode: deserialize
+  param: root
+  type: TreeNode
+
+hints:
+  - A list of values alone can't describe a tree, because many different shapes give the same preorder sequence. What extra information do you need to write down so the shape can be recovered?
+  - Record the missing children too, using a special marker for "no node here". With those markers, a traversal describes exactly one tree.
+  - "Serialize with a preorder DFS that writes each value, or a marker for None, separated by commas. To deserialize, split the string and read tokens in the same order with the same recursion: a marker means None, and anything else becomes a node whose left subtree is built next and then its right subtree."
+
+approach: Preorder DFS with null markers
+optimal_solution: |
+  class Codec:
+
+      def serialize(self, root: Optional[TreeNode]) -> str:
+          """Encodes a tree to a single string."""
+          tokens = []
+
+          def preorder(node: Optional[TreeNode]) -> None:
+              if node is None:
+                  tokens.append("#")          # marker: no node here
+                  return
+              tokens.append(str(node.val))
+              preorder(node.left)
+              preorder(node.right)
+
+          preorder(root)
+          return ",".join(tokens)             # commas keep -12 and 345 apart
+
+      def deserialize(self, data: str) -> Optional[TreeNode]:
+          """Decodes your encoded data to tree."""
+          tokens = iter(data.split(","))
+
+          def build() -> Optional[TreeNode]:
+              # Consume exactly the tokens of one subtree, in preorder.
+              token = next(tokens)
+              if token == "#":
+                  return None
+              node = TreeNode(int(token))
+              node.left = build()             # the whole left subtree comes first...
+              node.right = build()            # ...then the whole right subtree
+              return node
+
+          return build()
+
+explanation: |
+  **Intuition.** A list of values doesn't pin down a tree. `[1, 2]` could be `1` with a left child `2` or with a right child `2`. The fix is to also record **where nodes are missing**. Write a marker such as `#` for every `None` child, and a preorder traversal becomes **unambiguous**:
+
+  `[1, 2, 3, null, null, 4, 5]` → `1,2,#,#,3,4,#,#,5,#,#`
+
+  With the markers, every subtree's encoding is **self-delimiting**. A leaf is `v,#,#`, and a larger subtree is its value followed by two complete subtree encodings. A reader that follows the same recursion therefore knows exactly where the left subtree ends and the right subtree begins, without storing any sizes.
+
+  **Algorithm.**
+  - **serialize:** preorder DFS. For a node, append `str(node.val)` and then recurse left and right. For `None`, append `#`. Join the tokens with commas.
+  - **deserialize:** split on commas and read the tokens with an iterator. `build()` takes the next token. `#` means `None`. Otherwise it creates a node and sets `node.left = build()`, **then** `node.right = build()`, mirroring the order in which they were written.
+
+  **Why decoding is correct.** Each `build()` call consumes exactly the tokens that the matching `preorder()` call produced: one token for `None`, or the value followed by the left subtree's tokens and then the right subtree's tokens. Writer and reader recurse in lockstep, so the shape is recovered exactly.
+
+  **Subtle points.**
+  - **Separators matter.** Without commas, `1,23` and `12,3` would both become `123`. Negative signs and multi-digit values are handled by `str`/`int` once tokens are clearly separated.
+  - **The empty tree** serializes to `"#"` and decodes to `None` without any special case.
+  - **No shared state.** Encoding and decoding happen on different `Codec` objects, so all information must be in the string.
+  - Preorder + inorder (as in problem 105) can't be used here, because values may repeat. The marker approach doesn't care about duplicates.
+  - Recursion goes as deep as the tree. For very deep trees, an iterative level-order encoding (see the alternative) avoids recursion limits.
+
+key_insight: Recording a marker for every missing child makes a preorder traversal describe exactly one tree, so the decoder can rebuild it by reading tokens with the same recursion.
+
+time_complexity: O(n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n):** each node is visited once by `serialize` and created once by `deserialize`. A tree with `n` nodes has exactly `n + 1` empty child positions, so the string holds `2n + 1` tokens. Joining and splitting the string are linear in its length.
+
+  **Space O(n):** the encoded string and token list are O(n). The recursion stack adds O(h), from O(log n) for a balanced tree up to O(n) for a skewed one.
+
+data_structures: [String, Binary tree, Recursion stack]
+passes: 1 traversal to encode + 1 to decode
+
+alternatives:
+  - name: Level-order BFS encoding (LeetCode's own format)
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Encode with a queue: pop a node, write its value (or `#` for `None`), and enqueue both of its children, even when they are `None`. To decode, create the root from the first token and keep a queue of nodes waiting for children. For each node popped, the **next two tokens** are its left and right children, in order.
+    tradeoff: Same O(n) time and space, with no recursion at all, so a 10⁴-node chain causes no stack issues. It is the same format LeetCode uses to display trees. The index bookkeeping on the decode side is a little more involved than the preorder recursion, which mirrors the encoder exactly.
+    code: |
+      class Codec:
+
+          def serialize(self, root: Optional[TreeNode]) -> str:
+              if root is None:
+                  return ""
+              tokens, queue = [], deque([root])
+              while queue:
+                  node = queue.popleft()
+                  if node is None:
+                      tokens.append("#")
+                      continue
+                  tokens.append(str(node.val))
+                  queue.append(node.left)     # enqueue children even if None
+                  queue.append(node.right)
+              return ",".join(tokens)
+
+          def deserialize(self, data: str) -> Optional[TreeNode]:
+              if not data:
+                  return None
+              tokens = data.split(",")
+              root = TreeNode(int(tokens[0]))
+              queue = deque([root])
+              i = 1
+              while queue:
+                  node = queue.popleft()
+                  # The next two tokens are this node's left and right children.
+                  if tokens[i] != "#":
+                      node.left = TreeNode(int(tokens[i]))
+                      queue.append(node.left)
+                  i += 1
+                  if tokens[i] != "#":
+                      node.right = TreeNode(int(tokens[i]))
+                      queue.append(node.right)
+                  i += 1
+              return root
+
+tests:
+  - { name: single node, input: { root: [1] }, expected: [1] }
+  - { name: negative and multi-digit values, input: { root: [-1000, 1000, -999, 0, 12] }, expected: [-1000, 1000, -999, 0, 12] }
+  - { name: left-skewed chain, input: { root: [1, 2, null, 3, null, 4, null, 5] }, expected: [1, 2, null, 3, null, 4, null, 5] }
+  - { name: right-skewed chain with negatives, input: { root: [1, null, -2, null, 3, null, -4] }, expected: [1, null, -2, null, 3, null, -4] }
+  - { name: duplicate values, input: { root: [5, 5, 5, 5, null, null, 5] }, expected: [5, 5, 5, 5, null, null, 5] }
+  - { name: zero values, input: { root: [0, 0, 0, null, 0] }, expected: [0, 0, 0, null, 0] }
+  - { name: zigzag path, input: { root: [1, 2, null, null, 3, 4, null, null, 5] }, expected: [1, 2, null, null, 3, 4, null, null, 5] }
+  - name: gaps on several levels
+    input: { root: [10, -20, 30, null, -40, 50, null, null, -60, null, 700] }
+    expected: [10, -20, 30, null, -40, 50, null, null, -60, null, 700]
+  - name: perfect tree of negatives
+    input: { root: [-1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14, -15] }
+    expected: [-1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14, -15]
+
+benchmark:
+  size_label: number of nodes
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Grow a random tree: each new node takes a uniformly random free child
+        # slot. The height stays around O(log n), so recursion depth is modest.
+        left, right = [-1] * n, [-1] * n
+        free = [(0, 0), (0, 1)]  # (parent index, 0 = left / 1 = right)
+        for i in range(1, n):
+            j = rng.randrange(len(free))
+            free[j], free[-1] = free[-1], free[j]
+            parent, side = free.pop()
+            if side == 0:
+                left[parent] = i
+            else:
+                right[parent] = i
+            free.append((i, 0))
+            free.append((i, 1))
+        vals = [rng.randint(-1000, 1000) for _ in range(n)]
+
+        # Serialize to LeetCode level order (None marks a missing child).
+        out, queue = [], deque([0])
+        while queue:
+            i = queue.popleft()
+            if i < 0:
+                out.append(None)
+                continue
+            out.append(vals[i])
+            queue.append(left[i])
+            queue.append(right[i])
+        while out[-1] is None:
+            out.pop()
+        return {"root": out}

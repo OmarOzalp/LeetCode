@@ -1,0 +1,162 @@
+id: "435"
+title: Non-overlapping Intervals
+slug: non-overlapping-intervals
+leetcode_url: https://leetcode.com/problems/non-overlapping-intervals/
+category: intervals
+difficulty: Medium
+patterns: [Intervals, Greedy, Sorting, Interval Scheduling]
+
+description: |
+  You are given an array of intervals `intervals`, where `intervals[i] = [start_i, end_i]`. Return the **minimum number of intervals you need to remove** so that none of the remaining intervals overlap.
+
+  In this problem, intervals that only touch at an endpoint, such as `[1, 2]` and `[2, 3]`, do **not** overlap.
+
+examples:
+  - input: { intervals: [[1, 2], [2, 3], [3, 4], [1, 3]] }
+    output: 1
+    explanation: |
+      Removing `[1, 3]` leaves `[1, 2]`, `[2, 3]` and `[3, 4]`, which only touch each other.
+  - input: { intervals: [[1, 2], [1, 2], [1, 2]] }
+    output: 2
+    explanation: |
+      Identical intervals overlap each other, so only one copy can stay.
+  - input: { intervals: [[1, 2], [2, 3]] }
+    output: 0
+    explanation: |
+      The intervals touch at 2, which is not an overlap, so nothing has to be removed.
+
+constraints:
+  - "`1 <= intervals.length <= 10^5`"
+  - "`intervals[i].length == 2`"
+  - "`-5 * 10^4 <= start_i < end_i <= 5 * 10^4`"
+
+function_signature: "def eraseOverlapIntervals(self, intervals: List[List[int]]) -> int"
+
+starter_code: |
+  class Solution:
+      def eraseOverlapIntervals(self, intervals: List[List[int]]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: eraseOverlapIntervals
+  params:
+    - { name: intervals, type: "List[List[int]]" }
+  returns: int
+
+hints:
+  - Removing as few intervals as possible is the same as **keeping** as many non-overlapping intervals as possible. If you had to pick the first interval to keep, which one would leave the most room for the rest?
+  - The interval that **ends earliest** blocks the least of the future. Can choosing an interval that ends later ever let you keep more intervals overall?
+  - Sort by end. Walk through the intervals while remembering the end of the last one you kept. Keep the current interval if it starts at or after that end; otherwise it overlaps, so count it as removed.
+
+approach: Greedy, sort by end (interval scheduling)
+optimal_solution: |
+  class Solution:
+      def eraseOverlapIntervals(self, intervals: List[List[int]]) -> int:
+          removed = 0
+          prev_end = -math.inf  # end of the last interval we decided to keep
+
+          for start, end in sorted(intervals, key=lambda iv: iv[1]):  # earliest end first
+              if start >= prev_end:
+                  prev_end = end   # no overlap (touching is fine): keep it
+              else:
+                  removed += 1     # overlaps a kept interval that ends no later: drop it
+
+          return removed
+
+explanation: |
+  **Intuition.** Removing as few intervals as possible means keeping as many pairwise non-overlapping intervals as possible. That is the classic **interval scheduling** (activity selection) problem. Its greedy rule is: *keep the interval that finishes first*, discard everything that overlaps it, and repeat on what is left.
+
+  **Why "earliest end" is safe (exchange argument).** Let `A` be the interval with the smallest end. Take any optimal set of kept intervals and let `B` be the one in it that ends first. Since `A.end <= B.end`, swapping `B` for `A` cannot create an overlap: every other kept interval starts at or after `B.end`, which is `>= A.end`. So some optimal answer keeps `A`. Once `A` is kept, every interval starting before `A.end` overlaps it and must go. What remains is the same problem on fewer intervals, so the argument applies again at each step.
+
+  **Why sort by end and not by start?** Keeping the interval that *starts* first fails. In `[[1, 100], [2, 3], [4, 5]]` the interval `[1, 100]` starts first but blocks two others. What matters is how much of the future an interval uses up, and that is decided by its end. (Sorting by start can still work, but only if, at every overlap, you drop whichever of the two intervals ends later. See the alternative.)
+
+  **Algorithm.**
+  1. Sort the intervals by end.
+  2. Set `prev_end = -∞` and `removed = 0`.
+  3. For each `[s, e]`: if `s >= prev_end`, keep it and set `prev_end = e`; otherwise increment `removed`.
+  4. Return `removed`.
+
+  **Subtle points.**
+  - Use `>=`: touching intervals are compatible in this problem. This is the opposite of Merge Intervals, where touching intervals merge.
+  - When an interval is dropped, `prev_end` does **not** change. Intervals are processed in order of end, so the kept interval ends no later than the dropped one and is the better one to keep.
+  - Coordinates can be negative, so start `prev_end` at `-∞`, not `0`.
+  - The number of intervals kept, `n - removed`, is also the answer to "how many meetings can one person attend?"
+
+key_insight: Always keep the interval that ends first; an exchange argument shows this never reduces how many intervals can be kept, so the removals are minimal.
+
+time_complexity: O(n log n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n log n):** sorting by end dominates. The greedy sweep afterwards is O(n), with O(1) work per interval.
+
+  **Space O(n):** `sorted` makes a copy of the list (and Python's sort may use up to O(n) auxiliary memory). Sorting in place would leave only O(1) extra besides the sort itself.
+
+data_structures: [Array]
+passes: Sort, then 1 pass
+
+alternatives:
+  - name: DP over intervals sorted by start (longest chain)
+    time_complexity: O(n²)
+    space_complexity: O(n)
+    explanation: |
+      Sort by start and let `keep[i]` be the largest number of non-overlapping intervals that can be kept with interval `i` as the last one. Interval `j` can directly precede `i` when `end_j <= start_i`, so `keep[i] = 1 + max(keep[j])` over all such `j`. The answer is `n - max(keep)`. This is the same shape as Longest Increasing Subsequence.
+    tradeoff: A safe fallback if you cannot justify the greedy choice, because it tries every possible predecessor. At n = 10^5 that is about 5·10^9 steps, far too slow. The exchange argument is exactly what lets the greedy skip this search.
+    code: |
+      class Solution:
+          def eraseOverlapIntervals(self, intervals: List[List[int]]) -> int:
+              intervals = sorted(intervals)  # by start
+              n = len(intervals)
+              # keep[i] = most non-overlapping intervals we can keep, ending with interval i
+              keep = [1] * n
+              for i in range(n):
+                  for j in range(i):
+                      if intervals[j][1] <= intervals[i][0]:  # j can come right before i
+                          keep[i] = max(keep[i], keep[j] + 1)
+              return n - max(keep)
+  - name: Greedy sorted by start (drop the one that ends later)
+    time_complexity: O(n log n)
+    space_complexity: O(n)
+    explanation: |
+      Sort by start and remember the end of the last kept interval. When the next interval overlaps it, one of the two has to go. Remove whichever **ends later** by keeping `prev_end = min(prev_end, end)`. This is the same exchange argument applied to each overlapping pair.
+    tradeoff: Same complexity and also correct, and handy when the intervals are already sorted by start. The `min` update is easy to forget, though, and forgetting it gives wrong answers (for example `[[1, 100], [2, 3], [4, 5]]` would return 2 instead of 1). The sort-by-end version needs no such fix-up.
+    code: |
+      class Solution:
+          def eraseOverlapIntervals(self, intervals: List[List[int]]) -> int:
+              intervals = sorted(intervals, key=lambda iv: iv[0])  # by start
+              removed = 0
+              prev_end = intervals[0][1]
+              for start, end in intervals[1:]:
+                  if start >= prev_end:
+                      prev_end = end  # no overlap: keep it
+                  else:
+                      # Overlap: remove one of the two and keep the one that ends first.
+                      removed += 1
+                      prev_end = min(prev_end, end)
+              return removed
+
+tests:
+  - { name: single interval, input: { intervals: [[1, 2]] }, expected: 0 }
+  - { name: touching chain unsorted, input: { intervals: [[3, 4], [1, 2], [2, 3]] }, expected: 0 }
+  - { name: one long interval over short ones, input: { intervals: [[1, 100], [2, 3], [4, 5], [6, 7]] }, expected: 1 }
+  - { name: nested intervals, input: { intervals: [[1, 100], [11, 22], [1, 11], [2, 12]] }, expected: 2 }
+  - { name: negative coordinates, input: { intervals: [[-5, -3], [-4, -1], [-2, 0], [0, 1]] }, expected: 1 }
+  - { name: all share a common point, input: { intervals: [[1, 5], [2, 6], [3, 7], [4, 8]] }, expected: 3 }
+  - { name: long interval among a chain, input: { intervals: [[3, 4], [1, 2], [2, 3], [0, 5]] }, expected: 1 }
+  - { name: boundary values, input: { intervals: [[-50000, 50000], [-50000, 0], [0, 50000]] }, expected: 1 }
+  - { name: two separate clusters, input: { intervals: [[1, 3], [2, 4], [3, 5], [10, 12], [11, 13]] }, expected: 2 }
+  - { name: same start different ends, input: { intervals: [[1, 2], [1, 3], [1, 4]] }, expected: 2 }
+
+benchmark:
+  size_label: number of intervals
+  sizes: [100, 1000, 5000, 20000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Random intervals inside [-5 * 10^4, 5 * 10^4] with lengths up to 200,
+        # so overlaps are common at every size.
+        intervals = []
+        for _ in range(n):
+            start = rng.randint(-50000, 49999)
+            end = rng.randint(start + 1, min(50000, start + 200))
+            intervals.append([start, end])
+        return {"intervals": intervals}

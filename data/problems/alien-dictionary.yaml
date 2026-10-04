@@ -1,0 +1,237 @@
+id: "269"
+title: Alien Dictionary
+slug: alien-dictionary
+leetcode_url: https://leetcode.com/problems/alien-dictionary/
+category: advanced-graphs
+difficulty: Hard
+patterns: [Topological Sort, BFS, DFS, Graph Construction]
+
+description: |
+  An alien language uses the lowercase English letters, but in an unknown order. You are given a list `words` that is claimed to be sorted **lexicographically** under the alien alphabet, the same way a dictionary is sorted under ours.
+
+  Return a string containing every distinct letter that appears in `words` exactly once, ordered according to the alien alphabet. If several orders are consistent with the list, return **any** of them. If no order is consistent (the list contradicts itself), return `""`.
+
+  Lexicographic order works as usual. Compare two words at the first position where they differ, and the word with the smaller letter there comes first. If one word is a **prefix** of the other, the shorter word comes first. So `["ab", "abc"]` is a valid order, but `["abc", "ab"]` is impossible under any alphabet.
+
+examples:
+  - input: { words: ["baa", "abcd", "abca", "cab", "cad"] }
+    output: bdac
+    explanation: |
+      Compare neighbors at their first differing letter: `baa`/`abcd` gives `b < a`, `abcd`/`abca` gives `d < a`, `abca`/`cab` gives `a < c`, and `cab`/`cad` gives `b < d`. The only order that satisfies all four rules is `b, d, a, c`.
+  - input: { words: ["ca", "cb", "ba"] }
+    output: acb
+    explanation: "The rules are `a < b` (from `ca`/`cb`) and `c < b` (from `cb`/`ba`). Nothing orders `a` against `c`, so both `\"acb\"` and `\"cab\"` are accepted."
+  - input: { words: ["abc", "ab"] }
+    output: ""
+    explanation: "`\"ab\"` is a proper prefix of `\"abc\"`, so it would have to come first. No alphabet can fix this, so the answer is `\"\"`."
+
+constraints:
+  - "`1 <= words.length <= 100`"
+  - "`1 <= words[i].length <= 100`"
+  - "`words[i]` consists of lowercase English letters only."
+
+function_signature: "def alienOrder(self, words: List[str]) -> str"
+
+starter_code: |
+  class Solution:
+      def alienOrder(self, words: List[str]) -> str:
+          pass
+
+runner:
+  kind: function
+  method: alienOrder
+  params:
+    - { name: words, type: "List[str]" }
+  returns: str
+  compare: custom
+  checker: |
+    def check(inputs, output, expected):
+        words = inputs["words"]
+        if not isinstance(output, str):
+            return False, "Return a string of letters, or \"\" when no valid order exists."
+        if expected == "":
+            if output == "":
+                return True, None
+            return False, ("These words contradict themselves (a cycle of letter rules, or a word "
+                           "listed before its own prefix), so the answer must be \"\".")
+        if output == "":
+            return False, "A valid order exists (for example {!r}), but you returned \"\".".format(expected)
+        letters = set("".join(words))
+        repeated = sorted({ch for ch in output if output.count(ch) > 1})
+        if repeated:
+            return False, "Each letter must appear exactly once. Repeated: {}.".format(", ".join(repeated))
+        missing = sorted(letters - set(output))
+        if missing:
+            return False, "Every letter used in the words must be included. Missing: {}.".format(", ".join(missing))
+        extra = sorted(set(output) - letters)
+        if extra:
+            return False, "Only letters that appear in the words may be included. Unexpected: {}.".format(", ".join(extra))
+        position = {ch: i for i, ch in enumerate(output)}
+        for first, second in zip(words, words[1:]):
+            for a, b in zip(first, second):
+                if a != b:
+                    if position[a] > position[b]:
+                        return False, "'{}' must come before '{}' because {!r} is listed before {!r}.".format(a, b, first, second)
+                    break
+        return True, None
+
+hints:
+  - What can you learn from two **adjacent** words in the list? Look at the first position where they differ. Does anything after that position tell you something?
+  - Each adjacent pair gives at most one rule, "letter x comes before letter y". Collect these rules as directed edges between letters. What problem is "find an order that respects every edge"?
+  - Run a topological sort (Kahn's algorithm) over all letters that appear, including letters with no edges. If it cannot place every letter, there is a cycle, so return `""`. Also return `""` when a word is followed by its own proper prefix.
+
+approach: Build letter-precedence graph + Kahn's topological sort
+optimal_solution: |
+  class Solution:
+      def alienOrder(self, words: List[str]) -> str:
+          # Every letter that appears is a node, even if no rule mentions it.
+          after = {ch: set() for word in words for ch in word}  # x -> letters that come after x
+          indegree = {ch: 0 for ch in after}
+
+          # Each pair of adjacent words gives at most one rule.
+          for first, second in zip(words, words[1:]):
+              for a, b in zip(first, second):
+                  if a != b:
+                      if b not in after[a]:  # don't count a repeated rule twice
+                          after[a].add(b)
+                          indegree[b] += 1
+                      break                  # later letters tell us nothing
+              else:
+                  # No difference in the overlap: the shorter word must come first.
+                  if len(first) > len(second):
+                      return ""
+
+          # Kahn's algorithm: repeatedly output a letter with no remaining predecessors.
+          queue = deque(ch for ch in indegree if indegree[ch] == 0)
+          order = []
+          while queue:
+              ch = queue.popleft()
+              order.append(ch)
+              for nxt in after[ch]:
+                  indegree[nxt] -= 1
+                  if indegree[nxt] == 0:
+                      queue.append(nxt)
+
+          # Letters on a cycle never reach in-degree 0.
+          return "".join(order) if len(order) == len(after) else ""
+
+explanation: |
+  **Intuition.** A sorted dictionary hides the alphabet in the **first difference** between neighboring words. In `"cab"` and `"cad"` the first two letters agree, so the words are ordered by their third letters, which tells us `b < d`. Letters *after* the first difference say nothing: `"ab"` before `"ba"` tells us `a < b` and nothing about `b` versus `a` in the second position.
+
+  Each rule `x < y` is a directed edge `x → y`. An alphabet consistent with all the rules is a **topological order** of this graph. It exists exactly when the graph has no cycle, and it is not unique when some letters are unordered relative to each other.
+
+  **Algorithm.**
+  1. Create a node for every distinct letter in `words`. Letters that never appear in a rule must still be in the answer.
+  2. For each adjacent pair `(first, second)`, scan both words together:
+     - At the first index where they differ, add the edge `first[i] → second[i]` (once) and stop scanning.
+     - If there is no difference and `first` is longer than `second`, then `second` is a proper prefix listed after `first`. That is impossible, so return `""`.
+  3. Run Kahn's algorithm: start with all letters of in-degree 0, repeatedly output one, and decrement the in-degree of its successors.
+  4. If every letter was output, return the order. Otherwise a cycle blocked some letters, so return `""`.
+
+  **Subtle points.**
+  - **The prefix trap.** `["abc", "ab"]` produces no edges at all, so a pure topological sort would happily return an order. You must detect this case explicitly.
+  - **Duplicate rules.** The same edge can come from several pairs. Adding it to `indegree` twice but removing it once would leave the letter stuck forever, so store edges in a set and count each one once.
+  - **Only adjacent pairs are needed.** Lexicographic order is transitive, so rules between non-adjacent words follow from the rules between neighbors.
+  - Identical adjacent words (`"ab", "ab"`) give no rule and are fine.
+
+key_insight: Each adjacent word pair gives at most one letter-precedence edge (at its first differing position), so the alien alphabet is any topological order of those edges, if one exists.
+
+time_complexity: O(C)
+space_complexity: O(1)
+complexity_explanation: |
+  Let `C` be the total number of characters in `words`, and `U ≤ 26` the number of distinct letters.
+
+  **Time O(C):** creating the nodes reads every character once, and comparing each adjacent pair reads at most the length of the shorter word. Kahn's algorithm is O(U + edges). There are at most `min(26², words.length)` distinct edges, which is constant.
+
+  **Space O(1)** beyond the input: the graph has at most 26 nodes and 26² edges. (Written in terms of the alphabet size, O(U + U²).)
+
+data_structures: [Adjacency sets, Hash map (in-degrees), Queue]
+passes: 1 pass over adjacent pairs, then 1 BFS over letters
+
+alternatives:
+  - name: DFS topological sort (postorder)
+    time_complexity: O(C)
+    space_complexity: O(1)
+    explanation: |
+      Build the same graph. Then DFS from every letter using three states (unvisited, visiting, done). Append a letter to a list **after** all of its successors are finished (postorder). Reaching a letter that is still *visiting* means a cycle, so return `""`. The reversed postorder is a valid alphabet, because every letter is placed after everything that must follow it.
+    tradeoff: The same complexity, and duplicate edges need no special care because there is no in-degree count. You must remember to reverse the postorder and to use three states for cycle detection. Kahn's algorithm is usually considered easier to get right, and it detects a cycle with a single count comparison.
+    code: |
+      class Solution:
+          def alienOrder(self, words: List[str]) -> str:
+              after = {ch: set() for word in words for ch in word}
+              for first, second in zip(words, words[1:]):
+                  for a, b in zip(first, second):
+                      if a != b:
+                          after[a].add(b)
+                          break
+                  else:
+                      if len(first) > len(second):
+                          return ""  # a word listed before its own prefix
+
+              VISITING, DONE = 1, 2
+              state = {}
+              postorder = []
+
+              def dfs(ch: str) -> bool:
+                  """Return False if a cycle is reachable from ch."""
+                  if state.get(ch) == VISITING:
+                      return False
+                  if state.get(ch) == DONE:
+                      return True
+                  state[ch] = VISITING
+                  for nxt in after[ch]:
+                      if not dfs(nxt):
+                          return False
+                  state[ch] = DONE
+                  postorder.append(ch)  # everything after ch is already placed
+                  return True
+
+              for ch in after:
+                  if not dfs(ch):
+                      return ""
+              return "".join(reversed(postorder))
+
+tests:
+  - name: single one-letter word
+    input: { words: ["z"] }
+    expected: "z"
+  - name: single word with repeated letters
+    input: { words: ["aaa"] }
+    expected: "a"
+  - name: identical words give no rule
+    input: { words: ["ab", "ab"] }
+    expected: "ab"
+  - name: two-letter cycle
+    input: { words: ["z", "x", "z"] }
+    expected: ""
+  - name: three-letter cycle
+    input: { words: ["ab", "bc", "ca", "a"] }
+    expected: ""
+  - name: word before its own prefix
+    input: { words: ["abc", "abd", "ab"] }
+    expected: ""
+  - name: prefix before longer word is fine
+    input: { words: ["x", "xy", "xyz", "y"] }
+    expected: "xyz"
+  - name: only the first difference counts
+    input: { words: ["ac", "ab", "zc", "zb"] }
+    expected: "acbz"
+  - name: unconstrained letters must still appear
+    input: { words: ["ab", "adc"] }
+    expected: "abcd"
+  - name: unique order from a chain of rules
+    input: { words: ["wrt", "wrf", "er", "ett", "rftt"] }
+    expected: "wertf"
+
+benchmark:
+  size_label: number of words
+  sizes: [10, 100, 1000, 5000, 20000]
+  generator: |
+    def generate(n, rng):
+        # Random words sorted under a hidden random alphabet, so a valid order exists.
+        alphabet = list("abcdefghijklmnopqrstuvwxyz")
+        rng.shuffle(alphabet)
+        rank = {ch: i for i, ch in enumerate(alphabet)}
+        words = ["".join(rng.choice(alphabet) for _ in range(rng.randint(1, 10))) for _ in range(n)]
+        words.sort(key=lambda w: [rank[ch] for ch in w])
+        return {"words": words}

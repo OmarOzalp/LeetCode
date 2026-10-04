@@ -1,0 +1,188 @@
+id: "230"
+title: Kth Smallest Element in a BST
+slug: kth-smallest-element-in-a-bst
+leetcode_url: https://leetcode.com/problems/kth-smallest-element-in-a-bst/
+category: trees
+difficulty: Medium
+patterns: [Inorder Traversal, BST Property, Stack, DFS]
+
+description: |
+  You are given the `root` of a **binary search tree** (BST) and an integer `k`. Return the `k`-th smallest value among all nodes in the tree. `k` is **1-indexed**: `k = 1` asks for the minimum.
+
+  In a BST, every value in a node's left subtree is smaller than the node's value, and every value in its right subtree is larger. All values are distinct.
+
+  **Follow-up:** if the tree were modified often (frequent inserts and deletes) and you needed the k-th smallest value after every change, how would you speed this up?
+
+examples:
+  - input: { root: [3, 1, 4, null, 2], k: 1 }
+    output: 1
+    explanation: The values in ascending order are `1, 2, 3, 4`. The 1st smallest is `1`.
+  - input: { root: [5, 3, 6, 2, 4, null, null, 1], k: 3 }
+    output: 3
+    explanation: "In ascending order the values are `1, 2, 3, 4, 5, 6`, so the 3rd smallest is `3`. It is the root of the left subtree, and the two smaller values (`1` and `2`) sit below it on the left."
+
+constraints:
+  - "The number of nodes in the tree is `n`."
+  - "`1 <= k <= n <= 10^4`"
+  - "`0 <= Node.val <= 10^4`"
+  - "The tree is a valid BST, so all values are distinct."
+
+function_signature: "def kthSmallest(self, root: Optional[TreeNode], k: int) -> int"
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def kthSmallest(self, root: Optional[TreeNode], k: int) -> int:
+          pass
+
+runner:
+  kind: function
+  method: kthSmallest
+  params:
+    - { name: root, type: "Optional[TreeNode]" }
+    - { name: k, type: int }
+  returns: int
+
+hints:
+  - Collecting every value and sorting works, but it ignores the most useful fact you were given. What does the BST ordering let you skip?
+  - "There is a traversal order that visits a BST's values in ascending order: left subtree, then the node, then the right subtree."
+  - "Run an inorder traversal and count nodes as you visit them. The k-th node visited is the answer, and you can stop right there. Doing it iteratively with a stack makes stopping early simple: push the whole left spine, pop a node, count it, then continue from its right child."
+
+approach: Iterative inorder traversal with early stop
+optimal_solution: |
+  class Solution:
+      def kthSmallest(self, root: Optional[TreeNode], k: int) -> int:
+          stack = []
+          node = root
+          while stack or node:
+              # Push the left spine: the smallest unvisited value ends up on top.
+              while node:
+                  stack.append(node)
+                  node = node.left
+              node = stack.pop()      # next value in ascending order
+              k -= 1
+              if k == 0:
+                  return node.val
+              node = node.right       # everything in the right subtree comes next
+          return -1  # unreachable: 1 <= k <= n is guaranteed
+
+explanation: |
+  **Intuition.** An **inorder traversal** (left subtree, node, right subtree) of a BST visits the values in ascending order. Everything in the left subtree is smaller than the node, and everything in the right subtree is larger, so this order is sorted at every level. The k-th smallest value is therefore simply the **k-th node visited in inorder**, and we can stop as soon as we reach it.
+
+  An iterative traversal with an explicit stack makes the early stop natural. The stack holds the nodes whose left side we are still exploring. Its top is always the smallest value not yet visited.
+
+  **Algorithm.**
+  1. Start with `node = root` and an empty stack.
+  2. Push `node` and keep moving to `node.left` until you hit `None`. The last node pushed is the smallest unvisited value.
+  3. Pop a node. This is the next value in ascending order. Decrement `k`, and if `k` reaches `0`, return its value.
+  4. Move to the popped node's **right** child (its successors live there) and repeat from step 2.
+
+  **Why the stack gives sorted order.** When a node is popped, its entire left subtree has already been visited (we only pop after exhausting the left spine), and nothing larger has been visited yet. That is exactly the inorder rule.
+
+  **Follow-up (frequent updates).** Store in every node the size of its subtree. Then, at each node, compare `k` with `left_size + 1`. If they are equal, the answer is this node. If `k` is smaller, go left. If it is larger, go right and subtract `left_size + 1` from `k`. Each query takes O(h), and inserts or deletes update the sizes along a single path. With a self-balancing BST, everything is O(log n).
+
+key_insight: An inorder traversal visits a BST's values in sorted order, so the k-th node visited is the answer and the traversal can stop there.
+
+time_complexity: O(h + k)
+space_complexity: O(h)
+complexity_explanation: |
+  **Time O(h + k):** before the first pop we walk down the left spine (up to `h` nodes). After that each pop produces the next value in order, and we stop after `k` pops. The pushes needed between pops add up to O(h + k) in total. In the worst case (`k = n`, or a skewed tree) this is O(n).
+
+  **Space O(h):** the stack only holds nodes on one root-to-leaf path. That is O(log n) for a balanced BST and O(n) for a chain.
+
+data_structures: [Stack, Binary search tree]
+passes: Partial inorder pass (stops at the k-th node)
+
+alternatives:
+  - name: Recursive inorder into a list
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Recursively produce the full inorder sequence (which is sorted for a BST) and return element `k - 1`.
+    tradeoff: The shortest code, and the inorder idea is the same. It always visits all `n` nodes and stores all `n` values, even when `k = 1`. The iterative version stops after `k` values and keeps only O(h) nodes on the stack.
+    code: |
+      class Solution:
+          def kthSmallest(self, root: Optional[TreeNode], k: int) -> int:
+              values = []
+
+              def inorder(node):
+                  if node is None:
+                      return
+                  inorder(node.left)
+                  values.append(node.val)   # appended in ascending order
+                  inorder(node.right)
+
+              inorder(root)
+              return values[k - 1]
+  - name: Collect every value and sort (ignores the BST property)
+    time_complexity: O(n log n)
+    space_complexity: O(n)
+    explanation: |
+      Traverse the tree in any order, put every value in a list, sort it, and return element `k - 1`.
+    tradeoff: Works for any binary tree, which is a useful fallback, but it pays O(n log n) to sort values that the BST already keeps in order. The inorder traversal reads them out sorted in O(n) or less.
+    code: |
+      class Solution:
+          def kthSmallest(self, root: Optional[TreeNode], k: int) -> int:
+              values, stack = [], [root]
+              while stack:
+                  node = stack.pop()
+                  if node:
+                      values.append(node.val)
+                      stack.append(node.left)
+                      stack.append(node.right)
+              values.sort()
+              return values[k - 1]
+
+tests:
+  - { name: single node, input: { root: [7], k: 1 }, expected: 7 }
+  - { name: k equals n (the maximum), input: { root: [5, 3, 6, 2, 4, null, null, 1], k: 6 }, expected: 6 }
+  - { name: left-skewed chain, input: { root: [4, 3, null, 2, null, 1], k: 2 }, expected: 2 }
+  - { name: right-skewed chain, input: { root: [1, null, 2, null, 3, null, 4], k: 4 }, expected: 4 }
+  - { name: answer is the root, input: { root: [10, 5, 15, 3, 7, 12, 20], k: 4 }, expected: 10 }
+  - { name: answer in the right subtree, input: { root: [10, 5, 15, 3, 7, 12, 20], k: 5 }, expected: 12 }
+  - { name: zero value and a right child in the left subtree, input: { root: [2, 0, 3, null, 1], k: 2 }, expected: 1 }
+  - { name: extreme values, input: { root: [10000, 0], k: 1 }, expected: 0 }
+  - name: larger perfect BST
+    input: { root: [20, 10, 30, 5, 15, 25, 35, 1, 7, 12, 17, 22, 27, 32, 40], k: 11 }
+    expected: 27
+
+benchmark:
+  size_label: number of nodes
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        vals = sorted(rng.sample(range(10 * n), n))
+        # Random BST shape: node i holds vals[i]. Each value range picks a random
+        # root (like quicksort pivots), so the expected height is O(log n).
+        left, right = [-1] * n, [-1] * n
+        root = rng.randrange(n)
+        stack = [(root, 0, n)]  # (node, lo, hi): node is the root of vals[lo:hi]
+        while stack:
+            i, lo, hi = stack.pop()
+            if lo < i:
+                left[i] = rng.randrange(lo, i)
+                stack.append((left[i], lo, i))
+            if i + 1 < hi:
+                right[i] = rng.randrange(i + 1, hi)
+                stack.append((right[i], i + 1, hi))
+
+        # Serialize to LeetCode level order (None marks a missing child).
+        out, queue = [], deque([root])
+        while queue:
+            i = queue.popleft()
+            if i < 0:
+                out.append(None)
+                continue
+            out.append(vals[i])
+            queue.append(left[i])
+            queue.append(right[i])
+        while out[-1] is None:
+            out.pop()
+        # k within the smallest 10%: early stopping pays off, while a full
+        # traversal still has to visit all n nodes.
+        return {"root": out, "k": rng.randint(1, n // 10)}

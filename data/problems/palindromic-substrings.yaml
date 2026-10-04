@@ -1,0 +1,163 @@
+id: "647"
+title: Palindromic Substrings
+slug: palindromic-substrings
+leetcode_url: https://leetcode.com/problems/palindromic-substrings/
+category: dp-1d
+difficulty: Medium
+patterns: [Expand Around Center, Palindrome DP, Counting]
+
+description: |
+  Given a string `s`, count how many of its **substrings** are palindromes.
+
+  A substring is a contiguous, non-empty block of characters. Substrings are counted by **position**: two equal-looking substrings that start or end at different indices are counted separately.
+
+examples:
+  - input: { s: abc }
+    output: 3
+    explanation: "Only the single characters `\"a\"`, `\"b\"` and `\"c\"` are palindromes."
+  - input: { s: aaa }
+    output: 6
+    explanation: "Three copies of `\"a\"`, two of `\"aa\"` (positions 0-1 and 1-2), and one `\"aaa\"`."
+  - input: { s: abba }
+    output: 6
+    explanation: "Four single letters, plus `\"bb\"` and `\"abba\"`. Both of the longer ones have an even length, centered between two characters."
+
+constraints:
+  - "`1 <= s.length <= 1000`"
+  - "`s` consists of lowercase English letters."
+
+function_signature: "def countSubstrings(self, s: str) -> int"
+
+starter_code: |
+  class Solution:
+      def countSubstrings(self, s: str) -> int:
+          pass
+
+runner:
+  kind: function
+  method: countSubstrings
+  params:
+    - { name: s, type: str }
+  returns: int
+
+hints:
+  - There are about n²/2 substrings. Checking each one from scratch costs O(n) more. Can a palindrome you have already confirmed help you confirm a longer one?
+  - "`s[i..j]` is a palindrome exactly when `s[i] == s[j]` and the inside `s[i+1..j-1]` is a palindrome. Longer palindromes are built from shorter ones that share the same center."
+  - Pick each of the `2n - 1` centers (each character, and each gap between two neighbors) and expand outwards while the two ends match. Every successful step is one more palindrome to count.
+
+approach: Expand around every center and count
+optimal_solution: |
+  class Solution:
+      def countSubstrings(self, s: str) -> int:
+          n = len(s)
+
+          def count_from(lo: int, hi: int) -> int:
+              """Count the palindromes that share this center by expanding outward."""
+              found = 0
+              while lo >= 0 and hi < n and s[lo] == s[hi]:
+                  found += 1  # s[lo..hi] is a palindrome
+                  lo -= 1
+                  hi += 1
+              return found
+
+          total = 0
+          for center in range(n):
+              total += count_from(center, center)      # odd lengths, centered on s[center]
+              total += count_from(center, center + 1)  # even lengths, centered between two chars
+          return total
+
+explanation: |
+  **Intuition.** Every palindrome has a center: a single character (odd length) or the gap between two characters (even length). All palindromes with the same center are nested, like `"b" ⊂ "aba" ⊂ "cabac"`, and each one is the previous one plus a matching pair of characters. So starting from a center and stepping outwards visits exactly the palindromes with that center, one per step, until the first mismatch.
+
+  **State & recurrence (the DP behind it).**
+  - **State:** `pal(i, j)` = "is `s[i..j]` a palindrome?"
+  - **Transition:** `pal(i, j) = (s[i] == s[j]) and pal(i + 1, j - 1)`.
+  - **Base cases:** `pal(i, i) = True` (one character) and `pal(i, i + 1) = (s[i] == s[i + 1])` (two characters, empty inside).
+  - **Answer:** the number of pairs `(i, j)` with `pal(i, j)` true.
+  - **Order & space:** each value depends only on the next-inner value on the same center, so walking outward from the center computes them in a valid order. Once one is `False`, all wider ones on that center are `False`, so we stop. No table is needed: O(1) extra space instead of O(n²).
+
+  **Algorithm.**
+  1. For each index `center`, expand from `(center, center)` and from `(center, center + 1)`.
+  2. While both ends are in range and `s[lo] == s[hi]`, count one palindrome and move `lo` left, `hi` right.
+  3. Sum the counts over all `2n - 1` centers.
+
+  **Subtle points.**
+  - Count by position: `"aaa"` contains `"aa"` twice. Using a set of strings would undercount.
+  - Do not forget even-length centers. Without them `"abba"` gives 4 instead of 6.
+  - Every single character is a palindrome, so the answer is always at least `n`.
+
+key_insight: Every palindrome is uniquely identified by its center and radius, so expanding from all 2n - 1 centers and counting each successful step counts every palindrome exactly once.
+
+time_complexity: O(n²)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n²):** `2n - 1` centers, each expanding at most O(n) steps. The bound is tight for strings like `"aaaa…a"`, which really do contain about n²/2 palindromes, each found in O(1). For typical strings most expansions stop after a step or two.
+
+  **Space O(1):** a running total and two indices. The DP table version needs O(n²) memory for the same information.
+
+data_structures: [Two pointers]
+passes: 2n - 1 center expansions
+
+alternatives:
+  - name: Brute force (check every substring)
+    time_complexity: O(n³)
+    space_complexity: O(n)
+    explanation: |
+      Enumerate every pair `(i, j)` and check whether `s[i..j]` equals its reverse. There are about n²/2 substrings and each check is O(n).
+    tradeoff: Straightforward and obviously correct, but it never reuses work. Checking `"abcba"` repeats the comparison already made for `"bcb"`. That makes it cubic, about 10⁸ character operations at n = 1000.
+    code: |
+      class Solution:
+          def countSubstrings(self, s: str) -> int:
+              n = len(s)
+              count = 0
+              for i in range(n):
+                  for j in range(i + 1, n + 1):
+                      sub = s[i:j]
+                      if sub == sub[::-1]:
+                          count += 1
+              return count
+  - name: 2-D DP table
+    time_complexity: O(n²)
+    space_complexity: O(n²)
+    explanation: |
+      Store `is_pal[i][j]` for every pair and fill it bottom-up (`i` from `n - 1` down to 0, `j` from `i` up), so that `is_pal[i + 1][j - 1]` is already known: `is_pal[i][j] = s[i] == s[j] and (j - i < 2 or is_pal[i + 1][j - 1])`. Count the `True` entries.
+    tradeoff: Same O(n²) time as expansion and shows the recurrence explicitly. It needs a full n × n table (a million cells at n = 1000) and always does n²/2 work, whereas expansion stops at the first mismatch and needs no table.
+    code: |
+      class Solution:
+          def countSubstrings(self, s: str) -> int:
+              n = len(s)
+              # is_pal[i][j] is True when s[i..j] (inclusive) is a palindrome.
+              is_pal = [[False] * n for _ in range(n)]
+              count = 0
+              for i in range(n - 1, -1, -1):  # row i + 1 must be filled before row i
+                  for j in range(i, n):
+                      # Length 1 or 2: matching ends suffice. Longer: the inside must be a palindrome too.
+                      if s[i] == s[j] and (j - i < 2 or is_pal[i + 1][j - 1]):
+                          is_pal[i][j] = True
+                          count += 1
+              return count
+
+tests:
+  - { name: single character, input: { s: a }, expected: 1 }
+  - { name: two equal characters, input: { s: aa }, expected: 3 }
+  - { name: two different characters, input: { s: ab }, expected: 2 }
+  - { name: odd palindrome, input: { s: aba }, expected: 4 }
+  - { name: whole word palindrome, input: { s: racecar }, expected: 10 }
+  - { name: nested even palindromes, input: { s: abccba }, expected: 9 }
+  - { name: all distinct, input: { s: abcdefghij }, expected: 10 }
+  - { name: five equal letters, input: { s: aaaaa }, expected: 15 }
+  - name: one hundred equal letters
+    input: { s: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa }
+    expected: 5050
+
+benchmark:
+  size_label: length of s
+  sizes: [50, 100, 250, 500, 1000]
+  generator: |
+    def generate(n, rng):
+        # Runs of repeated letters ("aaabbbbbcaa...") whose length grows with n
+        # contain many overlapping palindromes, so center expansion does real work.
+        chars = []
+        while len(chars) < n:
+            chars.extend(rng.choice("abc") * rng.randint(1, max(2, n // 10)))
+        return {"s": "".join(chars[:n])}

@@ -1,0 +1,134 @@
+id: "252"
+title: Meeting Rooms
+slug: meeting-rooms
+leetcode_url: https://leetcode.com/problems/meeting-rooms/
+category: intervals
+difficulty: Easy
+patterns: [Intervals, Sorting]
+
+description: |
+  You are given an array of meeting time intervals `intervals`, where `intervals[i] = [start_i, end_i]`. Determine whether a single person could attend **all** of the meetings, that is, whether no two meetings overlap.
+
+  A meeting that ends at time `t` does **not** conflict with a meeting that starts at time `t`. For example, `[1, 5]` and `[5, 10]` can both be attended.
+
+examples:
+  - input: { intervals: [[0, 30], [5, 10], [15, 20]] }
+    output: false
+    explanation: |
+      `[0, 30]` overlaps both of the other meetings.
+  - input: { intervals: [[7, 10], [2, 4]] }
+    output: true
+    explanation: |
+      In time order the meetings are `[2, 4]` and then `[7, 10]`, which do not overlap. The input does not have to be sorted.
+  - input: { intervals: [[1, 5], [5, 10]] }
+    output: true
+    explanation: |
+      The first meeting ends exactly when the second one starts, so there is no conflict.
+
+constraints:
+  - "`0 <= intervals.length <= 10^4`"
+  - "`intervals[i].length == 2`"
+  - "`0 <= start_i < end_i <= 10^6`"
+
+function_signature: "def canAttendMeetings(self, intervals: List[List[int]]) -> bool"
+
+starter_code: |
+  class Solution:
+      def canAttendMeetings(self, intervals: List[List[int]]) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: canAttendMeetings
+  params:
+    - { name: intervals, type: "List[List[int]]" }
+  returns: bool
+
+hints:
+  - Comparing every pair of meetings works but costs O(n²). If the meetings were listed in chronological order, which pairs would you actually need to compare?
+  - After sorting by start time, if *any* two meetings overlap then some pair of *neighbouring* meetings overlaps too. So each meeting only has to be compared with the one right before it.
+  - Sort by start, then return `False` as soon as a meeting starts strictly before the previous meeting ends. Starting exactly when the previous one ends is allowed.
+
+approach: Sort by start, compare neighbours
+optimal_solution: |
+  class Solution:
+      def canAttendMeetings(self, intervals: List[List[int]]) -> bool:
+          intervals = sorted(intervals, key=lambda iv: iv[0])  # chronological order
+
+          for i in range(1, len(intervals)):
+              # Starting before the previous meeting ends is a conflict;
+              # starting exactly when it ends is fine.
+              if intervals[i][0] < intervals[i - 1][1]:
+                  return False
+
+          return True
+
+explanation: |
+  **Intuition.** One person can attend everything exactly when the meetings, laid out on a timeline, never overlap. Laying them out on a timeline just means **sorting by start time**. After that, any conflict has to show up between neighbours.
+
+  **Why checking neighbours is enough.** Sort by start and suppose meeting `a` overlaps some later meeting `c`, so `c.start < a.end`. Every meeting `b` that sits between them in sorted order has `a.start <= b.start <= c.start < a.end`, so `b` also starts before `a` ends and overlaps `a`. In particular the meeting *immediately* after `a` overlaps it. Every conflict is therefore visible between two adjacent meetings, and one pass over adjacent pairs finds it.
+
+  **Algorithm.**
+  1. Sort the meetings by start time.
+  2. For each consecutive pair, if `current.start < previous.end`, return `False`.
+  3. If no pair conflicts, return `True`.
+
+  **Subtle points.**
+  - Use a strict `<`. `[1, 5]` followed by `[5, 10]` is back-to-back, not overlapping.
+  - With no meetings or a single meeting there is nothing to compare, so the answer is `True`.
+  - Comparing with the previous meeting's end is enough here because we stop at the first conflict. We never need a running maximum end, unlike Merge Intervals, where a long earlier interval can cover several later ones.
+  - This is the "one room" special case of Meeting Rooms II: the answer is `True` exactly when the minimum number of rooms is at most 1.
+
+key_insight: After sorting by start time, any overlap must appear between two adjacent meetings, so one comparison per neighbour pair decides the answer.
+
+time_complexity: O(n log n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n log n):** sorting dominates. The scan over adjacent pairs is O(n).
+
+  **Space O(n):** `sorted` makes a copy of the list (and Python's sort may use up to O(n) auxiliary memory). Sorting in place with `intervals.sort()` avoids the copy if mutating the input is acceptable.
+
+data_structures: [Array]
+passes: Sort, then 1 pass
+
+alternatives:
+  - name: Brute force (check every pair)
+    time_complexity: O(n²)
+    space_complexity: O(1)
+    explanation: |
+      Two meetings `a` and `b` overlap exactly when each starts before the other ends: `a.start < b.end and b.start < a.end`. Test this for every pair and return `False` on the first hit.
+    tradeoff: Needs no sorting and no extra memory, and the two-sided overlap test is worth memorising. But it checks all ~n²/2 pairs, about 5·10^7 at n = 10^4, while sorting first needs O(n log n).
+    code: |
+      class Solution:
+          def canAttendMeetings(self, intervals: List[List[int]]) -> bool:
+              n = len(intervals)
+              for i in range(n):
+                  for j in range(i + 1, n):
+                      a, b = intervals[i], intervals[j]
+                      # Two meetings overlap if each starts before the other ends.
+                      if a[0] < b[1] and b[0] < a[1]:
+                          return False
+              return True
+
+tests:
+  - { name: no meetings, input: { intervals: [] }, expected: true }
+  - { name: single meeting, input: { intervals: [[5, 10]] }, expected: true }
+  - { name: back-to-back meetings unsorted, input: { intervals: [[3, 4], [0, 1], [2, 3], [1, 2]] }, expected: true }
+  - { name: nested meeting, input: { intervals: [[1, 10], [2, 3]] }, expected: false }
+  - { name: conflict only visible after sorting, input: { intervals: [[10, 15], [0, 5], [4, 8]] }, expected: false }
+  - { name: identical meetings, input: { intervals: [[1, 2], [1, 2]] }, expected: false }
+  - { name: overlap by one unit, input: { intervals: [[1, 5], [4, 10]] }, expected: false }
+  - { name: same start time, input: { intervals: [[2, 3], [2, 7]] }, expected: false }
+  - { name: far apart at the boundaries, input: { intervals: [[999999, 1000000], [0, 1]] }, expected: true }
+
+benchmark:
+  size_label: number of meetings
+  sizes: [100, 500, 2000, 10000]
+  generator: |
+    def generate(n, rng):
+        # n disjoint meetings (the answer is True, so every neighbour pair is
+        # checked), built from 2n distinct time points and then shuffled.
+        points = sorted(rng.sample(range(1000001), 2 * n))
+        intervals = [[points[2 * k], points[2 * k + 1]] for k in range(n)]
+        rng.shuffle(intervals)
+        return {"intervals": intervals}

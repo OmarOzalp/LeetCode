@@ -1,0 +1,147 @@
+id: "242"
+title: Valid Anagram
+slug: valid-anagram
+leetcode_url: https://leetcode.com/problems/valid-anagram/
+category: arrays-hashing
+difficulty: Easy
+patterns: [Frequency Counting, Hash Map]
+
+description: |
+  Given two strings `s` and `t`, return `True` if `t` is an **anagram** of `s`, and `False` otherwise.
+
+  An anagram uses exactly the same letters as the original, each **the same number of times**, just possibly in a different order. For example, `"listen"` and `"silent"` are anagrams, but `"aab"` and `"abb"` are not.
+
+  **Follow-up:** how would you adapt your solution if the strings could contain any Unicode characters instead of only lowercase English letters?
+
+examples:
+  - input: { s: listen, t: silent }
+    output: true
+    explanation: Both strings contain one each of `e`, `i`, `l`, `n`, `s`, `t`.
+  - input: { s: hello, t: world }
+    output: false
+  - input: { s: aab, t: abb }
+    output: false
+    explanation: The strings use the same *set* of letters, but `s` has two `a`s while `t` has only one. Counts must match, not just the letters.
+
+constraints:
+  - "`1 <= s.length, t.length <= 5 * 10^4`"
+  - "`s` and `t` consist of lowercase English letters."
+
+function_signature: "def isAnagram(self, s: str, t: str) -> bool"
+
+starter_code: |
+  class Solution:
+      def isAnagram(self, s: str, t: str) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: isAnagram
+  params:
+    - { name: s, type: str }
+    - { name: t, type: str }
+  returns: bool
+
+hints:
+  - Two strings are anagrams exactly when every letter appears the same number of times in both. Is there a quick check that rules many pairs out before you count anything?
+  - Sorting both strings and comparing them works, but it costs O(n log n). Can you capture "how many of each letter" directly instead?
+  - There are only 26 possible letters. Keep one counter per letter, add 1 for each letter of `s` and subtract 1 for each letter of `t`. What must every counter be at the end if the strings are anagrams?
+
+approach: Letter counting (26 counters)
+optimal_solution: |
+  class Solution:
+      def isAnagram(self, s: str, t: str) -> bool:
+          # Strings of different lengths can never be rearrangements of each other.
+          if len(s) != len(t):
+              return False
+
+          # count[i] = (occurrences of letter i in s) - (occurrences in t)
+          count = [0] * 26
+          for a, b in zip(s, t):
+              count[ord(a) - ord("a")] += 1
+              count[ord(b) - ord("a")] -= 1
+
+          # Anagrams balance out perfectly: every letter's net count is zero.
+          return all(c == 0 for c in count)
+
+explanation: |
+  **Intuition.** Order does not matter for an anagram, only *how many times each letter appears*. So instead of rearranging anything, describe each string by its letter counts and compare those descriptions.
+
+  With only 26 possible letters, a fixed array of 26 integers is enough. Rather than building two count arrays, we use one array as a running **balance**: `+1` for every letter in `s`, `-1` for every letter in `t`. If the strings are anagrams, every increment is cancelled by a matching decrement.
+
+  **Algorithm.**
+  1. If `len(s) != len(t)`, return `False` immediately.
+  2. Create `count = [0] * 26`.
+  3. Walk both strings together; for each position add 1 for `s`'s letter and subtract 1 for `t`'s letter. The index of a letter is `ord(letter) - ord("a")`.
+  4. Return `True` only if every entry of `count` is `0`.
+
+  **Subtle points.**
+  - **The length check is not just an optimisation.** `zip` stops at the shorter string, so without the check `"ab"` vs `"abc"` would wrongly balance out.
+  - Comparing *sets* of letters is a common bug: `"aab"` and `"abb"` have the same set but different counts.
+  - **Unicode follow-up:** the 26-slot array assumes lowercase English letters. For arbitrary characters, use a hash map instead (for example `Counter(s) == Counter(t)`). The time stays O(n) and the space becomes O(k) for k distinct characters.
+
+key_insight: Anagrams are exactly the strings with identical letter counts, so a single O(n) counting pass replaces sorting.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** after the O(1) length check, we visit each of the `n` positions once and do constant work per character. The final check looks at 26 counters, which is constant.
+
+  **Space O(1):** the count array always has exactly 26 entries no matter how long the strings are. With a general Unicode alphabet this becomes O(k), where k is the number of distinct characters.
+
+data_structures: [Array (26 counters)]
+passes: 1 pass over both strings in parallel
+
+alternatives:
+  - name: Brute force (cross off matching letters)
+    time_complexity: O(n²)
+    space_complexity: O(n)
+    explanation: |
+      Copy `t` into a list. For every character of `s`, find one matching character in that list and remove it; if none is left, the strings are not anagrams. If every character of `s` finds a partner (and the lengths match), they are anagrams.
+    tradeoff: Mirrors how you would check by hand, but each search-and-remove scans the list, giving about n²/2 steps. At n = 5·10⁴ that is over a billion element operations, versus 10⁵ counter updates for the counting solution.
+    code: |
+      class Solution:
+          def isAnagram(self, s: str, t: str) -> bool:
+              if len(s) != len(t):
+                  return False
+              remaining = list(t)
+              for ch in s:
+                  if ch not in remaining:
+                      return False
+                  remaining.remove(ch)  # cross off one matching letter
+              return True
+  - name: Sort both strings
+    time_complexity: O(n log n)
+    space_complexity: O(n)
+    explanation: |
+      Sorting puts the letters of any word in a canonical order, so two strings are anagrams exactly when their sorted versions are identical.
+    tradeoff: Very short and works for any character set without changes, but sorting costs O(n log n) and builds two sorted copies (O(n) memory), whereas counting is O(n) time with a constant-size array.
+    code: |
+      class Solution:
+          def isAnagram(self, s: str, t: str) -> bool:
+              return sorted(s) == sorted(t)
+
+tests:
+  - { name: single equal letters, input: { s: a, t: a }, expected: true }
+  - { name: single different letters, input: { s: a, t: b }, expected: false }
+  - { name: different lengths, input: { s: ab, t: abc }, expected: false }
+  - { name: t is a prefix of s, input: { s: abcd, t: abc }, expected: false }
+  - { name: same letters different counts, input: { s: aacc, t: ccac }, expected: false }
+  - { name: identical strings, input: { s: anagram, t: anagram }, expected: true }
+  - { name: reversed string, input: { s: abcdefghij, t: jihgfedcba }, expected: true }
+  - { name: heavy repetition, input: { s: aaaaaaaaab, t: baaaaaaaaa }, expected: true }
+  - { name: one letter swapped, input: { s: rat, t: car }, expected: false }
+  - { name: all 26 letters, input: { s: thequickbrownfoxjumpsoverthelazydog, t: godyzalehtrevospmujxofnworbkciuqeht }, expected: true }
+
+benchmark:
+  size_label: length of s
+  sizes: [100, 1000, 5000, 20000, 50000]
+  generator: |
+    def generate(n, rng):
+        # t is a shuffled copy of s, so the answer is True and every character
+        # must be examined before an approach can say so.
+        letters = "abcdefghijklmnopqrstuvwxyz"
+        s = [rng.choice(letters) for _ in range(n)]
+        t = s[:]
+        rng.shuffle(t)
+        return {"s": "".join(s), "t": "".join(t)}

@@ -1,0 +1,175 @@
+id: "102"
+title: Binary Tree Level Order Traversal
+slug: binary-tree-level-order-traversal
+leetcode_url: https://leetcode.com/problems/binary-tree-level-order-traversal/
+category: trees
+difficulty: Medium
+patterns: [BFS, Queue, Level-by-Level Processing]
+
+description: |
+  Given the `root` of a binary tree, return the values of its nodes **level by level**: first the root, then all nodes one edge below it, then all nodes two edges below, and so on.
+
+  Return a list of lists, where the `i`-th inner list holds the values on level `i`, ordered **left to right**. An empty tree produces an empty list.
+
+examples:
+  - input: { root: [3, 9, 20, null, null, 15, 7] }
+    output: [[3], [9, 20], [15, 7]]
+    explanation: Level 0 is just the root `3`, level 1 holds its children `9` and `20`, and level 2 holds `20`'s children `15` and `7`.
+  - input: { root: [1] }
+    output: [[1]]
+  - input: { root: [] }
+    output: []
+
+constraints:
+  - "The number of nodes in the tree is in the range `[0, 2000]`."
+  - "`-1000 <= Node.val <= 1000`"
+
+function_signature: "def levelOrder(self, root: Optional[TreeNode]) -> List[List[int]]"
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def levelOrder(self, root: Optional[TreeNode]) -> List[List[int]]:
+          pass
+
+runner:
+  kind: function
+  method: levelOrder
+  params:
+    - { name: root, type: "Optional[TreeNode]" }
+  returns: "List[List[int]]"
+
+hints:
+  - DFS dives deep before it goes wide. Which traversal visits every node at distance 1 from the root before any node at distance 2?
+  - "Breadth-first search with a first-in, first-out queue visits nodes in exactly level order: children are added to the back, so they are only processed after everything already waiting."
+  - "The hard part is knowing where one level ends. At the start of each round, the queue holds exactly one complete level. Record its length, pop exactly that many nodes into a new list, and push their children for the next round."
+
+approach: BFS with a queue, one level per round
+optimal_solution: |
+  class Solution:
+      def levelOrder(self, root: Optional[TreeNode]) -> List[List[int]]:
+          if root is None:
+              return []
+
+          levels = []
+          queue = deque([root])
+          while queue:
+              # The queue now holds exactly one full level, left to right.
+              level = []
+              for _ in range(len(queue)):
+                  node = queue.popleft()
+                  level.append(node.val)
+                  if node.left:
+                      queue.append(node.left)
+                  if node.right:
+                      queue.append(node.right)
+              levels.append(level)
+          return levels
+
+explanation: |
+  **Intuition.** Breadth-first search explores a tree in rings around the root: everything at distance 1, then everything at distance 2, and so on. A FIFO **queue** produces this order automatically. Children join the back of the line, so they are processed only after every node that was already waiting, and those waiting nodes are all on the current level or earlier.
+
+  The one extra piece is **grouping** nodes by level. Plain BFS produces the flat sequence `3, 9, 20, 15, 7`, but we need `[[3], [9, 20], [15, 7]]`. The trick is an invariant: *at the start of each round of the outer loop, the queue contains exactly the nodes of one level, in left-to-right order.*
+
+  **Algorithm.**
+  1. If the tree is empty, return `[]`. Otherwise put the root in a queue.
+  2. While the queue is not empty:
+     - Let `size = len(queue)`. These `size` nodes are the current level.
+     - Pop exactly `size` nodes. Append each value to a new `level` list, and push the node's left child and then its right child (if they exist).
+     - Append `level` to the result.
+  3. Return the list of levels.
+
+  **Why the invariant holds.** Initially the queue holds only the root (level 0). During a round, we remove all `size` nodes of level `d` and add only their children, which are exactly the nodes of level `d + 1`. Pushing left before right, while processing the level left to right, keeps level `d + 1` in left-to-right order as well.
+
+  **Subtle points.**
+  - Evaluate `len(queue)` **once**, before popping. `range(len(queue))` does this for you. A `while queue` inner loop would run on into the next level.
+  - Use `collections.deque`. `list.pop(0)` shifts every remaining element, which makes the traversal O(n²) in the worst case.
+  - Don't push `None` children, or you would have to filter them out later.
+
+key_insight: BFS visits nodes in level order, and the queue's length at the start of each round is exactly the size of the current level.
+
+time_complexity: O(n)
+space_complexity: O(w)
+complexity_explanation: |
+  **Time O(n):** every node is pushed onto and popped from the queue exactly once, and `deque` makes both operations O(1).
+
+  **Space O(w):** apart from the output (which always holds all `n` values), the queue holds at most one level plus part of the next, so it is bounded by the maximum width `w`. A perfect tree's last level holds about n/2 nodes, so the worst case is O(n). A chain needs only O(1).
+
+data_structures: [Queue (deque), Binary tree]
+passes: 1 visit per node
+
+alternatives:
+  - name: DFS with a depth parameter
+    time_complexity: O(n)
+    space_complexity: O(h)
+    explanation: |
+      Do a preorder DFS that passes along each node's `depth`. The first time a depth is reached, `depth == len(levels)`, so append a new empty list. Then append the node's value to `levels[depth]`. Preorder visits left before right, so the values within every level still come out in left-to-right order, even though the levels are filled in an interleaved way.
+    tradeoff: Same O(n) time. It uses O(h) recursion stack instead of an O(w) queue, which is smaller for wide, balanced trees but O(n) deep for a skewed chain (and Python limits recursion depth). BFS matches the problem's level-by-level structure more directly and is what interviewers usually expect.
+    code: |
+      class Solution:
+          def levelOrder(self, root: Optional[TreeNode]) -> List[List[int]]:
+              levels = []
+
+              def dfs(node, depth):
+                  if node is None:
+                      return
+                  if depth == len(levels):    # first node seen on this level
+                      levels.append([])
+                  levels[depth].append(node.val)
+                  dfs(node.left, depth + 1)   # left first keeps each level left-to-right
+                  dfs(node.right, depth + 1)
+
+              dfs(root, 0)
+              return levels
+
+tests:
+  - { name: left-skewed chain, input: { root: [1, 2, null, 3, null, 4] }, expected: [[1], [2], [3], [4]] }
+  - { name: right-skewed chain, input: { root: [1, null, 2, null, 3] }, expected: [[1], [2], [3]] }
+  - { name: level with a gap in the middle, input: { root: [1, 2, 3, 4, null, null, 5] }, expected: [[1], [2, 3], [4, 5]] }
+  - { name: cousins stay left to right, input: { root: [1, 2, 3, null, 4, 5] }, expected: [[1], [2, 3], [4, 5]] }
+  - { name: zigzag path, input: { root: [1, 2, null, null, 3, 4] }, expected: [[1], [2], [3], [4]] }
+  - { name: negative and duplicate values, input: { root: [0, -1, -1, 2, 2, null, -3] }, expected: [[0], [-1, -1], [2, 2, -3]] }
+  - { name: extreme values, input: { root: [1000, -1000, null, null, 1000, -1000] }, expected: [[1000], [-1000], [1000], [-1000]] }
+  - name: perfect tree of depth 4
+    input: { root: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] }
+    expected: [[1], [2, 3], [4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]]
+
+benchmark:
+  size_label: number of nodes
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Grow a random tree: each new node takes a uniformly random free child
+        # slot. The height stays around O(log n), so recursion depth is modest.
+        left, right = [-1] * n, [-1] * n
+        free = [(0, 0), (0, 1)]  # (parent index, 0 = left / 1 = right)
+        for i in range(1, n):
+            j = rng.randrange(len(free))
+            free[j], free[-1] = free[-1], free[j]
+            parent, side = free.pop()
+            if side == 0:
+                left[parent] = i
+            else:
+                right[parent] = i
+            free.append((i, 0))
+            free.append((i, 1))
+        vals = [rng.randint(-1000, 1000) for _ in range(n)]
+
+        # Serialize to LeetCode level order (None marks a missing child).
+        out, queue = [], deque([0])
+        while queue:
+            i = queue.popleft()
+            if i < 0:
+                out.append(None)
+                continue
+            out.append(vals[i])
+            queue.append(left[i])
+            queue.append(right[i])
+        while out[-1] is None:
+            out.pop()
+        return {"root": out}

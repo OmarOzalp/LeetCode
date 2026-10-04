@@ -246,9 +246,20 @@ export interface SnippetResponse {
   elapsedMs?: number;
 }
 
+export interface DocEntry {
+  /** Anchor id, unique across all docs: "<section>--<entry>". */
+  id: string;
+  title: string;
+  markdown: string;
+}
+
 export interface DocSection {
   slug: string;
   title: string;
+  group: string;
+  summary: string;
+  keywords: string[];
+  intro: string;
   order: number;
-  markdown: string;
+  entries: DocEntry[];
 }

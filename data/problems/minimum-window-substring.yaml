@@ -1,0 +1,172 @@
+id: "76"
+title: Minimum Window Substring
+slug: minimum-window-substring
+leetcode_url: https://leetcode.com/problems/minimum-window-substring/
+category: sliding-window
+difficulty: Hard
+patterns: [Sliding Window, Hash Map, Two Pointers]
+
+description: |
+  You are given two strings `s` and `t`. Find the **shortest substring** of `s` that contains every character of `t`, **including duplicates**. For example, if `t = "aab"`, the window must contain at least two `a`s and one `b`.
+
+  Return that substring, or the empty string `""` if no such window exists.
+
+  Characters are case-sensitive (`"a"` and `"A"` are different). The tests are built so that the shortest window is **unique**.
+
+examples:
+  - input: { s: "ADOBECODEBANC", t: "ABC" }
+    output: "BANC"
+    explanation: '`"BANC"` contains `A`, `B` and `C`, and no shorter substring does. Longer windows such as `"ADOBEC"` also contain them, but we want the shortest.'
+  - input: { s: "a", t: "a" }
+    output: "a"
+    explanation: The whole string is the window.
+  - input: { s: "a", t: "aa" }
+    output: ""
+    explanation: '`t` needs two `a`s but `s` only has one, so no window works.'
+
+constraints:
+  - "`1 <= s.length, t.length <= 10^5`"
+  - "`s` and `t` consist of uppercase and lowercase English letters."
+  - The shortest window is unique whenever one exists.
+
+function_signature: "def minWindow(self, s: str, t: str) -> str"
+
+starter_code: |
+  class Solution:
+      def minWindow(self, s: str, t: str) -> str:
+          pass
+
+runner:
+  kind: function
+  method: minWindow
+  params:
+    - { name: s, type: str }
+    - { name: t, type: str }
+  returns: str
+
+hints:
+  - First, how would you check whether a given window contains all of `t`? Think about character **counts**, not just which characters appear.
+  - Use two pointers. Move `right` to grow the window until it covers `t`. Once it does, the window can only get *better* by moving `left` forward. Keep shrinking while it still covers `t`, recording the smallest window seen.
+  - Avoid comparing whole count tables on every step. Track how many distinct characters of `t` currently have their required count met, and update that number only when a count crosses its threshold (on the way up while expanding, on the way down while shrinking).
+
+approach: Sliding window with need/have counters
+optimal_solution: |
+  class Solution:
+      def minWindow(self, s: str, t: str) -> str:
+          if len(t) > len(s):
+              return ""
+
+          need = Counter(t)        # char -> how many copies the window must contain
+          required = len(need)     # number of distinct chars that must be satisfied
+          window = defaultdict(int)
+          formed = 0               # distinct chars whose count is currently satisfied
+
+          best_len, best_left = float("inf"), 0
+          left = 0
+
+          for right, ch in enumerate(s):
+              window[ch] += 1
+              if ch in need and window[ch] == need[ch]:
+                  formed += 1  # ch just reached its required count
+
+              # The window covers t: shrink it from the left as far as possible.
+              while formed == required:
+                  if right - left + 1 < best_len:
+                      best_len, best_left = right - left + 1, left
+                  out = s[left]
+                  window[out] -= 1
+                  if out in need and window[out] < need[out]:
+                      formed -= 1  # removing it broke the window
+                  left += 1
+
+          return "" if best_len == float("inf") else s[best_left : best_left + best_len]
+
+explanation: |
+  **Intuition.** Any window that covers `t` stays covering if you make it bigger, and any window that does *not* cover `t` stays non-covering if you make it smaller. That monotonic behaviour is exactly what two pointers need:
+
+  - Move `right` forward until the window covers `t` (it was too small).
+  - Then move `left` forward while it still covers `t` (it was bigger than needed). Every covering window you pass is a candidate answer.
+
+  For each `right`, the shortest covering window ending there starts at the furthest-right `left` that still covers `t`, and `left` never has to move backwards. So the two pointers together sweep the string once.
+
+  **Checking coverage in O(1).** Comparing the full count tables on every step would be slow. Instead keep:
+  - `need[c]`: how many copies of `c` the window must contain.
+  - `formed`: how many distinct characters currently meet their requirement.
+
+  `formed` increases only at the moment `window[c]` rises to exactly `need[c]`, and decreases only at the moment it falls below. The window covers `t` exactly when `formed == len(need)`.
+
+  **Algorithm.**
+  1. Build `need = Counter(t)`; set `formed = 0`, `left = 0`.
+  2. For each `right`: add `s[right]` to the window counts; if it just met its requirement, `formed += 1`.
+  3. While `formed == required`: record the window if it is the shortest so far, then remove `s[left]`; if that drops its count below the requirement, `formed -= 1`. Advance `left`.
+  4. Return the best window, or `""` if none was found.
+
+  **Edge cases.**
+  - **Duplicates in `t`:** `t = "aa"` needs two `a`s. Using a set of characters instead of counts would wrongly accept a single `a`.
+  - **Extra copies:** the window may contain more of a character than needed (`window[c] > need[c]`). Removing one of those extras does not change `formed`, which is why we compare with `<` when shrinking.
+  - **Case sensitivity:** `"A"` and `"a"` are different keys.
+  - Return the empty string when `t` is longer than `s` or a character is missing entirely.
+
+key_insight: Expand the right edge until the window covers t, then shrink the left edge while it still does; a single counter of satisfied characters makes the coverage check O(1).
+
+time_complexity: O(m + n)
+space_complexity: O(σ)
+complexity_explanation: |
+  **Time O(m + n)** with `m = len(s)` and `n = len(t)`: building `need` reads `t` once. Then `right` advances m times and `left` advances at most m times in total (it never moves back), and each move does O(1) dictionary work. Slicing out the answer happens once at the end.
+
+  **Space O(σ)** where σ is the number of distinct characters (at most 52 letters): `need` and `window` each hold one entry per distinct character.
+
+data_structures: [Hash map, Counter]
+passes: 1 pass over s (each index enters and leaves the window once)
+
+alternatives:
+  - name: Brute force (extend from every start)
+    time_complexity: O(m²)
+    space_complexity: O(σ)
+    explanation: |
+      For every start index `i`, extend `j` to the right while counting down how many characters of `t` are still missing. The first `j` where nothing is missing gives the shortest covering window that starts at `i`. Keep the shortest over all starts.
+    tradeoff: Correct and a good stepping stone, but each start rescans the string from scratch, so it can take about m²/2 steps (10¹⁰ for m = 10⁵). The sliding window keeps the counts from one start to the next instead of rebuilding them.
+    code: |
+      class Solution:
+          def minWindow(self, s: str, t: str) -> str:
+              need = Counter(t)
+              best = ""
+              for i in range(len(s)):
+                  remaining = need.copy()  # copies of each char still missing
+                  missing = len(t)
+                  for j in range(i, len(s)):
+                      if remaining[s[j]] > 0:
+                          missing -= 1
+                      remaining[s[j]] -= 1
+                      if missing == 0:  # s[i..j] covers t
+                          if not best or j - i + 1 < len(best):
+                              best = s[i : j + 1]
+                          break
+              return best
+
+tests:
+  - { name: t longer than s, input: { s: "ab", t: "abc" }, expected: "" }
+  - { name: character missing from s, input: { s: "abc", t: "d" }, expected: "" }
+  - { name: duplicates in t need counts, input: { s: "abxa", t: "aa" }, expected: "abxa" }
+  - { name: case sensitive, input: { s: "aAbBcC", t: "ABC" }, expected: "AbBcC" }
+  - { name: whole string, input: { s: "abc", t: "cba" }, expected: "abc" }
+  - { name: shortest window late in the string, input: { s: "cabwefgewcwaefgcf", t: "cae" }, expected: "cwae" }
+  - { name: triple letter at the end, input: { s: "aaflslflsldkalskaaa", t: "aaa" }, expected: "aaa" }
+  - { name: answer at the start, input: { s: "abcdddd", t: "ca" }, expected: "abc" }
+  - { name: two characters reversed, input: { s: "bba", t: "ab" }, expected: "ba" }
+
+benchmark:
+  size_label: length of s
+  sizes: [100, 1000, 5000, 20000, 100000]
+  generator: |
+    def generate(n, rng):
+        # s is lowercase filler; the uppercase letters of t are placed exactly once
+        # each (one per required copy) at random positions in the second half of s.
+        # Every covering window must include all of them, so the answer is unique,
+        # and a brute force has to scan far from every start index.
+        m = max(1, min(30, n // 10))
+        t = "".join(rng.choice("ABCDEFGHIJ") for _ in range(m))
+        s = [rng.choice("abcdefghijklmnopqrstuvwxyz") for _ in range(n)]
+        for pos, ch in zip(rng.sample(range(n // 2, n), m), t):
+            s[pos] = ch
+        return {"s": "".join(s), "t": t}

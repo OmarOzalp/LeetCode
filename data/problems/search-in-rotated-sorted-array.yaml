@@ -1,0 +1,177 @@
+id: "33"
+title: Search in Rotated Sorted Array
+slug: search-in-rotated-sorted-array
+leetcode_url: https://leetcode.com/problems/search-in-rotated-sorted-array/
+category: binary-search
+difficulty: Medium
+patterns: [Binary Search, Rotated Array]
+
+description: |
+  An array of **distinct** integers was sorted in ascending order and then possibly **rotated** at an unknown index `k`: the array `[a0, a1, ..., an-1]` becomes `[ak, ..., an-1, a0, ..., ak-1]`. For example, `[0, 1, 2, 4, 5, 6, 7]` rotated at index 3 becomes `[4, 5, 6, 7, 0, 1, 2]`. The array may also not be rotated at all.
+
+  Given the array `nums` after the rotation and an integer `target`, return the **index** of `target` in `nums`, or `-1` if it is not present.
+
+  Your algorithm must run in `O(log n)` time.
+
+examples:
+  - input: { nums: [4, 5, 6, 7, 0, 1, 2], target: 0 }
+    output: 4
+    explanation: '`nums[4] == 0`.'
+  - input: { nums: [4, 5, 6, 7, 0, 1, 2], target: 3 }
+    output: -1
+    explanation: '`3` would sit between `2` and `4` in the original sorted array, but it is not in the array.'
+  - input: { nums: [1], target: 0 }
+    output: -1
+
+constraints:
+  - "`1 <= nums.length <= 5000`"
+  - "`-10^4 <= nums[i] <= 10^4`"
+  - All values of `nums` are **unique**.
+  - "`nums` is an ascending array that is possibly rotated."
+  - "`-10^4 <= target <= 10^4`"
+
+function_signature: "def search(self, nums: List[int], target: int) -> int"
+
+starter_code: |
+  class Solution:
+      def search(self, nums: List[int], target: int) -> int:
+          pass
+
+runner:
+  kind: function
+  method: search
+  params:
+    - { name: nums, type: "List[int]" }
+    - { name: target, type: int }
+  returns: int
+
+hints:
+  - Plain binary search fails because the array is not sorted as a whole. But if you split a rotated array at any `mid`, what can you say about the two halves?
+  - At least one of `nums[left..mid]` and `nums[mid..right]` is always fully sorted. Comparing `nums[left]` with `nums[mid]` tells you which one.
+  - In the sorted half you can check with two comparisons whether `target` lies inside its value range. If it does, search that half; otherwise search the other half. Watch the `<=` when `left == mid`.
+
+approach: One-pass binary search on the sorted half
+optimal_solution: |
+  class Solution:
+      def search(self, nums: List[int], target: int) -> int:
+          left, right = 0, len(nums) - 1
+
+          while left <= right:
+              mid = (left + right) // 2
+              if nums[mid] == target:
+                  return mid
+
+              if nums[left] <= nums[mid]:
+                  # Left half nums[left..mid] is sorted.
+                  if nums[left] <= target < nums[mid]:
+                      right = mid - 1  # target is inside the sorted left half
+                  else:
+                      left = mid + 1
+              else:
+                  # Right half nums[mid..right] is sorted.
+                  if nums[mid] < target <= nums[right]:
+                      left = mid + 1   # target is inside the sorted right half
+                  else:
+                      right = mid - 1
+
+          return -1
+
+explanation: |
+  **Intuition.** Binary search works on sorted data because one comparison tells us which half cannot contain the target. A rotated array is not sorted as a whole, but if we cut it at any `mid`, **at least one half is still sorted**: the rotation point (the "drop") can only be on one side of `mid`.
+
+  For the sorted half we know its exact value range (first to last element), so we can decide with certainty whether `target` lies in it. If it does, we search there; if not, the target can only be in the other half. Either way we discard half the range, just like ordinary binary search.
+
+  **Algorithm.**
+  1. `left = 0`, `right = n - 1`. While `left <= right`:
+  2. Compute `mid`. If `nums[mid] == target`, return `mid`.
+  3. If `nums[left] <= nums[mid]`, the left half is sorted:
+     - if `nums[left] <= target < nums[mid]`, set `right = mid - 1`; otherwise `left = mid + 1`.
+  4. Otherwise the right half is sorted:
+     - if `nums[mid] < target <= nums[right]`, set `left = mid + 1`; otherwise `right = mid - 1`.
+  5. If the loop ends, return `-1`.
+
+  **Subtle points.**
+  - **Use `<=` in `nums[left] <= nums[mid]`.** When `left == mid` (a range of one or two elements), the "left half" is just one element and counts as sorted. With `<`, the input `nums = [3, 1], target = 1` goes down the wrong branch and returns `-1`.
+  - The range checks use strict and non-strict comparisons carefully: `nums[mid]` has already been ruled out, so it is excluded from both ranges, while the endpoints `nums[left]` and `nums[right]` are included.
+  - A non-rotated array always takes the "left half sorted" branch and the algorithm reduces to ordinary binary search.
+
+key_insight: Splitting a rotated sorted array at any point leaves at least one sorted half, whose value range tells you for certain whether the target can be there.
+
+time_complexity: O(log n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(log n):** each iteration does a constant number of comparisons and then discards at least half of the remaining range, so there are at most about log₂ n + 1 iterations (13 for n = 5000).
+
+  **Space O(1):** only a few indices are stored; nothing is copied.
+
+data_structures: [Array]
+passes: log₂ n probes
+
+alternatives:
+  - name: Linear scan
+    time_complexity: O(n)
+    space_complexity: O(1)
+    explanation: |
+      Check every element and return the index of the one equal to `target` (this is what `nums.index(target)` does internally). It works for any array, rotated or not.
+    tradeoff: Simple and always correct, but it ignores the sorted structure entirely and does not meet the O(log n) requirement. A missing target forces it to read all n elements.
+    code: |
+      class Solution:
+          def search(self, nums: List[int], target: int) -> int:
+              for i, num in enumerate(nums):
+                  if num == target:
+                      return i
+              return -1
+  - name: Find the rotation point, then binary search one run
+    time_complexity: O(log n)
+    space_complexity: O(1)
+    explanation: |
+      First find the index of the minimum with the binary search from *Find Minimum in Rotated Sorted Array*. That index splits the array into two sorted runs: `nums[0..pivot-1]` (all values `>= nums[0]`) and `nums[pivot..n-1]` (all values `< nums[0]`). Comparing `target` with `nums[0]` tells you which run to search, and an ordinary binary search (here `bisect_left`) finishes the job.
+    tradeoff: Same O(log n) bound with two simpler binary searches instead of one trickier one, which makes it easier to get right under pressure. It does about twice as many probes and reuses a helper you need to remember; the one-pass version is shorter once you trust its case analysis.
+    code: |
+      class Solution:
+          def search(self, nums: List[int], target: int) -> int:
+              n = len(nums)
+              # 1) Binary search for the index of the minimum (the rotation point).
+              lo, hi = 0, n - 1
+              while lo < hi:
+                  mid = (lo + hi) // 2
+                  if nums[mid] > nums[hi]:
+                      lo = mid + 1
+                  else:
+                      hi = mid
+              pivot = lo
+
+              # 2) Choose the sorted run that could contain target.
+              if pivot > 0 and target >= nums[0]:
+                  lo, hi = 0, pivot - 1   # left run: values >= nums[0]
+              else:
+                  lo, hi = pivot, n - 1   # right run (or the whole array if not rotated)
+
+              # 3) Ordinary binary search inside that run.
+              i = bisect.bisect_left(nums, target, lo, hi + 1)
+              return i if i <= hi and nums[i] == target else -1
+
+tests:
+  - { name: single element found, input: { nums: [5], target: 5 }, expected: 0 }
+  - { name: single element missing, input: { nums: [5], target: 3 }, expected: -1 }
+  - { name: two elements (target second), input: { nums: [3, 1], target: 1 }, expected: 1 }
+  - { name: two elements (target first), input: { nums: [3, 1], target: 3 }, expected: 0 }
+  - { name: target in the left run, input: { nums: [4, 5, 6, 7, 0, 1, 2], target: 5 }, expected: 1 }
+  - { name: not rotated, input: { nums: [1, 2, 3, 4, 5, 6], target: 4 }, expected: 3 }
+  - { name: smaller than every element, input: { nums: [5, 6, 7, 1, 2, 3], target: 0 }, expected: -1 }
+  - { name: target at the last index, input: { nums: [6, 7, 8, 1, 2, 3, 4, 5], target: 5 }, expected: 7 }
+  - { name: missing value inside the range, input: { nums: [10, 20, 30, -10, 0], target: 15 }, expected: -1 }
+  - { name: negative values, input: { nums: [-3, -1, -10, -7, -5], target: -7 }, expected: 3 }
+
+benchmark:
+  size_label: length of nums
+  sizes: [50, 250, 1000, 5000]
+  generator: |
+    def generate(n, rng):
+        # Distinct even values, sorted and rotated at a random index. The target
+        # is an odd number, so it is never present: a linear scan reads everything.
+        values = sorted(2 * v for v in rng.sample(range(-5000, 5001), n))
+        k = rng.randint(0, n - 1)
+        nums = values[k:] + values[:k]
+        target = 2 * rng.randint(-4999, 4999) + 1
+        return {"nums": nums, "target": target}

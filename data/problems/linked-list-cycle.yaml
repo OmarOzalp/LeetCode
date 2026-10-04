@@ -1,0 +1,141 @@
+id: "141"
+title: Linked List Cycle
+slug: linked-list-cycle
+leetcode_url: https://leetcode.com/problems/linked-list-cycle/
+category: linked-list
+difficulty: Easy
+patterns: [Linked List, Fast/Slow Pointers, Floyd's Cycle Detection]
+
+description: |
+  Given `head`, the head of a singly linked list, return `True` if the list contains a **cycle** and `False` otherwise.
+
+  A list has a cycle if, by following `next` pointers, you can reach some node a second time. In that case the walk never reaches `None`.
+
+  **How the tests describe a cycle:** `head` lists the node values in order, and `pos` is the index of the node that the **last** node's `next` points back to (`pos = -1` means the last node points to `None`, so there is no cycle). `pos` is only used to build the list; it is **not** passed to your function.
+
+  **Follow-up:** can you solve it using `O(1)` extra memory?
+
+examples:
+  - input: { head: [3, 2, 0, -4], pos: 1 }
+    output: true
+    explanation: The tail `-4` links back to the node at index 1 (value `2`), so the walk `3 -> 2 -> 0 -> -4 -> 2 -> ...` never ends.
+  - input: { head: [1, 2], pos: 0 }
+    output: true
+    explanation: The tail `2` links back to the head `1`.
+  - input: { head: [1], pos: -1 }
+    output: false
+    explanation: A single node whose `next` is `None` has no cycle.
+
+constraints:
+  - "The number of nodes in the list is in the range `[0, 10^4]`."
+  - "`-10^5 <= Node.val <= 10^5`"
+  - "`pos` is `-1` or a valid index in the linked list."
+
+function_signature: "def hasCycle(self, head: Optional[ListNode]) -> bool"
+
+starter_code: |
+  # Definition for singly-linked list.
+  # class ListNode:
+  #     def __init__(self, val=0, next=None):
+  #         self.val = val
+  #         self.next = next
+  class Solution:
+      def hasCycle(self, head: Optional[ListNode]) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: hasCycle
+  params:
+    - { name: head, type: "Optional[ListNode]", cycle_from: pos }
+    - { name: pos, type: int, call: false }
+  returns: bool
+
+hints:
+  - If you simply follow `next` until you hit `None`, a list with a cycle makes you loop forever. What could you remember about the nodes you have already visited?
+  - Storing visited **nodes** (not values, since values can repeat) in a set detects the first repeat. Can you detect a cycle without remembering anything, using O(1) memory?
+  - Picture two runners on a circular track, one twice as fast as the other. Move one pointer one step at a time and another two steps at a time. If the fast one ever reaches `None` there is no cycle; if there is a cycle, the fast pointer must eventually land on the same node as the slow one.
+
+approach: Floyd's tortoise and hare (fast/slow pointers)
+optimal_solution: |
+  class Solution:
+      def hasCycle(self, head: Optional[ListNode]) -> bool:
+          slow = fast = head
+
+          while fast and fast.next:
+              slow = slow.next          # one step
+              fast = fast.next.next     # two steps
+              if slow is fast:          # fast caught up from behind: a cycle
+                  return True
+
+          return False  # fast reached the end, so the list terminates
+
+explanation: |
+  **Intuition.** Move two pointers through the list: `slow` one node per step, `fast` two nodes per step.
+
+  - **No cycle:** `fast` runs off the end (reaches `None`) and we return `False`.
+  - **Cycle:** both pointers eventually enter the cycle and can never leave. From then on, each step `fast` gains exactly **one** node on `slow` (it moves 2, `slow` moves 1). A gap that shrinks by one each step must hit zero, so `fast` lands exactly on `slow` instead of jumping over it. They meet within one lap of the cycle.
+
+  This is **Floyd's cycle-detection algorithm**, often called the tortoise and the hare.
+
+  **Algorithm.**
+  1. Set `slow = fast = head`.
+  2. While `fast` and `fast.next` exist: advance `slow` by one and `fast` by two. If they are the **same node**, return `True`.
+  3. If the loop ends, return `False`.
+
+  **Subtle points.**
+  - Compare **nodes** (`slow is fast`), never values. Lists such as `[1, 1, 1]` without a cycle have equal values everywhere.
+  - Check `fast and fast.next` before moving two steps, otherwise `fast.next.next` crashes on `None` at the end of an acyclic list.
+  - Compare *after* moving. Both pointers start at `head`, so comparing first would return `True` immediately.
+  - Empty and single-node lists are handled by the loop condition. A single node pointing to itself (`pos = 0`) is a cycle: after one step both pointers are on that node.
+
+key_insight: Inside a cycle a pointer moving two steps gains exactly one node per step on a pointer moving one step, so it must land on it, while in an acyclic list it simply reaches the end.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** without a cycle, `fast` reaches the end after about n/2 steps. With a cycle, `slow` enters it after at most n steps (the length of the part before the cycle), and from then on `fast` closes the gap by one node per step, so they meet within one more lap (at most the cycle length, which is at most n). That is O(n) steps in total, each O(1).
+
+  **Space O(1):** only two pointers are stored, regardless of the list's length.
+
+data_structures: [Linked list]
+passes: About 1-2 traversals
+
+alternatives:
+  - name: Hash set of visited nodes
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Walk the list and add each **node object** to a set. If you ever reach a node that is already in the set, you have come back around, so there is a cycle. If you reach `None`, there is not. Python node objects are hashed by identity by default, so equal values in different nodes do not collide.
+    tradeoff: Equally fast and very easy to reason about, and it can also tell you *where* the cycle starts (the first repeated node). But it stores up to n nodes, while Floyd's algorithm answers the O(1)-memory follow-up.
+    code: |
+      class Solution:
+          def hasCycle(self, head: Optional[ListNode]) -> bool:
+              seen = set()  # node objects (not values) visited so far
+              node = head
+              while node:
+                  if node in seen:
+                      return True
+                  seen.add(node)
+                  node = node.next
+              return False
+
+tests:
+  - { name: empty list, input: { head: [], pos: -1 }, expected: false }
+  - { name: single node pointing to itself, input: { head: [1], pos: 0 }, expected: true }
+  - { name: two nodes without a cycle, input: { head: [1, 2], pos: -1 }, expected: false }
+  - { name: tail points to itself, input: { head: [1, 2, 3, 4], pos: 3 }, expected: true }
+  - { name: long cycle back to the head, input: { head: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], pos: 0 }, expected: true }
+  - { name: repeated values without a cycle, input: { head: [1, 1, 1, 1], pos: -1 }, expected: false }
+  - { name: repeated values with a cycle, input: { head: [5, 5, 5], pos: 1 }, expected: true }
+  - { name: odd length without a cycle, input: { head: [-1, -2, -3], pos: -1 }, expected: false }
+
+benchmark:
+  size_label: number of nodes
+  sizes: [80, 400, 2000, 10000]
+  generator: |
+    def generate(n, rng):
+        # The tail links back to a random node in the first half, so there is a
+        # long run-up before the cycle plus a long cycle to go around.
+        head = [rng.randint(-10**5, 10**5) for _ in range(n)]
+        return {"head": head, "pos": rng.randint(0, n // 2)}

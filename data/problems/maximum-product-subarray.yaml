@@ -1,0 +1,170 @@
+id: "152"
+title: Maximum Product Subarray
+slug: maximum-product-subarray
+leetcode_url: https://leetcode.com/problems/maximum-product-subarray/
+category: dp-1d
+difficulty: Medium
+patterns: [1-D DP, "Kadane's Algorithm", Prefix and Suffix Products]
+
+description: |
+  Given an integer array `nums`, find a **non-empty contiguous subarray** whose elements have the **largest product**, and return that product.
+
+  The array may contain negative numbers and zeros. Every subarray's product fits in a 32-bit signed integer.
+
+examples:
+  - input: { nums: [2, 3, -2, 4] }
+    output: 6
+    explanation: "`[2, 3]` has product 6. Including `-2` makes the product negative."
+  - input: { nums: [-2, 0, -1] }
+    output: 0
+    explanation: "`[0]` gives 0. `[-2, -1]` is not contiguous (the 0 sits between them), so its product 2 is not allowed."
+  - input: { nums: [-2, 3, -4] }
+    output: 24
+    explanation: "The whole array: two negatives cancel, `-2 · 3 · -4 = 24`."
+
+constraints:
+  - "`1 <= nums.length <= 2 * 10^4`"
+  - "`-10 <= nums[i] <= 10`"
+  - The product of any subarray of `nums` fits in a 32-bit signed integer.
+
+function_signature: "def maxProduct(self, nums: List[int]) -> int"
+
+starter_code: |
+  class Solution:
+      def maxProduct(self, nums: List[int]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: maxProduct
+  params:
+    - { name: nums, type: "List[int]" }
+  returns: int
+
+hints:
+  - For maximum *sum* subarray (Kadane's algorithm) you track the best sum ending at each index. Why does tracking only the largest product ending at each index fail here? Try `[-2, 3, -4]`.
+  - A negative number turns the smallest (most negative) product into the largest one, and the largest into the smallest. What extra piece of information should you carry along?
+  - "Track both the maximum and the minimum product of a subarray **ending at** index `i`. The new maximum is the largest of `nums[i]`, `max_prev · nums[i]` and `min_prev · nums[i]`, and the new minimum is the smallest of the same three values."
+
+approach: "Kadane's algorithm tracking max and min products"
+optimal_solution: |
+  class Solution:
+      def maxProduct(self, nums: List[int]) -> int:
+          # Largest / smallest product of a subarray that ENDS at the current index.
+          cur_max = cur_min = best = nums[0]
+
+          for i in range(1, len(nums)):
+              x = nums[i]
+              # Extend the best or worst run, or start fresh at x.
+              # A negative x swaps the roles of the max and the min.
+              candidates = (x, cur_max * x, cur_min * x)
+              cur_max, cur_min = max(candidates), min(candidates)
+              best = max(best, cur_max)
+
+          return best
+
+explanation: |
+  **Intuition.** In Kadane's algorithm for maximum *sum*, the best subarray ending at `i` either extends the best one ending at `i - 1` or starts fresh. Products break this: a large negative product is terrible now but becomes the best possible after multiplying by another negative (`-6 · -4 = 24`). So alongside the largest product ending at `i`, also remember the **smallest** (most negative) one. It is the best candidate for the next negative number.
+
+  **State & recurrence.**
+  - **State:** `max_end[i]` and `min_end[i]` = the largest and smallest product of a subarray that **ends exactly at** index `i`.
+  - **Transition:** every subarray ending at `i` is either `[nums[i]]` alone or a subarray ending at `i - 1` extended by `nums[i]`. Multiplying by `nums[i]` maps the extreme products at `i - 1` to the extremes at `i` (a negative factor just swaps which one is which), so:
+    - `max_end[i] = max(nums[i], max_end[i-1] · nums[i], min_end[i-1] · nums[i])`
+    - `min_end[i] = min(nums[i], max_end[i-1] · nums[i], min_end[i-1] · nums[i])`
+  - **Base case:** `max_end[0] = min_end[0] = nums[0]`.
+  - **Answer:** the maximum of `max_end[i]` over all `i`, since the best subarray must end *somewhere*.
+  - **Space:** each step only reads step `i - 1`, so two variables suffice.
+
+  **Algorithm.**
+  1. Initialize `cur_max = cur_min = best = nums[0]`.
+  2. For each later `x`, compute the three candidates `x`, `cur_max · x`, `cur_min · x`.
+  3. Set `cur_max` to their maximum and `cur_min` to their minimum, **simultaneously** (both must use the old values).
+  4. Update `best = max(best, cur_max)` and return it at the end.
+
+  **Subtle points.**
+  - **Zeros** reset everything: both candidates that extend become 0, so `x` alone (start fresh) wins after a zero. No special case is needed.
+  - Updating `cur_max` first and then using the *new* `cur_max` to compute `cur_min` is a classic bug. Compute both from the same tuple.
+  - Initialize `best` with `nums[0]`, not 0. For `[-2]` the answer is `-2`.
+
+key_insight: A negative factor turns the minimum product into the maximum, so carry both the max and the min product ending at each index; each is the best of x, max·x and min·x.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** one pass over `nums` with a constant number of multiplications and comparisons per element.
+
+  **Space O(1):** three running values (`cur_max`, `cur_min`, `best`) and a 3-element tuple, regardless of input size.
+
+data_structures: [Running max/min variables]
+passes: 1 pass over nums
+
+alternatives:
+  - name: Brute force (every subarray)
+    time_complexity: O(n²)
+    space_complexity: O(1)
+    explanation: |
+      For each start `i`, extend the subarray one element at a time, keeping a running product so each extension costs O(1), and track the maximum product seen.
+    tradeoff: Simple and correct, with no tricky sign reasoning. But it examines all n(n+1)/2 subarrays, about 2 · 10⁸ at n = 2 · 10⁴, which is far too slow in Python, while the max/min DP does a single pass.
+    code: |
+      class Solution:
+          def maxProduct(self, nums: List[int]) -> int:
+              best = nums[0]
+              for i in range(len(nums)):
+                  product = 1
+                  for j in range(i, len(nums)):
+                      product *= nums[j]  # product of nums[i..j]
+                      best = max(best, product)
+              return best
+  - name: Prefix and suffix products
+    time_complexity: O(n)
+    space_complexity: O(1)
+    explanation: |
+      Split the array at zeros. Inside a zero-free block, the product of the whole block is positive when it has an even number of negatives, and that whole block is the best. With an odd count you must drop the part up to the first negative or the part from the last negative onward, so the best is always a **prefix** or a **suffix** of the block. Scan left-to-right and right-to-left at the same time with running products, restarting a product after it hits 0, and take the maximum of everything seen.
+    tradeoff: Equally fast with very short code, but correct only because of a parity argument that is easy to get wrong under interview pressure. The max/min DP is the more general idea (it is Kadane's algorithm extended) and is easier to justify step by step.
+    code: |
+      class Solution:
+          def maxProduct(self, nums: List[int]) -> int:
+              n = len(nums)
+              best = nums[0]
+              prefix = suffix = 1
+              for i in range(n):
+                  # After a zero the running product restarts (0 or 1 -> 1).
+                  prefix = (prefix or 1) * nums[i]
+                  suffix = (suffix or 1) * nums[n - 1 - i]
+                  best = max(best, prefix, suffix)
+              return best
+
+tests:
+  - { name: single negative, input: { nums: [-2] }, expected: -2 }
+  - { name: single zero, input: { nums: [0] }, expected: 0 }
+  - { name: all zeros, input: { nums: [0, 0, 0] }, expected: 0 }
+  - { name: zero then positive, input: { nums: [0, 2] }, expected: 2 }
+  - { name: two negatives, input: { nums: [-1, -1] }, expected: 1 }
+  - { name: odd number of negatives, input: { nums: [-2, -3, -4] }, expected: 12 }
+  - { name: negative in the middle, input: { nums: [3, -1, 4] }, expected: 4 }
+  - { name: drop the leading negative, input: { nums: [2, -5, -2, -4, 3] }, expected: 24 }
+  - { name: zero splits the array, input: { nums: [1, 0, -1, 2, 3, -5, -2] }, expected: 60 }
+  - { name: extreme values, input: { nums: [-10, -10, 10, -10, 0, 9] }, expected: 1000 }
+
+benchmark:
+  size_label: length of nums
+  sizes: [100, 1000, 5000, 10000, 20000]
+  generator: |
+    def generate(n, rng):
+        # Values in [-10, 10] with occasional zeros. The absolute product of each
+        # zero-free run is capped at 2^31 - 1 (switching to +-1 once it would
+        # overflow), so every subarray product fits in 32 bits as promised.
+        limit = 2 ** 31 - 1
+        nums = []
+        magnitude = 1  # |product| of the current zero-free run
+        for _ in range(n):
+            if rng.random() < 0.03:
+                nums.append(0)
+                magnitude = 1
+                continue
+            x = rng.choice([1, 1, 1, 2, 2, 3, 5, 10])
+            if magnitude * x > limit:
+                x = 1
+            magnitude *= x
+            nums.append(x if rng.random() < 0.6 else -x)
+        return {"nums": nums}

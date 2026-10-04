@@ -1,0 +1,150 @@
+id: "121"
+title: Best Time to Buy and Sell Stock
+slug: best-time-to-buy-and-sell-stock
+leetcode_url: https://leetcode.com/problems/best-time-to-buy-and-sell-stock/
+category: sliding-window
+difficulty: Easy
+patterns: [Sliding Window, Running Minimum, Greedy]
+
+description: |
+  You are given an array `prices` where `prices[i]` is the price of a stock on day `i`.
+
+  You may make **at most one trade**: pick one day to **buy** a single share and a **later** day to **sell** it. Return the largest profit you can make this way.
+
+  If no trade makes money (for example, the price only ever goes down), return `0`, which means you simply do not trade.
+
+examples:
+  - input: { prices: [7, 1, 5, 3, 6, 4] }
+    output: 5
+    explanation: "Buy on day 1 (price `1`) and sell on day 4 (price `6`) for a profit of `6 - 1 = 5`. Buying at `1` and selling at `7` is not allowed: the `7` comes first, and you must buy before you sell."
+  - input: { prices: [7, 6, 4, 3, 1] }
+    output: 0
+    explanation: The price falls every day, so every possible trade loses money. The best choice is not to trade.
+  - input: { prices: [2, 4, 1] }
+    output: 2
+    explanation: The cheapest price (`1`) is on the last day, so there is no later day to sell it. The best trade is buy at `2`, sell at `4`.
+
+constraints:
+  - "`1 <= prices.length <= 10^5`"
+  - "`0 <= prices[i] <= 10^4`"
+
+function_signature: "def maxProfit(self, prices: List[int]) -> int"
+
+starter_code: |
+  class Solution:
+      def maxProfit(self, prices: List[int]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: maxProfit
+  params:
+    - { name: prices, type: "List[int]" }
+  returns: int
+
+hints:
+  - Trying every (buy, sell) pair works but is O(n²). If you fix the **sell** day, which buy day is the best one to pair it with?
+  - For a fixed sell day, the best buy day is simply the cheapest day *before* it. Can you keep track of that as you walk forward?
+  - Walk through the prices once, maintaining the lowest price seen so far. At each day, the best profit from selling today is `price - lowest_so_far`; keep the maximum of those, then update the lowest price.
+
+approach: One pass with a running minimum (sliding window)
+optimal_solution: |
+  class Solution:
+      def maxProfit(self, prices: List[int]) -> int:
+          min_price = prices[0]  # cheapest buy price seen so far (left edge of the window)
+          best = 0               # not trading is always allowed
+
+          for price in prices:
+              # Best profit if we sell today: buy at the cheapest earlier day.
+              best = max(best, price - min_price)
+              # A new low becomes the best buy day for every future sell day.
+              min_price = min(min_price, price)
+
+          return best
+
+explanation: |
+  **Intuition.** Think of the trade as a window `[buy, sell]` over the days. For any sell day, the only buy day worth considering is the **cheapest day before it**: any other buy day gives a smaller profit. So instead of pairing every sell day with every earlier day, we only need to remember one number while we scan: the minimum price so far.
+
+  In sliding-window terms, the left edge of the window sits on the lowest price seen so far and the right edge moves one day at a time. Whenever the right edge finds a price *lower* than the left edge, the left edge jumps there: a cheaper buy price is better for every future sell day, so the old left edge can never be part of a better answer again.
+
+  **Algorithm.**
+  1. Set `min_price = prices[0]` and `best = 0`.
+  2. For each `price` (the first day just yields a profit of 0):
+     1. Compute the profit of selling today, `price - min_price`, and update `best`.
+     2. Update `min_price = min(min_price, price)`.
+  3. Return `best`.
+
+  **Subtle points.**
+  - Update `best` **before** updating `min_price`. Doing it the other way round would let you "buy and sell on the same day", which is harmless here (profit 0), but the habit matters in variants of this problem.
+  - The answer is never negative: `best` starts at `0` because not trading is allowed. This handles a strictly falling price list.
+  - The global minimum is **not** always the buy day: in `[2, 4, 1]` the minimum `1` is on the last day. That is why we compute the best profit at every step rather than finding the minimum first.
+
+key_insight: For each possible sell day the best buy day is the cheapest day before it, so tracking the running minimum turns an all-pairs search into a single pass.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** we look at each price exactly once and do a constant amount of work (one subtraction, two comparisons) per day.
+
+  **Space O(1):** only two numbers are stored, `min_price` and `best`, no matter how many days there are. (Iterating directly over `prices` avoids the copy that a slice such as `prices[1:]` would make.)
+
+data_structures: [Array]
+passes: 1 pass over prices
+
+alternatives:
+  - name: Brute force (try every buy/sell pair)
+    time_complexity: O(n²)
+    space_complexity: O(1)
+    explanation: |
+      For every buy day `i`, try every later sell day `j > i` and keep the largest `prices[j] - prices[i]`. It directly encodes the problem statement, which makes it a good starting point and a correctness reference.
+    tradeoff: Easy to get right, but it performs about n²/2 subtractions. With 10⁵ days that is roughly 5 billion operations, while the running-minimum scan does 10⁵.
+    code: |
+      class Solution:
+          def maxProfit(self, prices: List[int]) -> int:
+              best = 0
+              n = len(prices)
+              for i in range(n):          # buy day
+                  for j in range(i + 1, n):  # sell day must come later
+                      best = max(best, prices[j] - prices[i])
+              return best
+  - name: Kadane's algorithm on daily price changes
+    time_complexity: O(n)
+    space_complexity: O(1)
+    explanation: |
+      Buying on day `i` and selling on day `j` earns `prices[j] - prices[i]`, which equals the sum of the daily changes `prices[d] - prices[d - 1]` for `d = i+1..j`. So the problem becomes **maximum subarray sum** over the array of daily changes, which Kadane's algorithm solves in one pass: keep the best sum of changes ending today, and reset it to 0 when it goes negative (that is the same moment the running-minimum version finds a new low).
+    tradeoff: Same O(n) time and O(1) space as the running minimum, and a nice bridge to Maximum Subarray, but the reduction is an extra step to explain in an interview. The running-minimum version states the idea more directly.
+    code: |
+      class Solution:
+          def maxProfit(self, prices: List[int]) -> int:
+              best = 0
+              current = 0  # best sum of daily changes for a trade that sells today
+              for d in range(1, len(prices)):
+                  change = prices[d] - prices[d - 1]
+                  current = max(0, current + change)  # 0 = "buy today instead"
+                  best = max(best, current)
+              return best
+
+tests:
+  - { name: single day, input: { prices: [5] }, expected: 0 }
+  - { name: two days rising, input: { prices: [1, 2] }, expected: 1 }
+  - { name: two days falling, input: { prices: [2, 1] }, expected: 0 }
+  - { name: all prices equal, input: { prices: [3, 3, 3, 3] }, expected: 0 }
+  - { name: peak before a later minimum, input: { prices: [3, 8, 1, 2] }, expected: 5 }
+  - { name: later minimum gives a better trade, input: { prices: [5, 7, 1, 9] }, expected: 8 }
+  - { name: several valleys, input: { prices: [2, 1, 2, 1, 0, 1, 2] }, expected: 2 }
+  - { name: extreme values, input: { prices: [10000, 0, 10000] }, expected: 10000 }
+  - { name: zero prices, input: { prices: [0, 0, 0] }, expected: 0 }
+
+benchmark:
+  size_label: number of days
+  sizes: [100, 1000, 5000, 20000, 100000]
+  generator: |
+    def generate(n, rng):
+        # A random walk keeps prices realistic (no huge jumps) and inside [0, 10^4].
+        # Brute force has to examine all ~n²/2 pairs regardless of the shape.
+        price = rng.randint(0, 10000)
+        prices = []
+        for _ in range(n):
+            price = min(10000, max(0, price + rng.randint(-100, 100)))
+            prices.append(price)
+        return {"prices": prices}

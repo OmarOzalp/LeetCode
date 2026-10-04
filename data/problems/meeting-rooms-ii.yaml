@@ -1,0 +1,170 @@
+id: "253"
+title: Meeting Rooms II
+slug: meeting-rooms-ii
+leetcode_url: https://leetcode.com/problems/meeting-rooms-ii/
+category: intervals
+difficulty: Medium
+patterns: [Intervals, Sorting, Min-Heap, Sweep Line, Greedy]
+
+description: |
+  You are given an array of meeting time intervals `intervals`, where `intervals[i] = [start_i, end_i]`. Return the **minimum number of conference rooms** needed to hold all of the meetings, so that no two meetings in the same room overlap.
+
+  As in Meeting Rooms, a meeting that ends at time `t` frees its room in time for a meeting that starts at time `t`.
+
+examples:
+  - input: { intervals: [[0, 30], [5, 10], [15, 20]] }
+    output: 2
+    explanation: |
+      `[0, 30]` occupies one room the whole time. `[5, 10]` and then `[15, 20]` can share a second room, one after the other.
+  - input: { intervals: [[7, 10], [2, 4]] }
+    output: 1
+    explanation: |
+      The meetings do not overlap, so one room is enough.
+  - input: { intervals: [[1, 10], [2, 7], [3, 19], [8, 12], [10, 20], [11, 30]] }
+    output: 4
+    explanation: |
+      At time 11 four meetings are running at once (`[3, 19]`, `[8, 12]`, `[10, 20]` and `[11, 30]`), so at least 4 rooms are needed, and 4 rooms are enough.
+
+constraints:
+  - "`1 <= intervals.length <= 10^4`"
+  - "`intervals[i].length == 2`"
+  - "`0 <= start_i < end_i <= 10^6`"
+
+function_signature: "def minMeetingRooms(self, intervals: List[List[int]]) -> int"
+
+starter_code: |
+  class Solution:
+      def minMeetingRooms(self, intervals: List[List[int]]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: minMeetingRooms
+  params:
+    - { name: intervals, type: "List[List[int]]" }
+  returns: int
+
+hints:
+  - Handle the meetings in order of start time, the way a receptionist would during the day. When a meeting starts, which of the rooms already in use is the best one to try to reuse?
+  - The only room worth checking is the one that becomes free **earliest**. If even that room is still busy, every room is busy and you must open a new one. Which data structure gives you the smallest end time quickly?
+  - Keep a min-heap of the end times of the rooms in use. For each meeting in start order, if the smallest end time is `<=` the meeting's start, pop it (that room is reused). Then push the meeting's end time. The size of the heap at the end is the answer.
+
+approach: Sort by start + min-heap of end times
+optimal_solution: |
+  class Solution:
+      def minMeetingRooms(self, intervals: List[List[int]]) -> int:
+          ends = []  # min-heap: end time of the latest meeting in each room opened so far
+
+          for start, end in sorted(intervals, key=lambda iv: iv[0]):  # by start time
+              if ends and ends[0] <= start:
+                  # The room that frees up earliest is already free: reuse it.
+                  heapq.heappop(ends)
+              heapq.heappush(ends, end)
+
+          # Each heap entry is one room that had to be opened.
+          return len(ends)
+
+explanation: |
+  **Intuition.** Sweep through the day in order of start time. Whenever a meeting starts it needs a free room. Among the rooms already opened, the one to check is the one that frees up **earliest**: if that room is still busy, all of them are. A **min-heap of end times** answers "which room frees up first?" in O(log n).
+
+  **Why sorting by start matters.** Rooms are handed out in the order meetings begin. When we place a meeting, every meeting that started earlier, and could therefore be occupying a room, has already been placed. Its end time is in the heap.
+
+  **Why the greedy is optimal.** The heap only grows when a meeting starts while *every* opened room is still occupied, i.e. the smallest end time is greater than the new start. At that moment, each room's latest meeting started no later than the new one (sorted order) and has not ended yet. Together with the new meeting, that is `len(heap) + 1` meetings running at the same instant, so **any** schedule needs at least that many rooms. We open a room only when this lower bound forces us to, so the count is optimal. In other words, the answer equals the **maximum number of meetings in progress at the same time**.
+
+  **Algorithm.**
+  1. Sort the meetings by start time.
+  2. For each meeting `[s, e]`: if the heap is non-empty and `heap[0] <= s`, pop the earliest end (reuse that room). Push `e`.
+  3. Return the heap size.
+
+  Trace for example 3 (heap shown sorted):
+
+  | meeting    | earliest end vs start | action             | heap            |
+  |------------|-----------------------|--------------------|-----------------|
+  | `[1, 10]`  | empty                 | open room          | 10              |
+  | `[2, 7]`   | 10 > 2                | open room          | 7, 10           |
+  | `[3, 19]`  | 7 > 3                 | open room          | 7, 10, 19       |
+  | `[8, 12]`  | 7 <= 8                | reuse              | 10, 12, 19      |
+  | `[10, 20]` | 10 <= 10              | reuse              | 12, 19, 20      |
+  | `[11, 30]` | 12 > 11               | open room          | 12, 19, 20, 30  |
+
+  **Subtle points.**
+  - Use `<=` in the reuse test: a room whose meeting ends at `t` can host a meeting starting at `t`.
+  - Pop at most **one** room per meeting. A meeting needs only one room, and leaving other free rooms in the heap is harmless, because the heap size counts rooms ever opened, not rooms currently busy.
+  - **Sweep-line view.** Turn each meeting into a `+1` event at its start and a `-1` event at its end, and process events in time order with ends before starts at equal times. The running total is the number of meetings in progress, and its maximum is the answer. The two-sorted-arrays alternative implements exactly this.
+
+key_insight: The minimum number of rooms equals the maximum number of meetings running at once; processing meetings by start time with a min-heap of end times reuses the earliest-freed room and opens a new one only when every room is busy.
+
+time_complexity: O(n log n)
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n log n):** sorting costs O(n log n). After that, each meeting does at most one `heappop` and one `heappush` on a heap of at most `n` entries, each O(log n).
+
+  **Space O(n):** the sorted copy, plus a heap that can hold one end time per meeting when they all overlap.
+
+data_structures: [Min-heap, Array]
+passes: Sort, then 1 pass with heap operations
+
+alternatives:
+  - name: Two sorted arrays (sweep line)
+    time_complexity: O(n log n)
+    space_complexity: O(n)
+    explanation: |
+      Separate the start times and end times and sort each list on its own. Walk through the starts in order. Before counting a meeting that starts at `s`, release every room whose meeting has ended by `s` (advance the end pointer while `ends[j] <= s`). Then occupy one room. The largest number of rooms in use at any moment is the answer. We never need to know which meeting is in which room, only how many have ended.
+    tradeoff: Same O(n log n), and usually a little faster in practice (two plain sorts and a linear scan, no heap). It is the sweep line in disguise. The heap version is easier to extend when you must actually assign meetings to rooms or handle meetings arriving one at a time.
+    code: |
+      class Solution:
+          def minMeetingRooms(self, intervals: List[List[int]]) -> int:
+              starts = sorted(s for s, _ in intervals)
+              ends = sorted(e for _, e in intervals)
+
+              in_use = best = 0
+              j = 0  # index of the next meeting end not yet processed
+              for s in starts:
+                  # Free every room whose meeting ended at or before s (ends before starts on ties).
+                  while j < len(ends) and ends[j] <= s:
+                      in_use -= 1
+                      j += 1
+                  in_use += 1  # this meeting takes a room
+                  best = max(best, in_use)
+              return best
+  - name: Brute force (count overlaps at every start time)
+    time_complexity: O(n²)
+    space_complexity: O(1)
+    explanation: |
+      The answer is the largest number of meetings in progress at the same moment. That count only ever goes up when a meeting starts, so the maximum is reached at some meeting's start time. For each start time `s`, count the meetings with `start <= s < end` and take the maximum.
+    tradeoff: Encodes the key fact (rooms needed = maximum overlap) directly with no data structures, but it counts over all n meetings for each of the n start times, about 10^8 steps at n = 10^4.
+    code: |
+      class Solution:
+          def minMeetingRooms(self, intervals: List[List[int]]) -> int:
+              best = 0
+              for s, _ in intervals:
+                  # Meetings in progress at time s (a meeting ending at s has already left).
+                  running = sum(1 for a, b in intervals if a <= s < b)
+                  best = max(best, running)
+              return best
+
+tests:
+  - { name: single meeting, input: { intervals: [[1, 5]] }, expected: 1 }
+  - { name: touching meetings share a room, input: { intervals: [[1, 5], [5, 10]] }, expected: 1 }
+  - { name: identical meetings, input: { intervals: [[1, 2], [1, 2], [1, 2]] }, expected: 3 }
+  - { name: fully nested meetings, input: { intervals: [[1, 10], [2, 9], [3, 8], [4, 7]] }, expected: 4 }
+  - { name: back-to-back meetings unsorted, input: { intervals: [[3, 4], [0, 1], [2, 3], [1, 2]] }, expected: 1 }
+  - { name: room freed exactly in time, input: { intervals: [[2, 11], [6, 16], [11, 16]] }, expected: 2 }
+  - { name: same start times, input: { intervals: [[4, 9], [4, 17], [9, 10]] }, expected: 2 }
+  - { name: two separate busy periods, input: { intervals: [[1, 3], [2, 4], [3, 5], [10, 12], [10, 13], [11, 14]] }, expected: 3 }
+  - { name: early meeting ends before the peak, input: { intervals: [[1, 8], [6, 20], [9, 16], [13, 17]] }, expected: 3 }
+  - { name: boundary times, input: { intervals: [[0, 1000000], [0, 1], [999999, 1000000]] }, expected: 2 }
+
+benchmark:
+  size_label: number of meetings
+  sizes: [100, 500, 2000, 10000]
+  generator: |
+    def generate(n, rng):
+        # Random meetings over a day of 10^6 time units, lasting up to 5 * 10^4
+        # units each, so at the largest size a few hundred overlap at once.
+        intervals = []
+        for _ in range(n):
+            start = rng.randint(0, 999999)
+            end = min(1000000, start + rng.randint(1, 50000))
+            intervals.append([start, end])
+        return {"intervals": intervals}

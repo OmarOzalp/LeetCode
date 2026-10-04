@@ -1,0 +1,161 @@
+id: "3"
+title: Longest Substring Without Repeating Characters
+slug: longest-substring-without-repeating-characters
+leetcode_url: https://leetcode.com/problems/longest-substring-without-repeating-characters/
+category: sliding-window
+difficulty: Medium
+patterns: [Sliding Window, Hash Map, Two Pointers]
+
+description: |
+  Given a string `s`, return the length of the longest **substring** of `s` in which no character appears more than once.
+
+  A substring is a **contiguous** block of characters. Picking characters that are not next to each other (a subsequence) does not count.
+
+examples:
+  - input: { s: "abcabcbb" }
+    output: 3
+    explanation: '`"abc"` has length 3 and no repeats. Every substring of length 4 contains some letter twice.'
+  - input: { s: "bbbbb" }
+    output: 1
+    explanation: 'Every character is `"b"`, so the best we can do is a single `"b"`.'
+  - input: { s: "pwwkew" }
+    output: 3
+    explanation: 'The answer is `"wke"`. Note that `"pwke"` is not valid: it skips the second `w`, so it is a subsequence, not a substring.'
+
+constraints:
+  - "`0 <= s.length <= 5 * 10^4`"
+  - "`s` consists of English letters, digits, symbols and spaces."
+
+function_signature: "def lengthOfLongestSubstring(self, s: str) -> int"
+
+starter_code: |
+  class Solution:
+      def lengthOfLongestSubstring(self, s: str) -> int:
+          pass
+
+runner:
+  kind: function
+  method: lengthOfLongestSubstring
+  params:
+    - { name: s, type: str }
+  returns: int
+
+hints:
+  - Checking every substring for duplicates is far too slow. Notice that if `s[i..j]` has no repeats, then so does every substring inside it, so you never need to start from scratch.
+  - Keep a **window** `[left, right]` that never contains a duplicate. Grow it by moving `right` one step at a time. What must happen to `left` when the new character is already in the window?
+  - Remember the last index where each character appeared. When `s[right]` was last seen at an index inside the window, move `left` to just past that index in one jump. Be careful never to move `left` backwards.
+
+approach: Sliding window with last-seen index map
+optimal_solution: |
+  class Solution:
+      def lengthOfLongestSubstring(self, s: str) -> int:
+          last_seen = {}  # char -> most recent index where it appeared
+          left = 0        # the window s[left : right + 1] has no repeats
+          best = 0
+
+          for right, ch in enumerate(s):
+              # If ch already occurs inside the window, jump left past that copy.
+              if ch in last_seen and last_seen[ch] >= left:
+                  left = last_seen[ch] + 1
+              last_seen[ch] = right
+              best = max(best, right - left + 1)
+
+          return best
+
+explanation: |
+  **Intuition.** Keep a window `s[left..right]` that is always duplicate-free and slide it across the string. Each step adds the next character on the right. If that character already lives inside the window, the window is no longer valid, and the *only* way to fix it is to move `left` past the earlier copy: any window that still contains both copies is invalid.
+
+  We never need to move `right` backwards either. If the window starting at `left` could not be extended past some point, starting further left would not help, because it contains the same duplicate. This is what makes a single left-to-right sweep enough.
+
+  **Algorithm.**
+  1. Keep `last_seen[ch]`, the latest index of each character, plus `left = 0` and `best = 0`.
+  2. For each index `right` with character `ch`:
+     1. If `ch` was seen at an index `>= left` (inside the window), set `left = last_seen[ch] + 1`.
+     2. Record `last_seen[ch] = right`.
+     3. Update `best` with the window length `right - left + 1`.
+  3. Return `best`.
+
+  **Subtle points.**
+  - **Never move `left` backwards.** In `"abba"`, when we reach the final `a` its last index is `0`, but `left` is already `2` (we jumped past the first `b`). That old `a` is outside the window, so it must be ignored. The `last_seen[ch] >= left` check (equivalently `left = max(left, last_seen[ch] + 1)`) handles this.
+  - `"dvdf"` shows why you cannot reset the window to start at `right` when you hit a repeat: the answer `"vdf"` starts in the middle of the first window.
+  - The empty string returns `0` naturally because the loop never runs.
+
+key_insight: A duplicate-free window only ever needs its left edge to jump just past the previous copy of the new character, so each index is processed once.
+
+time_complexity: O(n)
+space_complexity: O(min(n, m))
+complexity_explanation: |
+  **Time O(n):** `right` visits each index once, and every step does O(1) dictionary work. `left` only jumps forward, so there is no hidden inner loop.
+
+  **Space O(min(n, m))** where `m` is the size of the character set: the dictionary holds at most one entry per distinct character, which is bounded both by the string length and by the alphabet (at most ~95 printable characters here).
+
+data_structures: [Hash map]
+passes: 1 pass over s
+
+alternatives:
+  - name: Brute force (extend from every start)
+    time_complexity: O(n · min(n, m))
+    space_complexity: O(min(n, m))
+    explanation: |
+      For every start index `i`, extend a substring to the right while adding characters to a set, and stop at the first repeat. The set's size at that point is the longest duplicate-free substring starting at `i`. Taking the best over all starts gives the answer.
+    tradeoff: Simple and correct, but each start rescans up to `m` characters (the alphabet size, or `n` if the alphabet is huge). The sliding window reuses the work of the previous start instead of throwing it away, so it touches each character only once.
+    code: |
+      class Solution:
+          def lengthOfLongestSubstring(self, s: str) -> int:
+              best = 0
+              for i in range(len(s)):
+                  seen = set()
+                  for j in range(i, len(s)):
+                      if s[j] in seen:
+                          break  # s[i..j] has a repeat; longer ones do too
+                      seen.add(s[j])
+                  best = max(best, len(seen))
+              return best
+  - name: Sliding window with a set (shrink one step at a time)
+    time_complexity: O(n)
+    space_complexity: O(min(n, m))
+    explanation: |
+      Keep the window's characters in a set. When the new character is already in the set, remove `s[left]` and advance `left` repeatedly until the old copy has been removed, then add the new character. Each character is added once and removed at most once.
+    tradeoff: Also O(n) and arguably easier to reason about, since it never needs the "do not move left backwards" check. It may take up to 2n steps (each index enters and leaves once) instead of jumping `left` directly, which is a constant-factor difference only.
+    code: |
+      class Solution:
+          def lengthOfLongestSubstring(self, s: str) -> int:
+              window = set()
+              left = 0
+              best = 0
+              for right, ch in enumerate(s):
+                  while ch in window:  # drop characters until the old copy is gone
+                      window.remove(s[left])
+                      left += 1
+                  window.add(ch)
+                  best = max(best, right - left + 1)
+              return best
+
+tests:
+  - { name: empty string, input: { s: "" }, expected: 0 }
+  - { name: single space, input: { s: " " }, expected: 1 }
+  - { name: restart in the middle, input: { s: "dvdf" }, expected: 3 }
+  - { name: left must not move backwards, input: { s: "abba" }, expected: 2 }
+  - { name: all distinct, input: { s: "abcdefg" }, expected: 7 }
+  - { name: answer at the end, input: { s: "tmmzuxt" }, expected: 5 }
+  - { name: digits and symbols, input: { s: "a1!a1!b" }, expected: 4 }
+  - { name: repeat at the start, input: { s: "aab" }, expected: 2 }
+  - { name: spaces count as characters, input: { s: "a b c a" }, expected: 3 }
+
+benchmark:
+  size_label: length of s
+  sizes: [500, 2000, 10000, 50000]
+  generator: |
+    def generate(n, rng):
+        # Cycle through a shuffled copy of all 95 printable ASCII characters, with
+        # a few random characters mixed in. Duplicate-free runs are long (up to 95),
+        # so a brute force that restarts at every index does ~95 steps per start.
+        alphabet = [chr(c) for c in range(32, 127)]
+        rng.shuffle(alphabet)
+        chars = []
+        for i in range(n):
+            if rng.random() < 0.01:
+                chars.append(rng.choice(alphabet))
+            else:
+                chars.append(alphabet[i % len(alphabet)])
+        return {"s": "".join(chars)}

@@ -1,0 +1,149 @@
+id: "19"
+title: Remove Nth Node From End of List
+slug: remove-nth-node-from-end-of-list
+leetcode_url: https://leetcode.com/problems/remove-nth-node-from-end-of-list/
+category: linked-list
+difficulty: Medium
+patterns: [Linked List, Two Pointers, Dummy Node]
+
+description: |
+  Given the `head` of a linked list and an integer `n`, remove the `n`-th node **counting from the end** of the list (`n = 1` is the last node) and return the head of the resulting list.
+
+  Lists are shown as arrays of node values: `[1, 2, 3]` means `1 -> 2 -> 3`, and `[]` means an empty list (`None`).
+
+  **Follow-up:** can you do it in a single pass?
+
+examples:
+  - input: { head: [1, 2, 3, 4, 5], n: 2 }
+    output: [1, 2, 3, 5]
+    explanation: The 2nd node from the end is `4`. Unlinking it connects `3` directly to `5`.
+  - input: { head: [1], n: 1 }
+    output: []
+    explanation: Removing the only node leaves an empty list.
+  - input: { head: [1, 2], n: 1 }
+    output: [1]
+
+constraints:
+  - "The number of nodes in the list is `sz`."
+  - "`1 <= sz <= 30`"
+  - "`0 <= Node.val <= 100`"
+  - "`1 <= n <= sz`"
+
+function_signature: "def removeNthFromEnd(self, head: Optional[ListNode], n: int) -> Optional[ListNode]"
+
+starter_code: |
+  # Definition for singly-linked list.
+  # class ListNode:
+  #     def __init__(self, val=0, next=None):
+  #         self.val = val
+  #         self.next = next
+  class Solution:
+      def removeNthFromEnd(self, head: Optional[ListNode], n: int) -> Optional[ListNode]:
+          pass
+
+runner:
+  kind: function
+  method: removeNthFromEnd
+  params:
+    - { name: head, type: "Optional[ListNode]" }
+    - { name: n, type: int }
+  returns: "Optional[ListNode]"
+
+hints:
+  - To unlink a node from a singly linked list you need a pointer to the node **before** it. If you knew the length of the list, which node from the front would that be?
+  - Counting the length first takes two passes. For one pass, think about two pointers that walk the list together but stay a fixed distance apart.
+  - Put a dummy node in front of the head so that removing the head is not a special case. Move a leading pointer `n + 1` steps ahead of a trailing pointer that starts at the dummy, then advance both until the leader falls off the end. The trailer is now right before the node to remove.
+
+approach: Two pointers with a gap of n (one pass)
+optimal_solution: |
+  class Solution:
+      def removeNthFromEnd(self, head: Optional[ListNode], n: int) -> Optional[ListNode]:
+          dummy = ListNode(0, head)  # lets us remove the real head like any other node
+          lead = trail = dummy
+
+          # Put lead n + 1 nodes ahead of trail.
+          for _ in range(n + 1):
+              lead = lead.next
+
+          # Move both until lead runs off the end; trail stops just before the target.
+          while lead:
+              lead = lead.next
+              trail = trail.next
+
+          trail.next = trail.next.next  # unlink the n-th node from the end
+          return dummy.next
+
+explanation: |
+  **Intuition.** Removing a node from a singly linked list means changing the `next` pointer of the node **before** it. The hard part is finding that node when the position is given from the end.
+
+  Imagine two pointers walking the list together with exactly `n + 1` steps between them. When the leading pointer falls off the end (becomes `None`), the trailing pointer is `n + 1` nodes behind the end, which is exactly the node just before the `n`-th node from the end.
+
+  **The dummy node.** If `n` equals the length of the list, the node to remove is the head, which has no predecessor. Putting a dummy node in front gives every real node, including the head, a predecessor, so one code path handles all cases. Return `dummy.next`, not `head`, since the head may have been removed.
+
+  **Algorithm.**
+  1. Create `dummy` with `dummy.next = head`; set `lead = trail = dummy`.
+  2. Advance `lead` by `n + 1` steps.
+  3. Advance both pointers until `lead` is `None`.
+  4. Set `trail.next = trail.next.next` and return `dummy.next`.
+
+  **Example.** `head = [1, 2, 3, 4, 5], n = 2`: `lead` starts 3 steps ahead, at `3`. Moving both three more times leaves `lead = None` and `trail` at `3`, whose next node `4` is removed.
+
+  **Subtle points.**
+  - The gap must be `n + 1`, not `n`, so `trail` stops *before* the target instead of on it.
+  - Advancing `lead` `n + 1` times is always safe: the list has at least `n` real nodes plus the dummy, so `lead` becomes `None` at worst on the last step.
+
+key_insight: Two pointers kept n + 1 nodes apart turn "n-th from the end" into a single pass, and a dummy head makes deleting the first node no different from any other.
+
+time_complexity: O(sz)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(sz):** the leading pointer walks the whole list exactly once (n + 1 steps, then the rest), and the trailing pointer walks part of it alongside. Every step is O(1).
+
+  **Space O(1):** one dummy node and two pointers, regardless of the length of the list.
+
+data_structures: [Linked list]
+passes: 1 pass over the list
+
+alternatives:
+  - name: Two passes (count the length first)
+    time_complexity: O(sz)
+    space_complexity: O(1)
+    explanation: |
+      First walk the list to count its length `L`. The node to remove is then at index `L - n` from the front (0-based), so walk `L - n` steps from a dummy node to land on its predecessor and unlink the next node.
+    tradeoff: The same O(sz) time and O(1) memory, and the most natural first idea. It just walks the list twice; the gap technique answers the one-pass follow-up and is a pattern that comes up again (middle of a list, cycle detection).
+    code: |
+      class Solution:
+          def removeNthFromEnd(self, head: Optional[ListNode], n: int) -> Optional[ListNode]:
+              length = 0
+              node = head
+              while node:
+                  length += 1
+                  node = node.next
+
+              dummy = ListNode(0, head)
+              prev = dummy
+              for _ in range(length - n):  # stop right before the node to delete
+                  prev = prev.next
+              prev.next = prev.next.next
+              return dummy.next
+
+tests:
+  - { name: remove the head, input: { head: [1, 2, 3], n: 3 }, expected: [2, 3] }
+  - { name: remove the tail, input: { head: [1, 2, 3], n: 1 }, expected: [1, 2] }
+  - { name: two nodes remove the head, input: { head: [1, 2], n: 2 }, expected: [2] }
+  - { name: middle of an even list, input: { head: [10, 20, 30, 40, 50, 60], n: 3 }, expected: [10, 20, 30, 50, 60] }
+  - { name: repeated values (remove by position), input: { head: [1, 2, 1, 2], n: 2 }, expected: [1, 2, 2] }
+  - { name: zero values, input: { head: [0, 0, 100], n: 1 }, expected: [0, 0] }
+  - name: maximum length, remove the head
+    input: { head: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30], n: 30 }
+    expected: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+
+benchmark:
+  size_label: number of nodes
+  sizes: [3, 8, 15, 30]
+  generator: |
+    def generate(size, rng):
+        # The constraints cap the list at 30 nodes. Removing the tail (n = 1)
+        # makes the two-pass version walk the whole list twice.
+        head = [rng.randint(0, 100) for _ in range(size)]
+        return {"head": head, "n": 1}

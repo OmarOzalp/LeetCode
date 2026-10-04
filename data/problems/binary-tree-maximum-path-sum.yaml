@@ -1,0 +1,219 @@
+id: "124"
+title: Binary Tree Maximum Path Sum
+slug: binary-tree-maximum-path-sum
+leetcode_url: https://leetcode.com/problems/binary-tree-maximum-path-sum/
+category: trees
+difficulty: Hard
+patterns: [DFS, Recursion, Postorder Traversal, Tree DP]
+
+description: |
+  A **path** in a binary tree is a sequence of nodes where each consecutive pair is joined by an edge, and no node appears more than once. A path has at least one node. It doesn't have to pass through the root, and it can go up through a node and then down into that node's other child.
+
+  The **path sum** is the sum of the values of the nodes on the path.
+
+  Given the `root` of a binary tree, return the **maximum path sum** over all non-empty paths.
+
+examples:
+  - input: { root: [1, 2, 3] }
+    output: 6
+    explanation: "The best path is `2 → 1 → 3`, with sum `2 + 1 + 3 = 6`."
+  - input: { root: [-10, 9, 20, null, null, 15, 7] }
+    output: 42
+    explanation: "The best path is `15 → 20 → 7`, with sum `42`. Extending it through the root `-10` would only lower the sum, so the best path doesn't touch the root at all."
+  - input: { root: [-2, -1] }
+    output: -1
+    explanation: "Every value is negative, but a path must contain at least one node. The best choice is the single node `-1`. The answer is not `0`."
+
+constraints:
+  - "The number of nodes in the tree is in the range `[1, 3 * 10^4]`."
+  - "`-1000 <= Node.val <= 1000`"
+
+function_signature: "def maxPathSum(self, root: Optional[TreeNode]) -> int"
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def maxPathSum(self, root: Optional[TreeNode]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: maxPathSum
+  params:
+    - { name: root, type: "Optional[TreeNode]" }
+  returns: int
+
+hints:
+  - Every path has exactly one highest node, the one closest to the root. What does a path look like around that highest node?
+  - "At its highest node, a path goes down into the left subtree, the right subtree, both, or neither. So for each node you need the best downward path starting at each of its children. A child whose best downward sum is negative is better left out."
+  - "Use one post-order DFS where each call returns the best downward path sum starting at that node using at most one child, since that is the only shape a parent can extend. While you're at the node, also update a global answer with the node's value plus the positive parts of both children's results."
+
+approach: Post-order DFS returning the best single-branch gain
+optimal_solution: |
+  class Solution:
+      def maxPathSum(self, root: Optional[TreeNode]) -> int:
+          best = root.val  # any single node is a valid path; never start at 0
+
+          def gain(node: Optional[TreeNode]) -> int:
+              """Best sum of a path that starts at node and only goes downward."""
+              nonlocal best
+              if node is None:
+                  return 0
+              # A branch with a negative sum would only hurt, so skip it (use 0).
+              left = max(gain(node.left), 0)
+              right = max(gain(node.right), 0)
+              # Best path whose highest node is this one: it may use both branches.
+              best = max(best, node.val + left + right)
+              # The parent can extend only one branch, so return the better one.
+              return node.val + max(left, right)
+
+          gain(root)
+          return best
+
+explanation: |
+  **Intuition.** Look at any path and pick its **highest node**, the one closest to the root. From there, the path goes down into the left subtree, the right subtree, both, or neither. It can never come back up. So:
+
+  `best path whose highest node is X = X.val + (best downward path from X.left, if positive) + (best downward path from X.right, if positive)`
+
+  The answer is the maximum of this over all nodes `X`. All we need is the **best downward path** starting at each child, and that can be computed bottom-up, because a node's best downward path is its own value plus the better of its children's (or nothing).
+
+  This means the recursive function has **two different roles**, and keeping them apart is the key to the problem:
+  - **What it returns** to the parent: `gain(node)`, the best path that starts at `node` and goes down through **at most one** child. A path that uses both children already has its highest node here and cannot be extended up to the parent without visiting `node` twice.
+  - **What it records** in `best`: the best path whose highest node is `node`, which may use **both** children.
+
+  **Algorithm.**
+  1. Initialize `best = root.val`. Some node always exists, and with all-negative values the answer is negative, so `0` would be wrong.
+  2. `gain(node)`, in post-order:
+     - `None` contributes `0`.
+     - `left = max(gain(node.left), 0)` and `right = max(gain(node.right), 0)`. Clamping at 0 means "don't use that branch".
+     - Update `best = max(best, node.val + left + right)`.
+     - Return `node.val + max(left, right)`.
+  3. Call `gain(root)` and return `best`.
+
+  **Subtle points.**
+  - **Clamp the children, not the node.** The node's own value is always included, even when negative, because the path must contain it. Only optional branches are dropped. This is how `[-2, -1]` correctly yields `-1`.
+  - **Never return a two-branch sum.** Returning `node.val + left + right` to the parent would describe a "path" that forks, which isn't a valid path.
+  - This "return one thing, record another" pattern also solves Diameter of Binary Tree and other path problems on trees.
+
+key_insight: "Every path peaks at one node, so compute each node's best downward gain bottom-up. Return the one-branch gain to the parent, and record node + both positive branches as a candidate answer."
+
+time_complexity: O(n)
+space_complexity: O(h)
+complexity_explanation: |
+  **Time O(n):** the post-order DFS visits each node once and does O(1) work there (two clamps, one update and one return).
+
+  **Space O(h):** only the recursion stack, which is as deep as the tree's height `h`. That is O(log n) for a balanced tree and O(n) for a skewed chain.
+
+data_structures: [Binary tree, Recursion stack]
+passes: 1 post-order pass
+
+alternatives:
+  - name: Brute force (try every node as the peak, recompute gains)
+    time_complexity: O(n²)
+    space_complexity: O(h)
+    explanation: |
+      Visit every node and treat it as the highest point of the path. For each one, call a separate recursive helper to compute the best downward path from its left child and from its right child, clamp both at 0, and add the node's value. The helper recomputes everything from scratch on each call.
+    tradeoff: Follows the same "every path has a highest node" insight, but repeats work. A node's subtree is rescanned once for each of its ancestors, giving O(n · h) total, which is O(n²) for a skewed tree. The optimal solution computes each gain once and reuses it from the parent, which is the same insight as memoization.
+    code: |
+      class Solution:
+          def maxPathSum(self, root: Optional[TreeNode]) -> int:
+              def down(node):
+                  # Best downward path from node, recomputed from scratch every call.
+                  if node is None:
+                      return 0
+                  return node.val + max(0, down(node.left), down(node.right))
+
+              best = float("-inf")
+              stack = [root]
+              while stack:
+                  node = stack.pop()
+                  if node:
+                      # Treat this node as the highest point of the path.
+                      peak = node.val + max(0, down(node.left)) + max(0, down(node.right))
+                      best = max(best, peak)
+                      stack.append(node.left)
+                      stack.append(node.right)
+              return best
+  - name: Iterative post-order (no recursion)
+    time_complexity: O(n)
+    space_complexity: O(n)
+    explanation: |
+      Collect the nodes in preorder with an explicit stack. Reversed, that order lists every child before its parent, which is all a bottom-up computation needs. Then process nodes in that order, storing each node's gain in a dictionary (with `gain[None] = 0`), and apply exactly the same two formulas as the recursive solution.
+    tradeoff: Same O(n) time and logic, and it cannot hit Python's recursion limit on very deep trees. It stores all `n` nodes and their gains (O(n) memory instead of O(h)), and the recursive version is easier to read and explain.
+    code: |
+      class Solution:
+          def maxPathSum(self, root: Optional[TreeNode]) -> int:
+              # Preorder visit order; reversed, every child comes before its parent.
+              order, stack = [], [root]
+              while stack:
+                  node = stack.pop()
+                  order.append(node)
+                  if node.left:
+                      stack.append(node.left)
+                  if node.right:
+                      stack.append(node.right)
+
+              gain = {None: 0}
+              best = root.val
+              for node in reversed(order):
+                  left = max(gain[node.left], 0)
+                  right = max(gain[node.right], 0)
+                  best = max(best, node.val + left + right)
+                  gain[node] = node.val + max(left, right)
+              return best
+
+tests:
+  - { name: all negative, input: { root: [-3, -2, -1] }, expected: -1 }
+  - { name: all negative with best node deep, input: { root: [-5, -4, -6, -8, -1] }, expected: -1 }
+  - { name: single negative node, input: { root: [-1000] }, expected: -1000 }
+  - name: "classic tree (best path 7 → 11 → 4 → 5 → 8 → 13)"
+    input: { root: [5, 4, 8, 11, null, 13, 4, 7, 2, null, null, null, 1] }
+    expected: 48
+  - { name: crossing a negative node pays off, input: { root: [10, -5, 20, 30] }, expected: 55 }
+  - { name: best path is a single leaf, input: { root: [1, -10, 2, 5] }, expected: 5 }
+  - { name: chain with mixed signs, input: { root: [2, -1, null, 3, null, -4, null, 5] }, expected: 5 }
+  - { name: best path lies below a negative root, input: { root: [-1, 5, null, 4, null, null, 2, -4] }, expected: 11 }
+  - name: negative subtrees must be cut off
+    input: { root: [9, 6, -3, null, null, -6, 2, null, null, 2, null, -6, -6, -6] }
+    expected: 16
+  - { name: whole tree at maximum values, input: { root: [1000, 1000, 1000, 1000, null, null, 1000] }, expected: 5000 }
+
+benchmark:
+  size_label: number of nodes
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Grow a random tree: each new node takes a uniformly random free child
+        # slot. The height stays around O(log n), so recursion depth is modest.
+        left, right = [-1] * n, [-1] * n
+        free = [(0, 0), (0, 1)]  # (parent index, 0 = left / 1 = right)
+        for i in range(1, n):
+            j = rng.randrange(len(free))
+            free[j], free[-1] = free[-1], free[j]
+            parent, side = free.pop()
+            if side == 0:
+                left[parent] = i
+            else:
+                right[parent] = i
+            free.append((i, 0))
+            free.append((i, 1))
+        vals = [rng.randint(-1000, 1000) for _ in range(n)]
+
+        # Serialize to LeetCode level order (None marks a missing child).
+        out, queue = [], deque([0])
+        while queue:
+            i = queue.popleft()
+            if i < 0:
+                out.append(None)
+                continue
+            out.append(vals[i])
+            queue.append(left[i])
+            queue.append(right[i])
+        while out[-1] is None:
+            out.pop()
+        return {"root": out}

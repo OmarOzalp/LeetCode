@@ -1,0 +1,198 @@
+id: "5"
+title: Longest Palindromic Substring
+slug: longest-palindromic-substring
+leetcode_url: https://leetcode.com/problems/longest-palindromic-substring/
+category: dp-1d
+difficulty: Medium
+patterns: [Expand Around Center, Palindrome DP, Two Pointers]
+
+description: |
+  Given a string `s`, return the **longest contiguous substring** of `s` that is a palindrome (reads the same forwards and backwards).
+
+  If several palindromic substrings share the maximum length, returning **any one** of them is accepted.
+
+  Characters are compared exactly, so `"A"` and `"a"` are different.
+
+examples:
+  - input: { s: babad }
+    output: bab
+    explanation: "`\"aba\"` is equally long and is also accepted."
+  - input: { s: cbbd }
+    output: bb
+    explanation: The longest palindrome here has even length, so its center lies *between* the two `b`s.
+  - input: { s: ac }
+    output: a
+    explanation: "No two characters match, so the answer has length 1. `\"c\"` is also accepted."
+
+constraints:
+  - "`1 <= s.length <= 1000`"
+  - "`s` consists only of digits and English letters."
+
+function_signature: "def longestPalindrome(self, s: str) -> str"
+
+starter_code: |
+  class Solution:
+      def longestPalindrome(self, s: str) -> str:
+          pass
+
+runner:
+  kind: function
+  method: longestPalindrome
+  params:
+    - { name: s, type: str }
+  returns: str
+  compare: custom
+  checker: |
+    def check(inputs, output, expected):
+        s = inputs["s"]
+
+        def show(text):
+            text = repr(text)
+            return text if len(text) <= 60 else text[:57] + "..."
+
+        if not isinstance(output, str):
+            return False, "Return the palindrome itself as a string, not a value of type {}.".format(type(output).__name__)
+        if output == "":
+            return False, "You returned an empty string, but every non-empty s has a palindrome of length at least 1."
+        if output not in s:
+            return False, "{} is not a contiguous substring of s.".format(show(output))
+        if output != output[::-1]:
+            return False, "{} is not a palindrome (it differs from its reverse).".format(show(output))
+        if len(output) != len(expected):
+            return False, "{} is a palindromic substring of length {}, but the longest one has length {} (for example {}).".format(
+                show(output), len(output), len(expected), show(expected))
+        return True, None
+
+hints:
+  - Every palindrome is symmetric around its middle. Instead of choosing a substring and checking it, what if you choose the middle and grow outwards?
+  - "If `s[i..j]` is a palindrome, then `s[i-1..j+1]` is one exactly when `s[i-1] == s[j+1]`. So one comparison extends a palindrome by two characters, and once a comparison fails, no wider palindrome can share that center."
+  - There are `2n - 1` possible centers, the `n` characters (odd lengths) and the `n - 1` gaps between neighbors (even lengths). Expand from each one while the two ends match and remember the widest span you see.
+
+approach: Expand around center
+optimal_solution: |
+  class Solution:
+      def longestPalindrome(self, s: str) -> str:
+          n = len(s)
+          best_lo, best_hi = 0, 0  # inclusive bounds of the best palindrome so far
+
+          def expand(lo: int, hi: int) -> Tuple[int, int]:
+              """Grow outward while both ends match; return the final inclusive bounds."""
+              while lo >= 0 and hi < n and s[lo] == s[hi]:
+                  lo -= 1
+                  hi += 1
+              return lo + 1, hi - 1  # the last step went one too far on each side
+
+          for center in range(n):
+              # Odd length: centered on s[center]. Even length: between s[center] and s[center + 1].
+              for lo, hi in (expand(center, center), expand(center, center + 1)):
+                  if hi - lo > best_hi - best_lo:
+                      best_lo, best_hi = lo, hi
+
+          return s[best_lo:best_hi + 1]
+
+explanation: |
+  **Intuition.** A palindrome is a mirror image around its center. Checking every substring from scratch wastes work, because a palindrome of length `L + 2` is just a palindrome of length `L` with one matching character added on each side. So pick a center and grow outwards for as long as the ends keep matching.
+
+  **State & recurrence (the DP behind it).**
+  - **State:** `pal(i, j)` = "is `s[i..j]` a palindrome?"
+  - **Transition:** `pal(i, j) = (s[i] == s[j]) and pal(i + 1, j - 1)`. The outer characters must match and the inside must already be a palindrome.
+  - **Base cases:** every single character (`i == j`) is a palindrome, and the empty middle between two adjacent characters counts as one, so `pal(i, i + 1) = (s[i] == s[i + 1])`.
+  - **Order:** the transition only moves from `(i + 1, j - 1)` to `(i, j)`, i.e. outward along one center. Expanding around a center *is* this recurrence evaluated in the right order, one center at a time.
+  - **Space:** the classic DP stores all `n²` values of `pal`. Expanding needs no table: each value is used exactly once, by the next wider substring on the same center, and the first `False` means every wider substring on that center is `False` too, so we stop.
+
+  **Algorithm.**
+  1. For every index `center`, expand twice: from `(center, center)` for odd lengths and from `(center, center + 1)` for even lengths.
+  2. Expanding: while `lo` and `hi` are in range and `s[lo] == s[hi]`, move `lo` left and `hi` right. The palindrome found is `s[lo + 1 .. hi - 1]`.
+  3. Keep the widest bounds seen across all `2n - 1` centers.
+  4. Return that slice.
+
+  **Subtle points.**
+  - Forgetting the **even** centers is the most common bug: `"cbbd"` has no odd palindrome longer than 1, but `"bb"` has length 2.
+  - Track indices and slice once at the end; slicing inside the loop would add an O(n) copy for every improvement.
+  - A tempting idea is "longest common substring of `s` and `reverse(s)`". It fails on `"abacdfgdcaba"`, where `"abacd"` appears reversed elsewhere but is not a palindrome.
+  - Manacher's algorithm solves this in O(n), but it is rarely expected in interviews; expanding around centers is the standard answer.
+
+key_insight: "Every palindrome grows outward from one of 2n - 1 centers, and pal(i, j) = s[i] == s[j] and pal(i+1, j-1), so expanding from each center evaluates the DP without storing a table."
+
+time_complexity: O(n²)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n²):** there are `2n - 1` centers and each expansion takes at most O(n) steps. The worst case is a string like `"aaaa…a"`, where every center expands to the edge of the string. On typical strings expansions stop quickly and the run time is close to linear.
+
+  **Space O(1):** only a few indices are stored. The answer slice is created once at the end (that is output, not working memory).
+
+data_structures: [Two pointers]
+passes: 2n - 1 center expansions
+
+alternatives:
+  - name: Brute force (check every substring)
+    time_complexity: O(n³)
+    space_complexity: O(n)
+    explanation: |
+      Try substring lengths from longest to shortest, and for each length check every start position by comparing the substring with its reverse. The first palindrome found is the answer. There are O(n²) substrings and each check costs O(n).
+    tradeoff: Very easy to write and to trust, but cubic. At n = 1000 the worst case does on the order of 10⁸ character comparisons, while expanding around centers reuses each comparison for a whole family of substrings.
+    code: |
+      class Solution:
+          def longestPalindrome(self, s: str) -> str:
+              n = len(s)
+              # Longest lengths first, so the first palindrome we find is the answer.
+              for length in range(n, 0, -1):
+                  for start in range(n - length + 1):
+                      sub = s[start:start + length]
+                      if sub == sub[::-1]:
+                          return sub
+              return ""
+  - name: 2-D DP table
+    time_complexity: O(n²)
+    space_complexity: O(n²)
+    explanation: |
+      Store `is_pal[i][j]` for every pair. Fill rows from the bottom (`i` from `n - 1` down to 0) so that `is_pal[i + 1][j - 1]` is ready when needed: `is_pal[i][j] = s[i] == s[j] and (j - i < 3 or is_pal[i + 1][j - 1])`. The `j - i < 3` case covers lengths 2 and 3, whose inside is empty or a single character. Track the longest `True` entry.
+    tradeoff: Same O(n²) time and makes the recurrence explicit, which is great for learning. But it allocates n² booleans (a million at n = 1000) and always does the full n²/2 work, while expansion uses O(1) memory and stops early on most centers.
+    code: |
+      class Solution:
+          def longestPalindrome(self, s: str) -> str:
+              n = len(s)
+              # is_pal[i][j] is True when s[i..j] (inclusive) is a palindrome.
+              is_pal = [[False] * n for _ in range(n)]
+              best_lo, best_len = 0, 1
+
+              for i in range(n - 1, -1, -1):  # bottom-up so row i + 1 is already filled
+                  is_pal[i][i] = True
+                  for j in range(i + 1, n):
+                      # Ends match, and the inside (length 0 or 1, or a known palindrome) is a palindrome.
+                      if s[i] == s[j] and (j - i < 3 or is_pal[i + 1][j - 1]):
+                          is_pal[i][j] = True
+                          if j - i + 1 > best_len:
+                              best_lo, best_len = i, j - i + 1
+
+              return s[best_lo:best_lo + best_len]
+
+tests:
+  - { name: single character, input: { s: a }, expected: a }
+  - { name: two equal characters, input: { s: bb }, expected: bb }
+  - { name: whole string, input: { s: racecar }, expected: racecar }
+  - { name: no repeated letters, input: { s: abcde }, expected: a }
+  - { name: all the same, input: { s: aaaa }, expected: aaaa }
+  - { name: even palindrome inside, input: { s: forgeeksskeegfor }, expected: geeksskeeg }
+  - { name: reversed-substring trap, input: { s: abacdfgdcaba }, expected: aba }
+  - { name: digits and case sensitivity, input: { s: Aa12321b }, expected: "12321" }
+  - { name: even palindrome at the end, input: { s: xyzabba }, expected: abba }
+  - name: long alternating string
+    input: { s: abababababababababababababababababababababababababababababababababababababababababababababababababab }
+    expected: abababababababababababababababababababababababababababababababababababababababababababababababababa
+
+benchmark:
+  size_label: length of s
+  sizes: [50, 100, 250, 500, 1000]
+  generator: |
+    def generate(n, rng):
+        # Random letters with one planted palindrome of length n/5 somewhere inside.
+        letters = "abc"
+        k = max(1, n // 5)
+        half = "".join(rng.choice(letters) for _ in range(k // 2))
+        pal = half + (rng.choice(letters) if k % 2 else "") + half[::-1]
+        rest = n - len(pal)
+        left = rng.randint(0, rest)
+        s = "".join(rng.choice(letters) for _ in range(left)) + pal
+        s += "".join(rng.choice(letters) for _ in range(rest - left))
+        return {"s": s}

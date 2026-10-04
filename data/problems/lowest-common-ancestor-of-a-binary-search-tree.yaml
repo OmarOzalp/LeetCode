@@ -1,0 +1,191 @@
+id: "235"
+title: Lowest Common Ancestor of a Binary Search Tree
+slug: lowest-common-ancestor-of-a-binary-search-tree
+leetcode_url: https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-search-tree/
+category: trees
+difficulty: Medium
+patterns: [BST Property, Binary Search, Tree Walk]
+
+description: |
+  You are given the `root` of a **binary search tree** (BST) and two of its nodes, `p` and `q`. Return their **lowest common ancestor** (LCA).
+
+  The LCA of `p` and `q` is the deepest node that has both `p` and `q` among its descendants. A node counts as a descendant of **itself**, so if `p` is an ancestor of `q`, the answer is `p`.
+
+  Recall the BST property: for every node, all values in its left subtree are smaller than the node's value, and all values in its right subtree are larger.
+
+  **How tests work:** `p` and `q` are written as node *values*. The runner looks up the nodes with those values in `root` and passes the actual nodes to your function. Your answer is checked by the value of the node you return.
+
+examples:
+  - input: { root: [6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], p: 2, q: 8 }
+    output: 6
+    explanation: "`2` is in the root's left subtree and `8` is in its right subtree, so the root `6` is the deepest node above both."
+  - input: { root: [6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], p: 2, q: 4 }
+    output: 2
+    explanation: "`4` is a descendant of `2`, and `2` is a descendant of itself, so the LCA is `2`."
+  - input: { root: [2, 1], p: 2, q: 1 }
+    output: 2
+
+constraints:
+  - "The number of nodes in the tree is in the range `[2, 10^5]`."
+  - "`-10^9 <= Node.val <= 10^9`"
+  - "All `Node.val` are **unique**."
+  - "`p != q`"
+  - "`p` and `q` both exist in the BST."
+
+function_signature: "def lowestCommonAncestor(self, root: TreeNode, p: TreeNode, q: TreeNode) -> TreeNode"
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def lowestCommonAncestor(self, root: TreeNode, p: TreeNode, q: TreeNode) -> TreeNode:
+          pass
+
+runner:
+  kind: function
+  method: lowestCommonAncestor
+  params:
+    - { name: root, type: TreeNode }
+    - { name: p, type: TreeNode, ref: root }
+    - { name: q, type: TreeNode, ref: root }
+  returns: TreeNodeVal
+
+hints:
+  - "Standing at some node, you can tell which side `p` is on just by comparing values, without searching. What does that tell you about where `p` and `q` are relative to the current node?"
+  - If `p` and `q` are both smaller than the current node, they are both in its left subtree, so their LCA is there too. The same goes for both larger and the right subtree.
+  - "Walk down from the root. Move left while both values are smaller, and move right while both are larger. The first node where they are not on the same side (one smaller and one larger, or one equal to the node) is the LCA."
+
+approach: Walk down from the root using the BST ordering
+optimal_solution: |
+  class Solution:
+      def lowestCommonAncestor(self, root: TreeNode, p: TreeNode, q: TreeNode) -> TreeNode:
+          node = root
+          while node:
+              if p.val < node.val and q.val < node.val:
+                  node = node.left    # both targets live in the left subtree
+              elif p.val > node.val and q.val > node.val:
+                  node = node.right   # both targets live in the right subtree
+              else:
+                  return node         # they split here, or one of them IS this node
+          return None  # unreachable: p and q are guaranteed to be in the tree
+
+explanation: |
+  **Intuition.** In a general binary tree you would have to search for `p` and `q`. In a BST, comparing a value with the current node already tells you which subtree it is in, so you can head straight for the answer.
+
+  Start at the root, which is an ancestor of everything. At each node there are only three possibilities:
+  - **Both values are smaller.** `p` and `q` are both in the left subtree. The left child is also a common ancestor and is lower, so go left.
+  - **Both values are larger.** By the same argument, go right.
+  - **Otherwise they split.** One is smaller and the other larger, or one of them equals the current node. This node is the LCA.
+
+  **Why the split node is the lowest.** It is a common ancestor, because we only ever moved into the subtree containing both targets. Any node strictly below it is in its left subtree or its right subtree, and each of those contains at most one of `p` and `q`. When the current node *is* `p` (or `q`), nothing below it can be an ancestor of `p` itself. So no lower node works.
+
+  **Algorithm.**
+  1. Set `node = root`.
+  2. While both `p.val` and `q.val` are less than `node.val`, move to `node.left`. While both are greater, move to `node.right`.
+  3. As soon as neither holds, return `node`.
+
+  **Subtle points.**
+  - Use **strict** comparisons. When `p.val == node.val` the walk must stop, which is how "a node is its own descendant" is handled (Example 2).
+  - The order of `p` and `q` doesn't matter. Treat them symmetrically and don't assume `p.val < q.val`.
+  - Only values are compared. The tree is never searched, and the walk never backtracks.
+
+key_insight: In a BST the LCA is the first node on the path from the root where p and q stop being on the same side, which is the split point of their value range.
+
+time_complexity: O(h)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(h):** each step moves one level down and never backtracks, so the walk visits at most `h + 1` nodes, where `h` is the height of the tree. That is O(log n) for a balanced BST and O(n) for a degenerate one (for example, values inserted in sorted order, which produces a chain).
+
+  **Space O(1):** the iterative walk only keeps a pointer to the current node. A recursive version of the same walk would use O(h) stack space.
+
+data_structures: [Binary search tree]
+passes: 1 root-to-LCA walk
+
+alternatives:
+  - name: Recursive BST walk
+    time_complexity: O(h)
+    space_complexity: O(h)
+    explanation: |
+      The same three-way decision written recursively. If both values are smaller, return the answer from the left subtree. If both are larger, return the answer from the right subtree. Otherwise the current node is the split point.
+    tradeoff: Identical logic and time, and some people find it closer to the reasoning. Each step adds a stack frame, though, so it uses O(h) memory instead of O(1). Because the recursive call is the last thing that happens, it converts directly into the loop.
+    code: |
+      class Solution:
+          def lowestCommonAncestor(self, root: TreeNode, p: TreeNode, q: TreeNode) -> TreeNode:
+              if p.val < root.val and q.val < root.val:
+                  return self.lowestCommonAncestor(root.left, p, q)
+              if p.val > root.val and q.val > root.val:
+                  return self.lowestCommonAncestor(root.right, p, q)
+              return root
+  - name: General binary-tree LCA (ignores the BST ordering)
+    time_complexity: O(n)
+    space_complexity: O(h)
+    explanation: |
+      A post-order DFS that works on any binary tree. Each call returns `p` or `q` if it finds one of them in its subtree (or the LCA, if it found both), and `None` if it finds neither. A node that receives a non-`None` result from both children is the LCA. A node that *is* `p` or `q` returns itself immediately.
+    tradeoff: Worth knowing, since it is the solution to the follow-up problem "LCA of a Binary Tree". Here it throws away the BST ordering, so it may visit every node (O(n)) where the BST walk only follows one path (O(h)).
+    code: |
+      class Solution:
+          def lowestCommonAncestor(self, root: TreeNode, p: TreeNode, q: TreeNode) -> TreeNode:
+              if root is None or root is p or root is q:
+                  return root
+              left = self.lowestCommonAncestor(root.left, p, q)
+              right = self.lowestCommonAncestor(root.right, p, q)
+              if left and right:      # p and q were found on different sides
+                  return root
+              return left or right    # pass up whichever side found something
+
+tests:
+  - { name: both in the left subtree, input: { root: [6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], p: 3, q: 5 }, expected: 4 }
+  - { name: both in the right subtree, input: { root: [6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], p: 7, q: 9 }, expected: 8 }
+  - { name: q is the ancestor and p > q, input: { root: [6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], p: 3, q: 2 }, expected: 2 }
+  - { name: two nodes with the root as ancestor, input: { root: [1, null, 2], p: 1, q: 2 }, expected: 1 }
+  - { name: negative values, input: { root: [0, -5, 5, -8, -3, 3, 8], p: -8, q: -3 }, expected: -5 }
+  - { name: split at the root with negatives, input: { root: [0, -5, 5, -8, -3, 3, 8], p: -3, q: 3 }, expected: 0 }
+  - { name: extreme values, input: { root: [1000000000, -1000000000], p: -1000000000, q: 1000000000 }, expected: 1000000000 }
+  - { name: right-skewed chain, input: { root: [1, null, 2, null, 3, null, 4, null, 5], p: 5, q: 3 }, expected: 3 }
+  - { name: left-skewed chain, input: { root: [5, 4, null, 3, null, 2, null, 1], p: 1, q: 2 }, expected: 2 }
+  - name: split deep in a perfect tree
+    input: { root: [8, 4, 12, 2, 6, 10, 14, 1, 3, 5, 7, 9, 11, 13, 15], p: 5, q: 7 }
+    expected: 6
+
+benchmark:
+  size_label: number of nodes
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        vals = sorted(rng.sample(range(-10**9, 10**9), n))
+        # Random BST shape: node i holds vals[i]. Each value range picks a random
+        # root (like quicksort pivots), so the expected height is O(log n).
+        left, right = [-1] * n, [-1] * n
+        root = rng.randrange(n)
+        stack = [(root, 0, n)]  # (node, lo, hi): node is the root of vals[lo:hi]
+        while stack:
+            i, lo, hi = stack.pop()
+            if lo < i:
+                left[i] = rng.randrange(lo, i)
+                stack.append((left[i], lo, i))
+            if i + 1 < hi:
+                right[i] = rng.randrange(i + 1, hi)
+                stack.append((right[i], i + 1, hi))
+
+        # Serialize to LeetCode level order; the last node BFS visits is a deepest one.
+        out, queue, last = [], deque([root]), root
+        while queue:
+            i = queue.popleft()
+            if i < 0:
+                out.append(None)
+                continue
+            out.append(vals[i])
+            last = i
+            queue.append(left[i])
+            queue.append(right[i])
+        while out[-1] is None:
+            out.pop()
+
+        # q = the deepest node's neighbour in sorted order. One of two adjacent
+        # values is always an ancestor of the other, so the LCA is deep.
+        nb = last - 1 if last > 0 else last + 1
+        return {"root": out, "p": vals[last], "q": vals[nb]}

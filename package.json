@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "concurrently -k -n api,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
     "dev:web": "vite",
-    "dev:server": "tsx watch --clear-screen=false --include \"data/**/*\" --include \"server/runner/py/**/*\" server/index.ts",
+    "dev:server": "tsx watch --clear-screen=false server/index.ts",
     "build": "tsc -b && vite build",
     "start": "cross-env NODE_ENV=production tsx server/index.ts",
     "preview": "npm run build && npm start",

@@ -1,0 +1,155 @@
+id: "338"
+title: Counting Bits
+slug: counting-bits
+leetcode_url: https://leetcode.com/problems/counting-bits/
+category: bit-manipulation
+difficulty: Easy
+patterns: [Bit Manipulation, DP, Bit Shift]
+
+description: |
+  Given a non-negative integer `n`, return a list `ans` of length `n + 1` where `ans[i]` is the number of `1` bits in the binary form of `i`, for every `i` from `0` to `n`.
+
+  **Follow-up:** counting the bits of each number separately takes O(n log n) time. Can you do it in **O(n)**, one pass, without a built-in popcount function?
+
+examples:
+  - input: { n: 2 }
+    output: [0, 1, 1]
+    explanation: "`0 → 0`, `1 → 1`, `2 → 10`."
+  - input: { n: 5 }
+    output: [0, 1, 1, 2, 1, 2]
+    explanation: "`0 → 0`, `1 → 1`, `2 → 10`, `3 → 11`, `4 → 100`, `5 → 101`."
+  - input: { n: 8 }
+    output: [0, 1, 1, 2, 1, 2, 2, 3, 1]
+    explanation: Every power of two (`1`, `2`, `4`, `8`) has exactly one `1` bit, so the counts drop back to 1 at each of them.
+
+constraints:
+  - "`0 <= n <= 10^5`"
+
+function_signature: "def countBits(self, n: int) -> List[int]"
+
+starter_code: |
+  class Solution:
+      def countBits(self, n: int) -> List[int]:
+          pass
+
+runner:
+  kind: function
+  method: countBits
+  params:
+    - { name: n, type: int }
+  returns: "List[int]"
+
+hints:
+  - Counting each number's bits from scratch repeats a lot of work. Can the answer for `i` be built from the answer for a smaller number you have already computed?
+  - Write `i` and `i // 2` in binary next to each other. How do their bit patterns compare?
+  - "`i >> 1` is `i` with its last bit dropped, and nothing else changes. So `i` has the same `1` bits as `i >> 1`, plus one more if its last bit (`i & 1`) is set. Fill the table from 1 up to `n`."
+
+approach: DP on the right shift (ans[i] = ans[i >> 1] + (i & 1))
+optimal_solution: |
+  class Solution:
+      def countBits(self, n: int) -> List[int]:
+          ans = [0] * (n + 1)  # ans[0] = 0
+          for i in range(1, n + 1):
+              # i >> 1 drops the last bit (and is already computed); i & 1 is that last bit.
+              ans[i] = ans[i >> 1] + (i & 1)
+          return ans
+
+explanation: |
+  **Intuition.** Shifting `i` right by one (`i >> 1`, the same as `i // 2`) removes its last bit and keeps every other bit. So `i` has exactly the `1` bits of `i >> 1`, plus one more if the bit that was dropped was a `1`:
+
+  ```
+  bits(i) = bits(i >> 1) + (i & 1)
+  ```
+
+  Because `i >> 1 < i` for every `i >= 1`, the answer for `i >> 1` is already in the table when we reach `i`. That makes this a bottom-up dynamic program with an O(1) step per number.
+
+  ```
+  i   binary   i >> 1      i & 1   bits(i)
+  5   101      10   (2)    1       bits(2) + 1 = 1 + 1 = 2
+  6   110      11   (3)    0       bits(3) + 0 = 2 + 0 = 2
+  7   111      11   (3)    1       bits(3) + 1 = 2 + 1 = 3
+  8   1000     100  (4)    0       bits(4) + 0 = 1 + 0 = 1
+  ```
+
+  **Algorithm.**
+  1. Create `ans = [0] * (n + 1)`. The base case `ans[0] = 0` is already set.
+  2. For `i` from `1` to `n`: `ans[i] = ans[i >> 1] + (i & 1)`.
+  3. Return `ans`.
+
+  **Subtle points.**
+  - The answer has `n + 1` entries (0 through `n` inclusive). For `n = 0` it is `[0]`.
+  - Other recurrences work too, as long as they point to a smaller number. A popular one uses the trick from *Number of 1 Bits*: `i & (i - 1)` is `i` with its lowest `1` bit removed, so `ans[i] = ans[i & (i - 1)] + 1`.
+  - Another way to see the recurrence: doubling a number adds a `0` at the end, and adding 1 then turns that `0` into a `1`. So `bits(2k) = bits(k)` and `bits(2k + 1) = bits(k) + 1`. For example `bits(6) = bits(3)` and `bits(7) = bits(3) + 1`.
+
+key_insight: Dropping the last bit (i >> 1) gives a smaller number whose count is already known, so ans[i] = ans[i >> 1] + (i & 1) fills the table in one O(n) pass.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** one loop over `1..n`, each step a shift, an AND, a table lookup and an addition, all O(1).
+
+  **Space O(1)** extra: the only array is `ans`, which is the required output (O(n) if you count it).
+
+data_structures: [Array (DP table)]
+passes: 1 pass from 1 to n
+
+alternatives:
+  - name: Count each number separately (Kernighan's loop)
+    time_complexity: O(n log n)
+    space_complexity: O(1)
+    explanation: |
+      For each `i`, count its `1` bits from scratch by repeatedly clearing the lowest `1` bit (`x &= x - 1`) until `x` is `0`, as in *Number of 1 Bits*.
+    tradeoff: Simple and reuses a known technique, but ignores all earlier answers. Each number costs up to `log2(n) + 1` steps (17 for n = 10^5), so the total is O(n log n). The DP gets each count in O(1) by reusing a smaller number's answer.
+    code: |
+      class Solution:
+          def countBits(self, n: int) -> List[int]:
+              ans = []
+              for i in range(n + 1):
+                  x, count = i, 0
+                  while x:
+                      x &= x - 1  # clear the lowest 1 bit
+                      count += 1
+                  ans.append(count)
+              return ans
+  - name: DP on the lowest set bit (ans[i] = ans[i & (i - 1)] + 1)
+    time_complexity: O(n)
+    space_complexity: O(1)
+    explanation: |
+      `i & (i - 1)` removes the lowest `1` bit of `i`, which gives a smaller number with exactly one fewer `1`. Its answer is already in the table, so add 1.
+
+      ```
+      i = 6 (110):  6 & 5 = 110 & 101 = 100 (4)   ans[6] = ans[4] + 1 = 2
+      ```
+    tradeoff: Same O(n) time and space as the shift recurrence, just a different way to reach a smaller number that is already computed. Choose whichever you find easier to explain. The shift version maps directly to "drop the last bit".
+    code: |
+      class Solution:
+          def countBits(self, n: int) -> List[int]:
+              ans = [0] * (n + 1)
+              for i in range(1, n + 1):
+                  ans[i] = ans[i & (i - 1)] + 1  # one more 1 bit than i without its lowest 1
+              return ans
+
+tests:
+  - { name: zero, input: { n: 0 }, expected: [0] }
+  - { name: one, input: { n: 1 }, expected: [0, 1] }
+  - { name: three, input: { n: 3 }, expected: [0, 1, 1, 2] }
+  - name: ends at all ones (15 = 1111)
+    input: { n: 15 }
+    expected: [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4]
+  - name: ends at a power of two (16)
+    input: { n: 16 }
+    expected: [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1]
+  - name: up to 31 (11111)
+    input: { n: 31 }
+    expected: [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5]
+  - name: up to 64
+    input: { n: 64 }
+    expected: [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 1]
+
+benchmark:
+  size_label: n
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # The input is just n; rng is unused because the work depends only on n.
+        return {"n": n}

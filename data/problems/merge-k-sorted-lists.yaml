@@ -1,0 +1,184 @@
+id: "23"
+title: Merge k Sorted Lists
+slug: merge-k-sorted-lists
+leetcode_url: https://leetcode.com/problems/merge-k-sorted-lists/
+category: linked-list
+difficulty: Hard
+patterns: [Linked List, Min-Heap, K-way Merge, Divide and Conquer, Dummy Node]
+
+description: |
+  You are given an array `lists` of `k` linked lists, each sorted in ascending order. Some of them may be empty.
+
+  Merge all of them into **one sorted linked list** and return its head.
+
+  Each list is shown as an array of node values, so `lists` looks like `[[1, 4, 5], [1, 3, 4]]`. An empty inner array is an empty list (`None`).
+
+examples:
+  - input: { lists: [[1, 4, 5], [1, 3, 4], [2, 6]] }
+    output: [1, 1, 2, 3, 4, 4, 5, 6]
+    explanation: All eight nodes from the three lists end up in one sorted list.
+  - input: { lists: [] }
+    output: []
+    explanation: There are no lists at all, so the result is empty.
+  - input: { lists: [[]] }
+    output: []
+    explanation: There is one list, and it is empty.
+
+constraints:
+  - "`k == lists.length`"
+  - "`0 <= k <= 10^4`"
+  - "`0 <= lists[i].length <= 500`"
+  - "`-10^4 <= lists[i][j] <= 10^4`"
+  - "`lists[i]` is sorted in ascending order."
+  - "The total number of nodes across all lists does not exceed `10^4`."
+
+function_signature: "def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]"
+
+starter_code: |
+  # Definition for singly-linked list.
+  # class ListNode:
+  #     def __init__(self, val=0, next=None):
+  #         self.val = val
+  #         self.next = next
+  class Solution:
+      def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
+          pass
+
+runner:
+  kind: function
+  method: mergeKLists
+  params:
+    - { name: lists, type: "List[ListNode]" }
+  returns: "Optional[ListNode]"
+
+hints:
+  - You already know how to merge two sorted lists. What would it cost to merge the k lists one after another into a growing result, when k is large?
+  - The next node of the result is always the smallest among the current **front** nodes of the k lists. Which data structure hands you the minimum of k items quickly, even as items are removed and added?
+  - Put the front node of every non-empty list into a min-heap keyed by value. Pop the smallest, append it to the result, and push that node's successor if it has one. In Python, add a tie-breaker (such as the list index) to each heap entry, because two nodes cannot be compared directly.
+
+approach: Min-heap of list heads (k-way merge)
+optimal_solution: |
+  class Solution:
+      def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
+          # Heap entries are (value, list index, node). The index breaks ties so
+          # Python never has to compare two ListNode objects.
+          heap = [(node.val, i, node) for i, node in enumerate(lists) if node]
+          heapq.heapify(heap)
+
+          dummy = ListNode()
+          tail = dummy
+          while heap:
+              _, i, node = heapq.heappop(heap)  # smallest front node of all lists
+              tail.next = node
+              tail = node
+              if node.next:
+                  heapq.heappush(heap, (node.next.val, i, node.next))
+
+          return dummy.next
+
+explanation: |
+  **Intuition.** Merging two sorted lists works by repeatedly taking the smaller of two front nodes. With `k` lists the rule is the same: the next node of the result is the **smallest of the k front nodes**. Scanning all k fronts every time costs O(k) per node. A **min-heap** holding one front node per list gives us that minimum in O(log k) instead.
+
+  The heap never holds more than k entries: when we pop the front of list `i`, the only new candidate from that list is its next node, so we push just that one.
+
+  **Algorithm.**
+  1. Push `(value, index, node)` for the head of every non-empty list and heapify.
+  2. While the heap is not empty:
+     1. Pop the entry with the smallest value and attach its node after `tail`.
+     2. If that node has a successor, push the successor (with the same list index).
+  3. Return `dummy.next`.
+
+  **Subtle points.**
+  - **Tie-breaking.** Python compares tuples element by element. If two values are equal it moves on to the second element; without the index there it would try to compare two `ListNode` objects and raise `TypeError`. The list index is unique among the entries in the heap, so the comparison never reaches the node.
+  - **Empty input.** `lists = []` and lists containing only empty lists both give an empty heap, so the loop never runs and `dummy.next` is `None`.
+  - The nodes are re-linked, not copied. The last node popped is the last node of its own list, so its `next` is already `None`.
+
+key_insight: The next output node is always the minimum of the k current list heads, and a min-heap of size k returns that minimum in O(log k) per node.
+
+time_complexity: O(N log k)
+space_complexity: O(k)
+complexity_explanation: |
+  Let **N** be the total number of nodes and **k** the number of lists.
+
+  **Time O(N log k):** building the initial heap costs O(k). Every one of the N nodes is pushed and popped at most once, and each heap operation on at most k entries costs O(log k).
+
+  **Space O(k):** the heap holds at most one entry per list at any time. The output list reuses the existing nodes, so no other extra memory grows with N.
+
+data_structures: [Min-heap, Linked list]
+passes: Each node is pushed and popped once
+
+alternatives:
+  - name: Brute force (collect all values, sort, relink)
+    time_complexity: O(N log N)
+    space_complexity: O(N)
+    explanation: |
+      Walk every list, put every node into one Python list, sort the nodes by value, and link them together in that order. It ignores the fact that each input list is already sorted.
+    tradeoff: Short and correct, and in Python it is often fast in practice because sorting runs in C (Timsort even notices the existing sorted runs). But it needs O(N) extra memory and, in general, O(N log N) comparisons instead of O(N log k). In an interview it is the baseline to improve on, not the expected answer.
+    code: |
+      class Solution:
+          def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
+              nodes = []
+              for node in lists:
+                  while node:
+                      nodes.append(node)
+                      node = node.next
+              nodes.sort(key=lambda node: node.val)
+
+              dummy = tail = ListNode()
+              for node in nodes:
+                  tail.next = node
+                  tail = node
+              tail.next = None  # the last node must not keep its old successor
+              return dummy.next
+  - name: Divide and conquer (merge lists in pairs)
+    time_complexity: O(N log k)
+    space_complexity: O(k)
+    explanation: |
+      Merge the lists in pairs, like the levels of merge sort: list 0 with list 1, list 2 with list 3, and so on. This halves the number of lists each round, so after about log₂ k rounds one list remains. Each round touches every node once, using the two-list merge from *Merge Two Sorted Lists*.
+    tradeoff: Same O(N log k) time as the heap with no heap or tie-breaking subtleties. The only extra memory is the list of partial results for each round (O(k) references; O(1) if you merge in place into the input array). It needs a helper function and is a bit more code; the heap version is the more common answer and also works when lists arrive as a stream. Merging lists one by one into a growing result (instead of in pairs) would degrade to O(k · N).
+    code: |
+      class Solution:
+          def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
+              if not lists:
+                  return None
+              # Each round merges neighbours in pairs, halving the number of lists.
+              while len(lists) > 1:
+                  merged = []
+                  for i in range(0, len(lists), 2):
+                      second = lists[i + 1] if i + 1 < len(lists) else None
+                      merged.append(self.mergeTwo(lists[i], second))
+                  lists = merged
+              return lists[0]
+
+          def mergeTwo(self, a: Optional[ListNode], b: Optional[ListNode]) -> Optional[ListNode]:
+              dummy = tail = ListNode()
+              while a and b:
+                  if a.val <= b.val:
+                      tail.next, a = a, a.next
+                  else:
+                      tail.next, b = b, b.next
+                  tail = tail.next
+              tail.next = a or b
+              return dummy.next
+
+tests:
+  - { name: one list, input: { lists: [[1, 2, 3]] }, expected: [1, 2, 3] }
+  - { name: several empty lists, input: { lists: [[], [], []] }, expected: [] }
+  - { name: some lists empty, input: { lists: [[], [1], [], [0]] }, expected: [0, 1] }
+  - { name: duplicates across lists, input: { lists: [[1, 1], [1, 1], [1]] }, expected: [1, 1, 1, 1, 1] }
+  - { name: negative and extreme values, input: { lists: [[-10, -5, 0], [-7, 3], [-10, 10000]] }, expected: [-10, -10, -7, -5, 0, 3, 10000] }
+  - { name: many single-node lists in reverse order, input: { lists: [[5], [4], [3], [2], [1]] }, expected: [1, 2, 3, 4, 5] }
+  - { name: very different lengths, input: { lists: [[1, 2, 3, 4, 5, 6], [0], [3, 7]] }, expected: [0, 1, 2, 3, 3, 4, 5, 6, 7] }
+  - { name: two lists, input: { lists: [[2, 4], [1, 3, 5]] }, expected: [1, 2, 3, 4, 5] }
+
+benchmark:
+  size_label: number of lists (k)
+  sizes: [10, 100, 1000, 10000]
+  generator: |
+    def generate(k, rng):
+        # k sorted lists with overlapping value ranges. Each list has
+        # min(500, 10^4 // k) nodes, so the total stays within 10^4 nodes.
+        # Solutions that merge the lists one by one slow down as k grows.
+        length = max(1, min(500, 10000 // k))
+        lists = [sorted(rng.randint(-10000, 10000) for _ in range(length)) for _ in range(k)]
+        return {"lists": lists}

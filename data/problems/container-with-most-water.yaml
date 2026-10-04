@@ -1,0 +1,140 @@
+id: "11"
+title: Container With Most Water
+slug: container-with-most-water
+leetcode_url: https://leetcode.com/problems/container-with-most-water/
+category: two-pointers
+difficulty: Medium
+patterns: [Two Pointers, Greedy]
+
+description: |
+  You are given an integer array `height` of length `n`. Picture `n` vertical walls standing on the x-axis: wall `i` is at position `x = i` and is `height[i]` units tall.
+
+  Pick **two** walls. Together with the x-axis they form a container, and the water it holds is a rectangle:
+
+  - its **width** is the distance between the two walls, and
+  - its **height** is the height of the **shorter** wall (any higher and the water would spill over).
+
+  Return the **maximum amount of water** any such container can hold. The walls between the two chosen ones do not get in the way, and the container cannot be tilted.
+
+examples:
+  - input: { height: [3, 9, 3, 4, 7, 2, 12, 6] }
+    output: 45
+    explanation: 'Use the walls at index 1 (height 9) and index 6 (height 12). The width is `6 - 1 = 5` and the water level is `min(9, 12) = 9`, so the area is `5 · 9 = 45`.'
+  - input: { height: [1, 1] }
+    output: 1
+  - input: { height: [4, 3, 2, 1, 4] }
+    output: 16
+    explanation: 'The two outer walls are both 4 tall and 4 apart, giving `4 · 4 = 16`. Here the widest container is also the best one; in the first example a narrower but taller pair wins.'
+
+constraints:
+  - "`n == height.length`"
+  - "`2 <= n <= 10^5`"
+  - "`0 <= height[i] <= 10^4`"
+
+function_signature: "def maxArea(self, height: List[int]) -> int"
+
+starter_code: |
+  class Solution:
+      def maxArea(self, height: List[int]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: maxArea
+  params:
+    - { name: height, type: "List[int]" }
+  returns: int
+
+hints:
+  - The area of a pair `(i, j)` is `(j - i) · min(height[i], height[j])`. Checking every pair is O(n²). Which pair has the largest possible width?
+  - Start with the two outermost walls. To have any chance of a bigger area after making the container narrower, the water level must rise. Which of the two walls is currently limiting the level?
+  - Keep a pointer at each end. Record the current area, then move the pointer at the **shorter** wall inward. Any container that keeps the shorter wall is narrower and still capped by that wall, so it can never beat the area you just recorded.
+
+approach: Two pointers, move the shorter wall
+optimal_solution: |
+  class Solution:
+      def maxArea(self, height: List[int]) -> int:
+          left, right = 0, len(height) - 1
+          best = 0
+
+          while left < right:
+              # The water level is limited by the shorter of the two walls.
+              width = right - left
+              best = max(best, width * min(height[left], height[right]))
+
+              # Discard the shorter wall: every remaining container that uses it
+              # is narrower and no taller, so it cannot beat `best`.
+              if height[left] < height[right]:
+                  left += 1
+              else:
+                  right -= 1
+
+          return best
+
+explanation: |
+  **Intuition.** Start with the widest container, using the first and last walls. Every other container is narrower, so to do better its water level, the shorter of its two walls, must be **higher**.
+
+  Suppose the left wall is the shorter one. Consider any container that keeps this left wall and pairs it with some wall further in. It is narrower than the current one, and its level is still at most `height[left]`. So its area can only be smaller. The left wall has already done the best it ever can, and we can safely throw it away by moving `left` inward. The same argument applies to the right wall when it is the shorter one.
+
+  Each step eliminates one wall without missing the optimum, so after `n - 1` steps every wall has been considered in its best possible container.
+
+  **Algorithm.**
+  1. Set `left = 0`, `right = n - 1` and `best = 0`.
+  2. While `left < right`:
+     - Compute `area = (right - left) · min(height[left], height[right])` and update `best`.
+     - If `height[left] < height[right]`, move `left` right; otherwise move `right` left.
+  3. Return `best`.
+
+  **Subtle points.**
+  - **Why not move the taller wall?** Moving the taller wall keeps the shorter one, which still caps the level, while the width shrinks. That can never increase the area, so it can never help.
+  - **Ties:** when both walls are equally tall, every container that keeps either of them is narrower and no taller, so moving either pointer is safe.
+  - This is a greedy **elimination** argument, not a guess. Each move discards a wall only after proving it cannot be part of a better answer.
+
+key_insight: The shorter wall caps the water level, so once it has been paired with the farthest possible partner it can never do better and can be discarded, letting two pointers check only n - 1 containers.
+
+time_complexity: O(n)
+space_complexity: O(1)
+complexity_explanation: |
+  **Time O(n):** every iteration moves one pointer one step inward, and the pointers start `n - 1` apart, so the loop runs exactly `n - 1` times with O(1) work each.
+
+  **Space O(1):** only the two pointers and the running best area are stored.
+
+data_structures: [Array]
+passes: 1 pass, pointers meeting in the middle
+
+alternatives:
+  - name: Brute force (try every pair of walls)
+    time_complexity: O(n²)
+    space_complexity: O(1)
+    explanation: |
+      For every pair `i < j`, compute `(j - i) · min(height[i], height[j])` and keep the maximum.
+    tradeoff: Obviously correct with no proof needed, but it evaluates n(n - 1)/2 pairs. At n = 10⁵ that is about 5 billion areas, versus fewer than 10⁵ for two pointers, which skip pairs that provably cannot win.
+    code: |
+      class Solution:
+          def maxArea(self, height: List[int]) -> int:
+              n = len(height)
+              best = 0
+              for i in range(n):
+                  for j in range(i + 1, n):
+                      best = max(best, (j - i) * min(height[i], height[j]))
+              return best
+
+tests:
+  - { name: all zero heights, input: { height: [0, 0] }, expected: 0 }
+  - { name: one zero wall, input: { height: [0, 5] }, expected: 0 }
+  - { name: increasing heights, input: { height: [1, 2, 3, 4, 5] }, expected: 6 }
+  - { name: decreasing heights, input: { height: [5, 4, 3, 2, 1] }, expected: 6 }
+  - { name: tall walls at both ends, input: { height: [10, 1, 1, 1, 10] }, expected: 40 }
+  - { name: zeros between the ends, input: { height: [6, 0, 0, 0, 0, 0, 6] }, expected: 36 }
+  - { name: best pair is adjacent in the middle, input: { height: [1, 100, 100, 1] }, expected: 100 }
+  - { name: tall neighbours beat wide short pairs, input: { height: [2, 3, 4, 5, 18, 17, 6] }, expected: 17 }
+  - { name: equal heights, input: { height: [3, 3, 3, 3] }, expected: 9 }
+  - { name: maximum heights, input: { height: [10000, 10000] }, expected: 10000 }
+
+benchmark:
+  size_label: length of height
+  sizes: [100, 1000, 5000, 20000, 100000]
+  generator: |
+    def generate(n, rng):
+        # Random wall heights across the full allowed range.
+        return {"height": [rng.randint(0, 10**4) for _ in range(n)]}

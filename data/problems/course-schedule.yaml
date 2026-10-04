@@ -1,0 +1,184 @@
+id: "207"
+title: Course Schedule
+slug: course-schedule
+leetcode_url: https://leetcode.com/problems/course-schedule/
+category: graphs
+difficulty: Medium
+patterns: [Topological Sort, BFS, DFS, Cycle Detection]
+
+description: |
+  There are `numCourses` courses, labeled `0` to `numCourses - 1`. You are given a list `prerequisites`, where `prerequisites[i] = [a, b]` means you must complete course `b` **before** you can take course `a`.
+
+  Return `True` if it is possible to complete every course, and `False` otherwise.
+
+  Courses with no prerequisites can be taken at any time, and you can take as many courses as you like, one after another.
+
+examples:
+  - input: { numCourses: 3, prerequisites: [[1, 0], [2, 1]] }
+    output: true
+    explanation: Take course 0, then course 1 (which needs 0), then course 2 (which needs 1).
+  - input: { numCourses: 2, prerequisites: [[1, 0], [0, 1]] }
+    output: false
+    explanation: Course 1 needs course 0 and course 0 needs course 1, so neither can ever be started.
+  - input: { numCourses: 4, prerequisites: [[1, 0], [2, 0], [3, 1], [3, 2]] }
+    output: true
+    explanation: "Course 0 unlocks courses 1 and 2, and course 3 needs both of them. One valid order is `0, 1, 2, 3`."
+
+constraints:
+  - "`1 <= numCourses <= 2000`"
+  - "`0 <= prerequisites.length <= 5000`"
+  - "`prerequisites[i].length == 2`"
+  - "`0 <= a, b < numCourses`"
+  - All the pairs `prerequisites[i]` are unique.
+
+function_signature: "def canFinish(self, numCourses: int, prerequisites: List[List[int]]) -> bool"
+
+starter_code: |
+  class Solution:
+      def canFinish(self, numCourses: int, prerequisites: List[List[int]]) -> bool:
+          pass
+
+runner:
+  kind: function
+  method: canFinish
+  params:
+    - { name: numCourses, type: int }
+    - { name: prerequisites, type: "List[List[int]]" }
+  returns: bool
+
+hints:
+  - Model the courses as a directed graph with an edge from each prerequisite to the course it unlocks. What shape must this graph have for the courses to be impossible to finish?
+  - The courses can all be finished exactly when the graph has no directed cycle, which means a topological order exists.
+  - Count each course's unmet prerequisites (its in-degree). Repeatedly "take" a course whose count is 0 and decrement the counts of the courses it unlocks. If you manage to take every course, there was no cycle. (A DFS that detects a back edge to a course still on the recursion stack works too.)
+
+approach: Kahn's algorithm (BFS topological sort)
+optimal_solution: |
+  class Solution:
+      def canFinish(self, numCourses: int, prerequisites: List[List[int]]) -> bool:
+          unlocks = [[] for _ in range(numCourses)]  # prereq -> courses that need it
+          indegree = [0] * numCourses                 # number of unmet prerequisites
+          for course, prereq in prerequisites:
+              unlocks[prereq].append(course)
+              indegree[course] += 1
+
+          # Courses with no prerequisites can be taken immediately.
+          queue = deque(c for c in range(numCourses) if indegree[c] == 0)
+          taken = 0
+          while queue:
+              course = queue.popleft()
+              taken += 1
+              for nxt in unlocks[course]:
+                  indegree[nxt] -= 1
+                  if indegree[nxt] == 0:  # its last prerequisite was just completed
+                      queue.append(nxt)
+
+          # Courses on a cycle (or depending on one) never reach in-degree 0.
+          return taken == numCourses
+
+explanation: |
+  **Intuition.** Draw an arrow from each prerequisite to the course it unlocks. You can finish everything exactly when this directed graph has **no cycle**. A cycle such as `0 → 1 → 2 → 0` means every course in it waits for another one in it, so none can be started first. A graph without directed cycles always has a **topological order**, which here is simply a valid order to take the courses.
+
+  **Kahn's algorithm** builds that order the way a student would. Take any course with no unmet prerequisites, mark it done, and see which courses are now unlocked.
+
+  **Algorithm.**
+  1. Build the adjacency list `unlocks[prereq]` and the `indegree` of every course (its number of prerequisites).
+  2. Put every course with in-degree 0 into a queue.
+  3. Pop a course and count it as taken. For each course it unlocks, decrement that course's in-degree, and enqueue it when the in-degree reaches 0.
+  4. When the queue is empty, return whether every course was taken.
+
+  **Why does this detect cycles?** A course on a cycle always has at least one prerequisite on the same cycle that is not yet taken, so its in-degree never reaches 0 and it is never enqueued. The same happens to any course that depends on a cycle. So `taken < numCourses` exactly when a cycle exists.
+
+  **Edge cases.**
+  - A course that requires itself (`[0, 0]`) is a cycle of length one. Its in-degree never drops to 0.
+  - The graph may be disconnected. Starting from *all* in-degree-0 courses covers every component.
+  - A triangle like `[[0, 1], [0, 2], [1, 2]]` is *not* a directed cycle (2 → 1 → 0 and 2 → 0), so it is fine. Only cycles that follow the arrows matter.
+
+key_insight: All courses can be finished exactly when the prerequisite graph has no directed cycle, and Kahn's algorithm finds this by repeatedly removing courses whose prerequisites are all met.
+
+time_complexity: O(V + E)
+space_complexity: O(V + E)
+complexity_explanation: |
+  Let `V = numCourses` and `E = len(prerequisites)`.
+
+  **Time O(V + E):** building the graph touches each edge once. Each course is enqueued and dequeued at most once, and each edge is followed once when its source course is taken.
+
+  **Space O(V + E)** for the adjacency list, plus O(V) for the in-degree array and the queue.
+
+data_structures: [Adjacency list, Queue, Array (in-degrees)]
+passes: Build the graph, then 1 BFS
+
+alternatives:
+  - name: DFS cycle detection (three colors)
+    time_complexity: O(V + E)
+    space_complexity: O(V + E)
+    explanation: |
+      Give each course one of three states: unvisited, **visiting** (on the current DFS path) and **done**. DFS from every unvisited course through its prerequisites. Reaching a course that is still *visiting* means we followed a path back into itself, which is a cycle. When all of a course's prerequisites are explored without finding a cycle, mark it done so it is never explored again.
+    tradeoff: The same complexity. It is often the first idea people have, and its postorder directly yields a topological order. You need three states, not a plain visited set, because reaching a *done* course again is fine (shared prerequisites) while reaching a *visiting* one is a cycle. The recursion can also be as deep as the longest prerequisite chain, while Kahn's algorithm is iterative.
+    code: |
+      class Solution:
+          def canFinish(self, numCourses: int, prerequisites: List[List[int]]) -> bool:
+              needs = [[] for _ in range(numCourses)]  # course -> its prerequisites
+              for course, prereq in prerequisites:
+                  needs[course].append(prereq)
+
+              UNVISITED, VISITING, DONE = 0, 1, 2
+              state = [UNVISITED] * numCourses
+
+              def has_cycle(course: int) -> bool:
+                  if state[course] == VISITING:
+                      return True   # back on the current path: cycle
+                  if state[course] == DONE:
+                      return False  # already proven cycle-free
+                  state[course] = VISITING
+                  if any(has_cycle(p) for p in needs[course]):
+                      return True
+                  state[course] = DONE
+                  return False
+
+              return not any(has_cycle(c) for c in range(numCourses))
+
+tests:
+  - name: no prerequisites
+    input: { numCourses: 3, prerequisites: [] }
+    expected: true
+  - name: single course
+    input: { numCourses: 1, prerequisites: [] }
+    expected: true
+  - name: course requires itself
+    input: { numCourses: 1, prerequisites: [[0, 0]] }
+    expected: false
+  - name: cycle in a separate component
+    input: { numCourses: 5, prerequisites: [[1, 0], [2, 1], [4, 3], [3, 4]] }
+    expected: false
+  - name: long chain
+    input: { numCourses: 6, prerequisites: [[1, 0], [2, 1], [3, 2], [4, 3], [5, 4]] }
+    expected: true
+  - name: chain leading into a cycle
+    input: { numCourses: 4, prerequisites: [[1, 0], [2, 1], [3, 2], [1, 3]] }
+    expected: false
+  - name: undirected triangle without a directed cycle
+    input: { numCourses: 3, prerequisites: [[0, 1], [0, 2], [1, 2]] }
+    expected: true
+  - name: directed three-cycle
+    input: { numCourses: 3, prerequisites: [[0, 1], [1, 2], [2, 0]] }
+    expected: false
+  - name: shared prerequisite and an isolated course
+    input: { numCourses: 5, prerequisites: [[1, 4], [2, 4], [3, 1], [3, 2]] }
+    expected: true
+
+benchmark:
+  size_label: number of courses (≈ 2 prerequisites each)
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # A random acyclic prerequisite graph: hide a random course order and only
+        # let a course depend on courses earlier in that order. With no cycle,
+        # the algorithm has to process every course and every edge.
+        order = list(range(n))
+        rng.shuffle(order)
+        pairs = set()
+        target = min(2 * n, n * (n - 1) // 2)
+        while len(pairs) < target:
+            i, j = sorted(rng.sample(range(n), 2))
+            pairs.add((order[j], order[i]))  # order[j] needs order[i]
+        return {"numCourses": n, "prerequisites": [list(p) for p in sorted(pairs)]}

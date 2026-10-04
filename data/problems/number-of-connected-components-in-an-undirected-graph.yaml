@@ -1,0 +1,181 @@
+id: "323"
+title: Number of Connected Components in an Undirected Graph
+slug: number-of-connected-components-in-an-undirected-graph
+leetcode_url: https://leetcode.com/problems/number-of-connected-components-in-an-undirected-graph/
+category: graphs
+difficulty: Medium
+patterns: [Union-Find, DFS, BFS, Connected Components]
+
+description: |
+  A graph has `n` nodes labeled `0` to `n - 1`. You are given a list `edges`, where `edges[i] = [a, b]` is an **undirected** edge between nodes `a` and `b`.
+
+  Return the number of **connected components** in the graph. A connected component is a maximal group of nodes in which every node can reach every other node by following edges. A node with no edges is a component of its own.
+
+examples:
+  - input: { n: 6, edges: [[0, 1], [2, 3], [3, 4]] }
+    output: 3
+    explanation: "The components are `{0, 1}`, `{2, 3, 4}` and the lone node `{5}`."
+  - input: { n: 6, edges: [[0, 1], [2, 3], [4, 5], [1, 2], [3, 4]] }
+    output: 1
+    explanation: The first three edges form three pairs. The last two edges join those pairs into one chain `0 - 1 - 2 - 3 - 4 - 5`.
+  - input: { n: 7, edges: [[2, 5], [5, 6]] }
+    output: 5
+    explanation: "`{2, 5, 6}` is one component, and nodes 0, 1, 3 and 4 are each alone."
+
+constraints:
+  - "`1 <= n <= 2000`"
+  - "`0 <= edges.length <= 5000`"
+  - "`edges[i].length == 2`"
+  - "`0 <= a, b < n` and `a != b`"
+  - There are no repeated edges.
+
+function_signature: "def countComponents(self, n: int, edges: List[List[int]]) -> int"
+
+starter_code: |
+  class Solution:
+      def countComponents(self, n: int, edges: List[List[int]]) -> int:
+          pass
+
+runner:
+  kind: function
+  method: countComponents
+  params:
+    - { name: n, type: int }
+    - { name: edges, type: "List[List[int]]" }
+  returns: int
+
+hints:
+  - Before any edges are added, there are exactly `n` components, one per node. How does adding a single edge change that count?
+  - An edge either joins two different components, which lowers the count by one, or connects two nodes that were already connected, which changes nothing. You need a fast way to tell these cases apart.
+  - Use Union-Find (disjoint set union). `find` returns a representative of a node's component. For each edge, if the two endpoints have different representatives, merge them and decrement the count. (A DFS or BFS that counts how many times it starts a new traversal also works.)
+
+approach: Union-Find (count successful merges)
+optimal_solution: |
+  class Solution:
+      def countComponents(self, n: int, edges: List[List[int]]) -> int:
+          parent = list(range(n))  # each node starts as its own root
+          size = [1] * n           # size of the tree under each root
+
+          def find(x: int) -> int:
+              # Path halving: link each visited node to its grandparent as we go up.
+              while parent[x] != x:
+                  parent[x] = parent[parent[x]]
+                  x = parent[x]
+              return x
+
+          components = n
+          for a, b in edges:
+              ra, rb = find(a), find(b)
+              if ra == rb:
+                  continue          # already in the same component
+              if size[ra] < size[rb]:
+                  ra, rb = rb, ra   # union by size: attach the smaller tree
+              parent[rb] = ra
+              size[ra] += size[rb]
+              components -= 1       # two components became one
+          return components
+
+explanation: |
+  **Intuition.** Start with no edges: `n` separate components. Now add the edges one at a time. Each edge either
+
+  - connects two nodes in **different** components, merging them so the count drops by 1, or
+  - connects two nodes that are **already** connected (it closes a cycle), so the count stays the same.
+
+  So the answer is `n` minus the number of edges that actually merged something. **Union-Find** answers "are `a` and `b` already connected?" in nearly constant time. Each component is a tree of parent pointers, and two nodes are connected exactly when they lead to the same root.
+
+  **Algorithm.**
+  1. `parent[i] = i` for every node, and `components = n`.
+  2. For each edge `(a, b)`, find both roots.
+  3. If the roots are equal, skip the edge. Otherwise attach the smaller tree's root under the larger one and decrement `components`.
+  4. Return `components`.
+
+  **Why the two optimizations?** Without them, the parent chains can grow into long paths and `find` degrades to O(n).
+  - **Path halving** (a form of path compression) shortens the path every time we walk it.
+  - **Union by size** keeps trees shallow by always hanging the smaller tree under the larger one.
+
+  Together they make each operation run in amortized O(α(n)) time, where α (the inverse Ackermann function) is at most 4 for any realistic n.
+
+  **Edge cases.** Nodes that appear in no edge are still components. That is why the count starts at `n` instead of counting nodes seen in `edges`. Duplicate connections inside a component (cycles) are correctly ignored.
+
+key_insight: Every edge that joins two different components lowers the count by exactly one, and Union-Find tells in near-constant time whether an edge does that.
+
+time_complexity: O(n + E · α(n))
+space_complexity: O(n)
+complexity_explanation: |
+  **Time O(n + E · α(n)):** initializing the arrays is O(n). Each of the `E` edges does two `find`s and at most one union, and with path compression plus union by size each costs amortized O(α(n)), which is effectively constant.
+
+  **Space O(n)** for the `parent` and `size` arrays. Unlike DFS, no adjacency list is built.
+
+data_structures: [Union-Find (disjoint set union), Array]
+passes: 1 pass over edges
+
+alternatives:
+  - name: DFS over an adjacency list
+    time_complexity: O(n + E)
+    space_complexity: O(n + E)
+    explanation: |
+      Build an adjacency list. Loop over all nodes, and whenever a node has not been seen yet, start a new traversal (iterative DFS with a stack) that marks its whole component as seen. The number of traversals started is the number of components.
+    tradeoff: Equally fast and the most direct reading of "count components". It needs the whole graph up front and an O(n + E) adjacency list. Union-Find needs only O(n) memory and works **incrementally**, so it can process edges as they arrive and report the count at any time, which matters for follow-ups like dynamic connectivity.
+    code: |
+      class Solution:
+          def countComponents(self, n: int, edges: List[List[int]]) -> int:
+              graph = [[] for _ in range(n)]
+              for a, b in edges:
+                  graph[a].append(b)
+                  graph[b].append(a)
+
+              seen = [False] * n
+              components = 0
+              for start in range(n):
+                  if seen[start]:
+                      continue
+                  components += 1  # a node no earlier traversal reached
+                  seen[start] = True
+                  stack = [start]
+                  while stack:
+                      node = stack.pop()
+                      for nb in graph[node]:
+                          if not seen[nb]:
+                              seen[nb] = True
+                              stack.append(nb)
+              return components
+
+tests:
+  - name: single node
+    input: { n: 1, edges: [] }
+    expected: 1
+  - name: no edges at all
+    input: { n: 4, edges: [] }
+    expected: 4
+  - name: triangle (edge inside a component)
+    input: { n: 3, edges: [[0, 1], [1, 2], [0, 2]] }
+    expected: 1
+  - name: path through every node
+    input: { n: 5, edges: [[0, 1], [1, 2], [2, 3], [3, 4]] }
+    expected: 1
+  - name: star
+    input: { n: 5, edges: [[0, 1], [0, 2], [0, 3], [0, 4]] }
+    expected: 1
+  - name: disjoint pairs
+    input: { n: 6, edges: [[0, 3], [1, 4], [2, 5]] }
+    expected: 3
+  - name: two components
+    input: { n: 5, edges: [[0, 1], [1, 2], [3, 4]] }
+    expected: 2
+  - name: two cycles and an isolated node
+    input: { n: 7, edges: [[0, 1], [1, 2], [0, 2], [3, 4], [4, 5], [3, 5]] }
+    expected: 3
+
+benchmark:
+  size_label: number of nodes (≈ 0.4·n random edges)
+  sizes: [1000, 5000, 20000, 50000, 100000]
+  generator: |
+    def generate(n, rng):
+        # About 0.4·n random edges: many small components of varied sizes. The
+        # average degree stays below 1, so no giant component forms and recursive
+        # DFS solutions remain shallow.
+        edges = set()
+        while len(edges) < (2 * n) // 5:
+            a, b = sorted(rng.sample(range(n), 2))
+            edges.add((a, b))
+        return {"n": n, "edges": [list(e) for e in sorted(edges)]}
