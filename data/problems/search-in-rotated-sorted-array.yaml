@@ -165,13 +165,14 @@ tests:
 
 benchmark:
   size_label: length of nums
-  sizes: [50, 250, 1000, 5000]
+  sizes: [100, 1000, 10000, 100000]
   generator: |
     def generate(n, rng):
         # Distinct even values, sorted and rotated at a random index. The target
         # is an odd number, so it is never present: a linear scan reads everything.
-        values = sorted(2 * v for v in rng.sample(range(-5000, 5001), n))
+        # (Values go beyond the official range so large n stays distinct.)
+        values = sorted(2 * v for v in rng.sample(range(-5 * n, 5 * n + 1), n))
         k = rng.randint(0, n - 1)
         nums = values[k:] + values[:k]
-        target = 2 * rng.randint(-4999, 4999) + 1
+        target = 2 * rng.randint(-5 * n + 1, 5 * n - 1) + 1
         return {"nums": nums, "target": target}

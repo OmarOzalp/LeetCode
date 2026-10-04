@@ -108,12 +108,12 @@ alternatives:
     explanation: |
       `fewest(rem)` returns the fewest coins that make exactly `rem`. It tries every coin as the next one: `1 + fewest(rem - coin)`. `fewest(0) = 0`, and an amount that no coin can reduce to 0 returns `inf`.
 
-      Without `@cache` this explores every ordered sequence of coins, which is exponential in `amount / min(coins)`. With the cache each of the `amount + 1` values is computed once.
+      Without `@lru_cache(None)` this explores every ordered sequence of coins, which is exponential in `amount / min(coins)`. With the cache each of the `amount + 1` values is computed once.
     tradeoff: Mirrors the "which coin do I use next?" reasoning and only visits amounts that are actually reachable from `amount`. But recursion depth can reach `amount / min(coins)` (10⁴ with a 1-coin), which overflows the default recursion limit in many environments. The bottom-up table has no such risk.
     code: |
       class Solution:
           def coinChange(self, coins: List[int], amount: int) -> int:
-              @cache
+              @lru_cache(None)
               def fewest(rem: int) -> float:
                   """Fewest coins adding up to exactly rem (inf if impossible)."""
                   if rem == 0:

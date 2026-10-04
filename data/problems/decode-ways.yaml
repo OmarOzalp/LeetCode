@@ -111,14 +111,14 @@ alternatives:
     explanation: |
       Define `ways(i)` = number of decodings of the suffix `s[i:]`. If `i == n` you have decoded everything (1 way); if `s[i] == "0"` no letter can start here (0 ways). Otherwise take one digit (`ways(i + 1)`) and, if `s[i:i+2] <= 26`, also two digits (`ways(i + 2)`).
 
-      Without `@cache` this recursion is exponential: a string of forty `1`s would take hundreds of millions of calls, since `ways(i + 2)` is recomputed inside `ways(i + 1)`. With the cache each of the `n + 1` states is solved once.
+      Without `@lru_cache(None)` this recursion is exponential: a string of forty `1`s would take hundreds of millions of calls, since `ways(i + 2)` is recomputed inside `ways(i + 1)`. With the cache each of the `n + 1` states is solved once.
     tradeoff: The most natural way to *find* the recurrence, because each call makes one decision. It uses O(n) cache and recursion depth, while the bottom-up loop needs O(1) memory.
     code: |
       class Solution:
           def numDecodings(self, s: str) -> int:
               n = len(s)
 
-              @cache
+              @lru_cache(None)
               def ways(i: int) -> int:
                   """Number of ways to decode the suffix s[i:]."""
                   if i == n:

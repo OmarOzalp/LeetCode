@@ -28,6 +28,10 @@ benchmark) and `data/problems/implement-trie-prefix-tree.yaml` (design runner).
   `s: "226"`, `grid: [["1", "0"]]`. Unquoted `226` is an integer.
 - `null`, `true`, `false` are JSON null/bool. In Python they become
   `None`/`True`/`False`.
+- Inside one-line flow mappings (`{ name: ..., input: ... }`), **quote any
+  string containing a comma**: `{ name: "empty, then full", ... }`. Unquoted, the
+  text after the comma silently becomes a separate (ignored) key.
+- Use `@lru_cache(None)` rather than `@cache` so code runs on Python 3.8.
 
 ## Fields
 
@@ -127,3 +131,27 @@ runner:
 
 The test passes when `decode(encode(value))` equals `expected` (normally the
 input itself) and `encode` returned a string.
+
+## Docs pages
+
+The Docs page is built from `data/docs/NN-slug.md` (the number sets the order):
+
+```markdown
+---
+title: Heap (Priority Queue)
+group: Data Structures        # Python Essentials | Data Structures | Algorithm Patterns
+summary: One sentence shown under the title.
+keywords: [heapq, heappush, top k]
+---
+
+Optional intro.
+
+## heappush and heappop       <- each "## " heading is one searchable card
+
+Prose, tables, and code. Use ```python for display-only code and
+```python run for self-contained examples that print output; the page shows
+a Run button for those.
+```
+
+`npm run validate:docs` executes every runnable block through the app's own
+runner.

@@ -132,7 +132,7 @@ tests:
 
 benchmark:
   size_label: number of nodes
-  sizes: [80, 400, 2000, 10000]
+  sizes: [100, 1000, 10000, 50000]
   generator: |
     def generate(n, rng):
         # The tail links back to a random node in the first half, so there is a

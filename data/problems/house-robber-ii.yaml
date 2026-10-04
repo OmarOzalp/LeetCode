@@ -108,7 +108,7 @@ alternatives:
     explanation: |
       Instead of splitting into two problems, carry the circular restriction in the state: `best(i, took_first)` is the best total from houses `i..n-1` given whether house 0 was robbed. At each house choose skip (`best(i + 1, took_first)`) or rob (`nums[i] + best(i + 2, ...)`), and when `took_first` is true the last house counts as unavailable.
 
-      There are `2n` states, each computed once thanks to `@cache`.
+      There are `2n` states, each computed once thanks to `@lru_cache(None)`.
     tradeoff: Shows a general technique, adding a flag to the state to remember a constraint, that works when a clean reduction is not obvious. It needs O(n) memory and recursion, and the extra flag makes it easier to get wrong than two simple passes.
     code: |
       class Solution:
@@ -117,7 +117,7 @@ alternatives:
               if n == 1:
                   return nums[0]
 
-              @cache
+              @lru_cache(None)
               def best(i: int, took_first: bool) -> int:
                   """Max money from houses i..n-1, given whether house 0 was robbed."""
                   if i >= n or (i == n - 1 and took_first):

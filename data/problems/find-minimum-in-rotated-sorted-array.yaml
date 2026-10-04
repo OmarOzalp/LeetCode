@@ -129,12 +129,13 @@ tests:
 
 benchmark:
   size_label: length of nums
-  sizes: [50, 250, 1000, 5000]
+  sizes: [100, 1000, 10000, 100000]
   generator: |
     def generate(n, rng):
         # Distinct sorted values, rotated so the minimum lands in the second half:
         # a linear scan has to walk past most of the array before finding it.
-        values = sorted(rng.sample(range(-5000, 5001), n))
+        # (Values go beyond the official range so large n stays distinct.)
+        values = sorted(rng.sample(range(-5 * n, 5 * n + 1), n))
         k = rng.randint(n // 2, n - 1)  # index where the minimum ends up
         nums = values[n - k:] + values[:n - k]
         return {"nums": nums}

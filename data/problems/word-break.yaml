@@ -113,7 +113,7 @@ alternatives:
     explanation: |
       `can_split(start)` answers "can the suffix `s[start:]` be segmented?". It tries every dictionary word that begins at `start` (prefixes up to the longest word length) and recurses on the remainder. `can_split(n)` is `True`.
 
-      This is the natural backtracking solution, and without `@cache` it is exponential on inputs like `"aaaa…ab"`. With the cache each `start` is resolved once, giving the same bounds as the bottom-up DP.
+      This is the natural backtracking solution, and without `@lru_cache(None)` it is exponential on inputs like `"aaaa…ab"`. With the cache each `start` is resolved once, giving the same bounds as the bottom-up DP.
     tradeoff: Often the quickest to write correctly from the "try a first word, then solve the rest" idea, and it only explores reachable positions. It uses recursion (depth up to `n = 300`) and a cache. The bottom-up loop is just as fast and has no recursion.
     code: |
       class Solution:
@@ -122,7 +122,7 @@ alternatives:
               max_len = max(len(w) for w in words)
               n = len(s)
 
-              @cache
+              @lru_cache(None)
               def can_split(start: int) -> bool:
                   """Can the suffix s[start:] be split into dictionary words?"""
                   if start == n:

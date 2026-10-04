@@ -97,14 +97,14 @@ alternatives:
     time_complexity: O(n)
     space_complexity: O(n)
     explanation: |
-      Write the recurrence exactly as stated, `ways(i) = ways(i - 1) + ways(i - 2)` with `ways(1) = 1` and `ways(2) = 2`, and cache each result with `@cache`.
+      Write the recurrence exactly as stated, `ways(i) = ways(i - 1) + ways(i - 2)` with `ways(1) = 1` and `ways(2) = 2`, and cache each result with `@lru_cache(None)`.
 
       Without the cache this is the naive recursion: the call tree branches twice at every level and repeats the same subproblems, costing about O(1.6ⁿ) calls (`n = 45` would take over a billion calls). With the cache each `ways(i)` is computed once.
     tradeoff: Usually the easiest way to *derive* a DP, since it mirrors the recurrence directly. It costs O(n) memory for the cache plus O(n) recursion depth, while the bottom-up version needs no recursion and only O(1) memory.
     code: |
       class Solution:
           def climbStairs(self, n: int) -> int:
-              @cache
+              @lru_cache(None)
               def ways(i: int) -> int:
                   if i <= 2:
                       return i  # ways(1) = 1, ways(2) = 2

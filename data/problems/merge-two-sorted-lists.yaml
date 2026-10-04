@@ -154,11 +154,11 @@ tests:
 
 benchmark:
   size_label: nodes per list
-  sizes: [2, 10, 25, 50]
+  sizes: [100, 1000, 10000, 50000]
   generator: |
     def generate(n, rng):
-        # Two sorted lists of n values each (the constraints allow at most 50 per
-        # list). Random values in [-100, 100] interleave and include duplicates.
-        a = sorted(rng.randint(-100, 100) for _ in range(n))
-        b = sorted(rng.randint(-100, 100) for _ in range(n))
+        # Two sorted lists of n values each. The official constraints allow at most
+        # 50 nodes per list; the benchmark goes further so growth is measurable.
+        a = sorted(rng.randint(-10 * n, 10 * n) for _ in range(n))
+        b = sorted(rng.randint(-10 * n, 10 * n) for _ in range(n))
         return {"list1": a, "list2": b}

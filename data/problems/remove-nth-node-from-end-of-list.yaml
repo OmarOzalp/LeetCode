@@ -140,10 +140,11 @@ tests:
 
 benchmark:
   size_label: number of nodes
-  sizes: [3, 8, 15, 30]
+  sizes: [100, 1000, 10000, 50000]
   generator: |
     def generate(size, rng):
-        # The constraints cap the list at 30 nodes. Removing the tail (n = 1)
-        # makes the two-pass version walk the whole list twice.
+        # The constraints cap the list at 30 nodes; the benchmark goes further so
+        # growth is measurable. Removing the tail (n = 1) makes the two-pass
+        # version walk the whole list twice.
         head = [rng.randint(0, 100) for _ in range(size)]
         return {"head": head, "n": 1}
