@@ -1,0 +1,1115 @@
+id: complexity
+title: Big-O Drills
+group: Big-O
+order: 30
+blurb: State time and space complexity instantly, from Python operation costs to loops, recursion and input limits.
+intro: "Analyze fast: loops that run one after another add, and loops inside loops multiply. Look for hidden linear operations (`x in list`, `pop(0)`, slicing, `s += t`) and multiply each by how often it repeats. Answers give the tight bound an interviewer expects."
+methods:
+  - id: bigo-nested-loops
+    name: Count the nested work
+    summary: Loops inside loops multiply; a hash map can turn an inner search into an O(1) lookup.
+    details: "Multiply the iteration counts of nested loops and add the counts of loops that run one after another. Then drop constants and smaller terms: n(n - 1)/2 pairs is still O(n²)."
+    example: |-
+      nums = list(range(1000))
+      target = -1               # no pair exists: the worst case
+
+      checks = 0                # brute force: every pair
+      for i in range(len(nums)):
+          for j in range(i + 1, len(nums)):
+              checks += 1
+              if nums[i] + nums[j] == target:
+                  break
+      print("all pairs:", checks)
+
+      checks, seen = 0, {}      # one pass with a hash map
+      for i, x in enumerate(nums):
+          checks += 1
+          if target - x in seen:  # O(1) average
+              break
+          seen[x] = i
+      print("hash map: ", checks)
+    output: |-
+      all pairs: 499500
+      hash map:  1000
+    complexity: O(n²) all pairs vs O(n) one pass with a dict
+    tip: When the inner loop only searches for something (a complement, a duplicate, a match), a dict or set can usually replace it. You trade O(n) extra memory for a factor of n in time.
+  - id: bigo-hidden-linear
+    name: "`x in list` hides a loop"
+    summary: A one-liner can cost O(n). Membership in a list compares item by item.
+    details: "Watch for linear calls inside loops: `x in a_list`, `a.index(x)`, `a.count(x)`, `min/max/sum(a)`, `a[i:j]`, `a.pop(0)`, `a.insert(0, x)` and `s += t`. Each one turns an O(n) loop into O(n²). The example counts every `==` Python performs."
+    example: |-
+      class Key:
+          eq_calls = 0
+
+          def __init__(self, v):
+              self.v = v
+
+          def __eq__(self, other):
+              Key.eq_calls += 1     # count every comparison
+              return self.v == other.v
+
+          def __hash__(self):
+              return hash(self.v)
+
+      n = 1000
+      as_list = [Key(i) for i in range(n)]
+      as_set = set(as_list)
+
+      for name, box in [("list", as_list), ("set", as_set)]:
+          Key.eq_calls = 0
+          for i in range(n):        # n lookups
+              Key(i) in box
+          print(name, Key.eq_calls)
+    output: |-
+      list 500500
+      set 1000
+    complexity: x in list O(n); x in set / dict O(1) average
+    tip: "When a loop body checks `x in something`, ask what `something` is. Converting a list to a set once costs O(n) and makes every later check O(1)."
+  - id: bigo-front-pop
+    name: pop(0) and insert(0, x) shift everything
+    summary: Changing the front of a list moves every other item, so n front operations cost O(n²).
+    details: "A list is one contiguous array. Removing or inserting at index 0 shifts every remaining item by one slot, while the end needs no shifting. The example counts the items that have to move. `collections.deque` changes either end in O(1)."
+    example: |-
+      n = 1000
+      a = list(range(n))
+      moved = 0
+      while a:
+          moved += len(a) - 1     # items that slide left
+          a.pop(0)
+      print("pop(0) x n:", moved)
+
+      b, moved = [], 0
+      for x in range(n):
+          moved += len(b)         # items that slide right
+          b.insert(0, x)
+      print("insert(0, x) x n:", moved)
+      print(n * (n - 1) // 2)     # n(n - 1)/2 = O(n²)
+    output: |-
+      pop(0) x n: 499500
+      insert(0, x) x n: 499500
+      499500
+    complexity: pop(0) / insert(0, x) O(n) each; deque.popleft() / appendleft() O(1)
+    tip: A BFS that calls `queue.pop(0)` can degrade to O(V²). Use `deque` with `popleft()`, or build a list backwards with `append` and reverse it once at the end.
+  - id: bigo-halving
+    name: Halving and doubling are O(log n)
+    summary: Cutting the problem in half each step gets down to 1 after about log₂ n steps.
+    details: "Binary search, `while n > 1: n //= 2`, `i *= 2` up to n, heap push/pop and the height of a balanced tree all take about log₂ n steps. log₂ 10⁹ is about 30, so O(log n) is nearly free."
+    example: |-
+      def halvings(n):
+          steps = 0
+          while n > 1:
+              n //= 2            # throw away half
+              steps += 1
+          return steps
+
+      for n in [16, 1000, 10 ** 6, 10 ** 9]:
+          print(n, halvings(n))
+
+      i, doublings = 1, 0
+      while i < 1000:
+          i *= 2                 # same count, growing instead
+          doublings += 1
+      print("doublings to pass 1000:", doublings)
+    output: |-
+      16 4
+      1000 9
+      1000000 19
+      1000000000 29
+      doublings to pass 1000: 10
+    complexity: O(log n)
+    tip: "The base of the log doesn't matter in Big-O. But if each step's work shrinks with the range (n + n/2 + n/4 + ...), the total is O(n), not O(n log n)."
+  - id: bigo-amortized
+    name: Amortized loops (two pointers, sliding window)
+    summary: Count how far each pointer can move in total, not how often the inner loop could run per step.
+    details: "In a sliding window the inner `while` can run many times for one `right`, but `left` only moves forward and stops at n. Over the whole run each pointer moves at most n times, so the total is O(n). The same argument makes `append` O(1) amortized and a monotonic stack O(n)."
+    example: |-
+      def longest_unique(s):
+          seen, left, best = set(), 0, 0
+          outer = inner = 0
+          for right, ch in enumerate(s):
+              outer += 1
+              while ch in seen:            # looks nested...
+                  seen.remove(s[left])
+                  left += 1
+                  inner += 1
+              seen.add(ch)
+              best = max(best, right - left + 1)
+          return best, outer, inner
+
+      best, outer, inner = longest_unique("abcabcbb" * 125)  # n = 1000
+      print("best:", best)
+      print("outer steps:", outer)
+      print("inner steps in total:", inner)
+    output: |-
+      best: 3
+      outer steps: 1000
+      inner steps in total: 999
+    complexity: O(n) total, even with the nested while
+    tip: "Ask whether any piece of work can happen more than once per item. If each item is added once and removed at most once, the algorithm is O(n) however the loops are nested."
+  - id: bigo-recursion-tree
+    name: "Recursion trees: branches^depth"
+    summary: A function that calls itself b times per call, d levels deep, makes about bᵈ calls.
+    details: "Draw the call tree. Naive `fib(n)` branches twice and goes about n levels deep, so its call count grows exponentially (about 1.6ⁿ, written O(2ⁿ)). Most calls repeat work: `fib(25)` computes `fib(2)` 46,368 times."
+    example: |-
+      calls = 0
+
+      def fib(n):
+          global calls
+          calls += 1
+          return n if n < 2 else fib(n - 1) + fib(n - 2)
+
+      for n in [10, 20, 25]:
+          calls = 0
+          fib(n)
+          print(n, calls)
+    output: |-
+      10 177
+      20 21891
+      25 242785
+    complexity: O(2ⁿ) time, O(n) stack space
+    tip: "Space is the depth of the tree, not its size: `fib(25)` makes 242,785 calls but never has more than 25 frames on the stack at once."
+  - id: bigo-memoization
+    name: "Memoization: states × work per state"
+    summary: Cache each subproblem so it is computed once; time becomes (number of states) × (work per state).
+    details: "Count the distinct arguments the function can get. `fib(n)` has n + 1 states with O(1) work each, so caching drops it from O(2ⁿ) to O(n). A grid DP over (r, c) has m · n states; a DP over (i, j) with an O(n) loop inside each state is O(n³)."
+    example: |-
+      from functools import lru_cache
+
+      runs = 0
+
+      @lru_cache(maxsize=None)
+      def fib(n):
+          global runs
+          runs += 1                # only cache misses get here
+          return n if n < 2 else fib(n - 1) + fib(n - 2)
+
+      for n in [10, 25, 90]:
+          fib.cache_clear()
+          runs = 0
+          print(n, fib(n), runs)
+    output: |-
+      10 55 11
+      25 75025 26
+      90 2880067194370816120 91
+    complexity: O(states × work per state) time, O(states) space
+    tip: "`@lru_cache(maxsize=None)` (or `@cache` in Python 3.9+) memoizes in one line. The recursion still uses O(depth) stack, so very deep inputs need a bottom-up table."
+  - id: bigo-graph-traversal
+    name: BFS / DFS touch each vertex and edge once
+    summary: A visited set means each vertex is processed once and each edge checked once, so a traversal is O(V + E).
+    details: "Each vertex is popped once and its neighbor list scanned once. In an undirected graph every edge sits in two lists, so there are 2E edge checks: still O(E). On an m × n grid, V = m · n and each cell has at most 4 neighbors, so BFS/DFS is O(m · n)."
+    example: |-
+      from collections import deque
+
+      graph = {0: [1, 2], 1: [0, 3], 2: [0, 3], 3: [1, 2, 4], 4: [3]}
+      V = len(graph)
+      E = sum(len(nbrs) for nbrs in graph.values()) // 2   # undirected
+
+      seen, q = {0}, deque([0])
+      pops = edge_checks = 0
+      while q:
+          node = q.popleft()
+          pops += 1
+          for nxt in graph[node]:
+              edge_checks += 1
+              if nxt not in seen:
+                  seen.add(nxt)        # mark when pushed
+                  q.append(nxt)
+      print("V =", V, "E =", E)
+      print("pops:", pops)
+      print("edge checks:", edge_checks)
+    output: |-
+      V = 5 E = 5
+      pops: 5
+      edge checks: 10
+    complexity: O(V + E) time, O(V) space for the visited set and queue
+    tip: Mark a node as seen when you push it, not when you pop it. Otherwise the same node can be queued many times and the O(V + E) bound breaks.
+  - id: bigo-space-depth
+    name: "Space: what is alive at the peak?"
+    summary: Count the most memory held at one moment, including the call stack.
+    details: "Recursion costs one frame per level, so a tree DFS uses O(h): O(log n) on a balanced tree but O(n) on a chain. Add any table, set or queue you keep. The input itself usually doesn't count as extra space."
+    example: |-
+      class Node:
+          def __init__(self, left=None, right=None):
+              self.left, self.right = left, right
+
+      def balanced(n):                  # n nodes, height ~ log2 n
+          if n == 0:
+              return None
+          half = (n - 1) // 2
+          return Node(balanced(half), balanced(n - 1 - half))
+
+      def chain(n):                     # n nodes, height n
+          root = None
+          for _ in range(n):
+              root = Node(left=root)
+          return root
+
+      def deepest_stack(root):
+          best = 0
+          def dfs(node, depth):         # depth = frames on the stack
+              nonlocal best
+              if node is None:
+                  return
+              best = max(best, depth)
+              dfs(node.left, depth + 1)
+              dfs(node.right, depth + 1)
+          dfs(root, 1)
+          return best
+
+      print("balanced, 511 nodes:", deepest_stack(balanced(511)))
+      print("chain, 511 nodes:   ", deepest_stack(chain(511)))
+    output: |-
+      balanced, 511 nodes: 9
+      chain, 511 nodes:    511
+    complexity: O(h) stack for tree recursion, between O(log n) and O(n)
+    tip: "When asked for space, name each part, e.g. \"O(n) for the hash map plus O(h) for the recursion\". A DP that only reads the previous row can keep two rows instead of the whole table."
+  - id: bigo-output-size
+    name: The output size is a lower bound
+    summary: If you must return 2ⁿ subsets or n! orderings, no algorithm can be faster than writing them out.
+    details: "n items have 2ⁿ subsets holding n · 2ⁿ⁻¹ items in total, and n! permutations of length n. Backtracking that builds each answer once is therefore O(n · 2ⁿ) or O(n · n!), and that is optimal."
+    example: |-
+      from itertools import permutations
+
+      def subsets(nums):
+          res = [[]]
+          for x in nums:
+              res += [s + [x] for s in res]   # doubles every step
+          return res
+
+      for n in [3, 10, 15]:
+          subs = subsets(list(range(n)))
+          print(n, len(subs), sum(len(s) for s in subs))
+
+      print(len(list(permutations(range(8)))))  # 8!
+    output: |-
+      3 8 12
+      10 1024 5120
+      15 32768 245760
+      40320
+    complexity: subsets O(n · 2ⁿ), permutations O(n · n!)
+    tip: That's why these problems keep n tiny (about 10 to 20). When the constraints are that small, an exponential search is probably intended.
+quiz:
+  # --- Python operation costs ---
+  - id: bigo-q01
+    method: bigo-hidden-linear
+    question: "`nums` is a list of n items. What does `x in nums` cost?"
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(n log n)
+    answer: 2
+    explanation: "A list has no index by value, so `in` compares item by item from the front until it finds a match: all n items in the worst case. Convert to a set once if you check membership repeatedly."
+  - id: bigo-q02
+    method: bigo-hidden-linear
+    question: "`seen` is a set of n items. What does `x in seen` cost?"
+    options:
+      - O(1) average
+      - O(log n)
+      - O(n)
+      - O(n log n)
+    answer: 0
+    explanation: "A set hashes `x` and jumps straight to its slot, so the check takes constant time on average however big the set is. The O(n) worst case needs pathological hash collisions and is ignored in interviews."
+  - id: bigo-q03
+    question: "`d` is a dict with n keys. What do `d[k] = v` and `d.get(k)` cost?"
+    options:
+      - O(1) average each
+      - O(log n) each
+      - O(n) each
+      - O(1) to set, O(n) to get
+    answer: 0
+    explanation: "A dict is a hash table: writing and reading both hash the key and go straight to its slot. That's what lets a dict replace an inner search loop."
+  - id: bigo-q04
+    method: bigo-front-pop
+    question: Which of these is O(n) on a container of n items?
+    options:
+      - a.pop() on a list
+      - q.popleft() on a deque
+      - a.pop(0) on a list
+      - a.append(x) on a list
+    answer: 2
+    explanation: "Removing the front of a list slides every remaining item one slot left. The end of a list and both ends of a deque change without moving anything, and `append` is O(1) amortized."
+  - id: bigo-q05
+    method: bigo-front-pop
+    question: "What does `a.insert(0, x)` cost on a list of n items?"
+    options:
+      - O(1)
+      - O(log n)
+      - O(n²)
+      - O(n)
+    answer: 3
+    explanation: "All n items shift one slot right to make room at the front. Doing that n times costs O(n²), so use `deque.appendleft` (O(1)) or append and reverse once at the end."
+  - id: bigo-q06
+    question: "What do `heappush(h, x)` and `heappop(h)` cost on a heap of n items?"
+    options:
+      - O(1) each
+      - O(log n) each
+      - O(1) push, O(n) pop
+      - O(n) each
+    answer: 1
+    explanation: "A heap is a complete binary tree about log₂ n levels tall. A push sifts the new item up and a pop sifts the moved last item down, at most one swap per level. Only peeking at `h[0]` is O(1)."
+  - id: bigo-q07
+    question: "What does `heapify(a)` cost on a list of n items?"
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(n log n)
+    answer: 2
+    explanation: "heapify sifts nodes down from the bottom up. Half the nodes are leaves that never move and only the few near the top can move far, so the total is O(n), cheaper than n pushes at O(n log n)."
+  - id: bigo-q08
+    question: "What does `sorted(a)` cost on n items?"
+    options:
+      - O(log n)
+      - O(n)
+      - O(n log n)
+      - O(n²)
+    answer: 2
+    explanation: "Python's Timsort is a comparison sort, and comparison sorts need O(n log n) comparisons in general. It does finish in O(n) on input that is already sorted, but quote O(n log n)."
+  - id: bigo-q09
+    question: "What does the slice `a[i:j]` cost?"
+    options:
+      - O(1)
+      - O(log(j - i))
+      - O(n log n)
+      - O(j - i)
+    answer: 3
+    explanation: "A slice builds a new list and copies each of its j - i items, so `a[:]` and `a.copy()` are O(n). Slicing inside a loop or a recursive call quietly adds a linear factor."
+  - id: bigo-q10
+    question: "`s` has length n and `t` has length m. What does `s + t` cost?"
+    options:
+      - O(1)
+      - O(m)
+      - O(n + m)
+      - O(n · m)
+    answer: 2
+    explanation: "Strings are immutable, so `+` allocates a new string and copies all n + m characters into it. Neither original changes."
+  - id: bigo-q11
+    question: "You append n one-character strings to a list `parts`, then call `''.join(parts)` once. What is the total time?"
+    options:
+      - O(n)
+      - O(n log n)
+      - O(n²)
+      - O(1)
+    answer: 0
+    explanation: "Each append is O(1) amortized, and `join` sizes the result first, then copies every character exactly once. That's the standard fix for building a string with `s += ch`."
+  - id: bigo-q12
+    question: "What does `len(x)` cost for a list, string, dict or set of n items?"
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(1) for lists, O(n) for dicts
+    answer: 0
+    explanation: "Every built-in container stores its size and updates it on each change, so `len` just reads that number. Using `len(a)` in a loop condition is free."
+  - id: bigo-q13
+    question: "What do `min(a)`, `max(a)` and `sum(a)` cost on an unsorted list of n items?"
+    options:
+      - O(1) each
+      - O(log n) each
+      - O(n log n) each
+      - O(n) each
+    answer: 3
+    explanation: "Each one has to look at every item, since any item could be the smallest, the largest or change the total. Calling one of them inside a loop over the same list makes that loop O(n²)."
+  - id: bigo-q14
+    question: "What does `Counter(nums)` cost for n numbers?"
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(n²)
+    answer: 2
+    explanation: "It walks the list once and does an O(1) average dict update per item. Calling `nums.count(x)` for every x instead rescans the list each time: O(n²)."
+  - id: bigo-q15
+    method: bigo-halving
+    question: "What does `bisect_left(a, x)` cost on a sorted list of n items?"
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(n log n)
+    answer: 1
+    explanation: "Binary search halves the range with every comparison, so it needs about log₂ n steps, around 20 for a million items. The list must already be sorted."
+  - id: bigo-q16
+    question: "`insort(a, x)` inserts x into a sorted list and keeps it sorted. What does one call cost?"
+    options:
+      - O(1)
+      - O(log n)
+      - O(n log n)
+      - O(n)
+    answer: 3
+    explanation: "Finding the spot is an O(log n) binary search, but inserting there shifts every later item one slot right, which is O(n). The shift dominates."
+  - id: bigo-q17
+    question: "`a` has n items and `b` has m items. What does `set(a) & set(b)` cost in total?"
+    options:
+      - O(n + m)
+      - O(n · m)
+      - O(min(n, m))
+      - O((n + m) log(n + m))
+    answer: 0
+    explanation: "Building the two sets costs O(n) and O(m), then the intersection checks each item of the smaller set in O(1). A nested loop over the two lists would be O(n · m)."
+  - id: bigo-q18
+    question: "`s` has length n and `c` is a single character. What does `s.find(c)` cost?"
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(n²)
+    answer: 2
+    explanation: "A string keeps no index of its characters, so `find` (like `c in s`) scans left to right until it hits a match: O(n) in the worst case. For many lookups, build a dict of positions once."
+  - id: bigo-q19
+    question: "`d` is a dict with n keys. What does `sorted(d)` cost?"
+    options:
+      - O(1)
+      - O(n)
+      - O(n²)
+      - O(n log n)
+    answer: 3
+    explanation: "`sorted(d)` copies the keys into a new list and sorts them, a full O(n log n) sort. Dicts remember insertion order, not sorted order, so sorted results always pay for a sort."
+  - id: bigo-q20
+    method: bigo-amortized
+    question: "What does it mean that `a.append(x)` is O(1) amortized?"
+    options:
+      - An occasional append resizes in O(n), but n appends cost O(n) in total
+      - Every single append takes O(1) time
+      - Appends cost O(log n) on average
+      - Appends are O(1) until the list reaches a fixed size
+    answer: 0
+    explanation: "When the array fills up, Python allocates a larger one (by a constant factor) and copies everything over. Those copies get rarer as the list grows and add up to O(n) across n appends, so each append is O(1) on average."
+  # --- What is the time complexity of this code? ---
+  - id: bigo-q21
+    method: bigo-nested-loops
+    question: What is the time complexity?
+    code: |-
+      count = 0
+      for i in range(n):
+          for j in range(i + 1, n):
+              count += 1
+    options:
+      - O(n)
+      - O(n log n)
+      - O(2ⁿ)
+      - O(n²)
+    answer: 3
+    explanation: "The inner loop runs n - 1, then n - 2, ..., then 0 times: n(n - 1)/2 steps in total. Drop the constant 1/2 and the lower-order term and you get O(n²)."
+  - id: bigo-q22
+    method: bigo-halving
+    question: What does this print?
+    code: |-
+      i, steps = 1, 0
+      while i < 1000:
+          i *= 2
+          steps += 1
+      print(steps)
+    options:
+      - "10"
+      - "32"
+      - "500"
+      - "1000"
+    answer: 0
+    explanation: "`i` goes 1, 2, 4, ..., 512, 1024, so it takes 10 doublings to pass 1000. log₂ 1000 ≈ 10, which is why a doubling (or halving) loop is O(log n)."
+  - id: bigo-q23
+    method: bigo-halving
+    question: What is the time complexity?
+    code: |-
+      while n > 0:
+          for i in range(n):
+              work += 1
+          n //= 2
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(n log n)
+    answer: 2
+    explanation: "The inner loop runs n + n/2 + n/4 + ... times, a geometric series that stays below 2n. It looks like O(n log n), but the shrinking work makes it O(n)."
+  - id: bigo-q24
+    method: bigo-hidden-linear
+    question: "`a` has n items and `b` is a list of m items. What is the time complexity?"
+    code: |-
+      common = []
+      for x in a:
+          if x in b:
+              common.append(x)
+    options:
+      - O(n + m)
+      - O(n · m)
+      - O(n log m)
+      - O(n)
+    answer: 1
+    explanation: "Each `x in b` scans the list b, so n checks cost O(m) each: O(n · m). Turning b into a set first (`b = set(b)`) drops the total to O(n + m)."
+  - id: bigo-q25
+    method: bigo-hidden-linear
+    question: "What is the time complexity of building `s` this way, with n = len(chars)?"
+    code: |-
+      s = ""
+      for ch in chars:
+          s += ch
+    options:
+      - O(1)
+      - O(n)
+      - O(n log n)
+      - O(n²)
+    answer: 3
+    explanation: "Strings are immutable, so each `s += ch` may copy everything built so far: 1 + 2 + ... + n = O(n²) characters. CPython sometimes extends the string in place, but don't rely on it: build a list and `''.join` it once."
+  - id: bigo-q26
+    question: "Group Anagrams: n words, each of length at most k. What is the time complexity?"
+    code: |-
+      groups = defaultdict(list)
+      for w in words:
+          key = "".join(sorted(w))
+          groups[key].append(w)
+    options:
+      - O(n · k)
+      - O(n · k log k)
+      - O(n log n)
+      - O(n² · k)
+    answer: 1
+    explanation: "Each word is sorted in O(k log k), then joined and hashed in O(k), and that happens n times: O(n · k log k). Using a tuple of 26 letter counts as the key would make it O(n · k)."
+  - id: bigo-q27
+    method: bigo-recursion-tree
+    question: What is the time complexity?
+    code: |-
+      def fib(n):
+          if n < 2:
+              return n
+          return fib(n - 1) + fib(n - 2)
+    options:
+      - O(n)
+      - O(n log n)
+      - O(n²)
+      - O(2ⁿ)
+    answer: 3
+    explanation: "Each call makes two more and the call tree is about n levels deep, so the number of calls grows exponentially: O(2ⁿ), more precisely about 1.6ⁿ. fib(40) alone makes over 300 million calls."
+  - id: bigo-q28
+    method: bigo-recursion-tree
+    question: What does this print?
+    code: |-
+      calls = 0
+
+      def fib(n):
+          global calls
+          calls += 1
+          return n if n < 2 else fib(n - 1) + fib(n - 2)
+
+      fib(5)
+      print(calls)
+    options:
+      - "5"
+      - "6"
+      - "15"
+      - "32"
+    answer: 2
+    explanation: "fib(5) calls fib(4), whose tree has 9 calls, and fib(3), whose tree has 5, plus itself: 15. Each +1 to n multiplies the count by about 1.6, which is exponential growth."
+  - id: bigo-q29
+    method: bigo-memoization
+    question: What is the time complexity?
+    code: |-
+      @lru_cache(maxsize=None)
+      def fib(n):
+          if n < 2:
+              return n
+          return fib(n - 1) + fib(n - 2)
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(2ⁿ)
+    answer: 2
+    explanation: "There are only n + 1 distinct arguments and each is computed once, with O(1) work besides two cached lookups. Memoized time = number of states × work per state = O(n)."
+  - id: bigo-q30
+    method: bigo-graph-traversal
+    question: "BFS from one cell of an m × n grid. What is the time complexity?"
+    code: |-
+      q, seen = deque([(0, 0)]), {(0, 0)}
+      while q:
+          r, c = q.popleft()
+          for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+              nr, nc = r + dr, c + dc
+              if 0 <= nr < m and 0 <= nc < n and (nr, nc) not in seen:
+                  seen.add((nr, nc))
+                  q.append((nr, nc))
+    options:
+      - O(m + n)
+      - O(m · n)
+      - O((m · n)²)
+      - O(m · n · log(m · n))
+    answer: 1
+    explanation: "The `seen` set lets each cell enter the queue at most once, and each cell checks 4 neighbors: about 4 · m · n steps. That's O(V + E) with V = m · n cells and E ≤ 4 · m · n edges."
+  - id: bigo-q31
+    method: bigo-amortized
+    question: Two pointers on a sorted list. What is the time complexity?
+    code: |-
+      lo, hi = 0, len(nums) - 1
+      while lo < hi:
+          s = nums[lo] + nums[hi]
+          if s == target:
+              break
+          if s < target:
+              lo += 1
+          else:
+              hi -= 1
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(n²)
+    answer: 2
+    explanation: "Every step moves one pointer inward and neither ever moves back, so they meet after at most n - 1 steps. Two pointers replace the O(n²) check of all pairs (the input must be sorted)."
+  - id: bigo-q32
+    method: bigo-amortized
+    question: "Longest Substring Without Repeating Characters, with n = len(s). What is the time complexity?"
+    code: |-
+      seen, left, best = set(), 0, 0
+      for right, ch in enumerate(s):
+          while ch in seen:
+              seen.remove(s[left])
+              left += 1
+          seen.add(ch)
+          best = max(best, right - left + 1)
+    options:
+      - O(n)
+      - O(n log n)
+      - O(n²)
+      - O(n³)
+    answer: 0
+    explanation: "The while loop looks nested, but `left` only moves forward and can't pass n, so it runs at most n times over the whole loop, not per step. Total work is at most 2n: O(n) amortized."
+  - id: bigo-q33
+    method: bigo-output-size
+    question: Building every subset of n items. What is the time complexity?
+    code: |-
+      res = [[]]
+      for x in nums:
+          res += [s + [x] for s in res]
+    options:
+      - O(n²)
+      - O(2ⁿ)
+      - O(n · 2ⁿ)
+      - O(n!)
+    answer: 2
+    explanation: "There are 2ⁿ subsets and copying each one costs up to n, so the time (and the memory for the result) is O(n · 2ⁿ). You can't beat the size of what you return."
+  - id: bigo-q34
+    method: bigo-output-size
+    question: Building every permutation of n distinct items. What is the time complexity?
+    code: |-
+      def permute(path, rest, res):
+          if not rest:
+              res.append(path)
+              return
+          for i in range(len(rest)):
+              permute(path + [rest[i]], rest[:i] + rest[i + 1:], res)
+    options:
+      - O(n²)
+      - O(2ⁿ)
+      - O(nⁿ)
+      - O(n · n!)
+    answer: 3
+    explanation: "There are n! permutations and each takes O(n) to build, so the total is O(n · n!). At n = 10 that's already about 36 million steps, which is why these problems keep n tiny."
+  - id: bigo-q35
+    method: bigo-nested-loops
+    question: What is the time complexity?
+    code: |-
+      for i in range(n):
+          for j in range(n):
+              for k in range(n):
+                  if k == 3:
+                      break
+                  total += i * j * k
+    options:
+      - O(n)
+      - O(n²)
+      - O(n³)
+      - O(n² log n)
+    answer: 1
+    explanation: "The innermost loop breaks at k == 3, so it does at most 4 iterations however large n is: a constant. Only the two outer loops grow with n, giving O(n²)."
+  - id: bigo-q36
+    method: bigo-nested-loops
+    question: "`a` has n items and `b` has m items. What is the time complexity?"
+    code: |-
+      for x in a:
+          total += x
+      for y in b:
+          total -= y
+    options:
+      - O(n + m)
+      - O(n · m)
+      - O(n)
+      - O(m log n)
+    answer: 0
+    explanation: "Loops that run one after another add; only loops inside each other multiply. n steps followed by m steps is O(n + m)."
+  - id: bigo-q37
+    method: bigo-front-pop
+    question: "BFS over a connected graph with V vertices and E edges, but the queue is a plain list. What is the worst-case time complexity?"
+    code: |-
+      queue, seen = [start], {start}
+      while queue:
+          node = queue.pop(0)
+          for nxt in graph[node]:
+              if nxt not in seen:
+                  seen.add(nxt)
+                  queue.append(nxt)
+    options:
+      - O(V + E)
+      - O(V² + E)
+      - O(V log V + E)
+      - O(E log V)
+    answer: 1
+    explanation: "Each `pop(0)` shifts every node still in the queue, which can hold O(V) nodes, so the V pops cost O(V²) on top of the O(E) edge checks. Use `deque` and `popleft()` to get back to O(V + E)."
+  - id: bigo-q38
+    method: bigo-hidden-linear
+    question: "Recursive palindrome check, with n = len(s). What is the time complexity?"
+    code: |-
+      def is_pal(s):
+          if len(s) < 2:
+              return True
+          return s[0] == s[-1] and is_pal(s[1:-1])
+    options:
+      - O(n)
+      - O(n log n)
+      - O(2ⁿ)
+      - O(n²)
+    answer: 3
+    explanation: "There are about n/2 calls, but each `s[1:-1]` copies the string: n + (n - 2) + (n - 4) + ... = O(n²) in the worst case. Pass the indexes `lo, hi` instead of slicing to make it O(n)."
+  - id: bigo-q39
+    question: "Convert Sorted Array to BST, with n = len(nums). What is the time complexity?"
+    code: |-
+      def build(lo, hi):
+          if lo > hi:
+              return None
+          mid = (lo + hi) // 2
+          node = TreeNode(nums[mid])
+          node.left = build(lo, mid - 1)
+          node.right = build(mid + 1, hi)
+          return node
+    options:
+      - O(log n)
+      - O(n)
+      - O(n log n)
+      - O(n²)
+    answer: 1
+    explanation: "Every index becomes exactly one node with O(1) work, so there are n real calls plus n + 1 empty ones: O(n). Halving gives O(n log n) only when each level also does O(n) work, like the merge in merge sort."
+  # --- Space complexity ---
+  - id: bigo-q40
+    method: bigo-space-depth
+    question: A recursive DFS visits every node of a balanced binary tree with n nodes. How much extra space does the call stack use at its peak?
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(n log n)
+    answer: 1
+    explanation: Only the frames on the current root-to-node path are alive at once, so the peak is the tree height, about log₂ n for a balanced tree. The time is still O(n).
+  - id: bigo-q41
+    method: bigo-space-depth
+    question: "Same DFS, but the tree is a chain: every node has only a left child. What is the peak call-stack space?"
+    options:
+      - O(1)
+      - O(log n)
+      - O(n²)
+      - O(n)
+    answer: 3
+    explanation: "A chain of n nodes has height n, so the recursion goes n frames deep. That's why tree answers say O(h) space: O(log n) when balanced, O(n) in the worst case."
+  - id: bigo-q42
+    question: Longest Common Subsequence of strings with lengths m and n, using a full table. What is the space complexity?
+    code: |-
+      dp = [[0] * (n + 1) for _ in range(m + 1)]
+      for i in range(1, m + 1):
+          for j in range(1, n + 1):
+              if a[i - 1] == b[j - 1]:
+                  dp[i][j] = dp[i - 1][j - 1] + 1
+              else:
+                  dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+    options:
+      - O(m + n)
+      - O(m · n)
+      - O(min(m, n))
+      - O(1)
+    answer: 1
+    explanation: "The table has (m + 1) · (n + 1) cells. Each row only reads the row above it, so keeping just two rows cuts the space to O(n) with the same O(m · n) time."
+  - id: bigo-q43
+    question: Climbing Stairs with two rolling variables. What is the space complexity?
+    code: |-
+      def climb_stairs(n):
+          a, b = 1, 1
+          for _ in range(n):
+              a, b = b, a + b
+          return a
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(2ⁿ)
+    answer: 0
+    explanation: Each step only needs the previous two answers, so two variables replace the whole dp array. The time is O(n) and the extra space is O(1).
+  - id: bigo-q44
+    question: Reversing a list in place with two pointers. How much extra space does it use?
+    code: |-
+      lo, hi = 0, len(a) - 1
+      while lo < hi:
+          a[lo], a[hi] = a[hi], a[lo]
+          lo += 1
+          hi -= 1
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(n²)
+    answer: 0
+    explanation: "Only two indexes are stored and the swaps reuse the input list. `a[::-1]`, by contrast, builds a full O(n) copy."
+  - id: bigo-q45
+    method: bigo-space-depth
+    question: Level-order BFS on a perfect binary tree with n nodes. What is the peak size of the queue?
+    options:
+      - O(1)
+      - O(log n)
+      - O(n log n)
+      - O(n)
+    answer: 3
+    explanation: The last level of a perfect tree holds about n/2 nodes, and they all sit in the queue together. So BFS needs O(n) space on wide trees, while DFS needs only O(h).
+  - id: bigo-q46
+    method: bigo-nested-loops
+    question: Two Sum with a dict that maps each value seen so far to its index. What is the extra space?
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(n²)
+    answer: 2
+    explanation: "In the worst case the pair is found last, so nearly all n numbers go into the dict. That's the trade: O(n) memory buys O(n) time instead of the O(n²) pair loop."
+  - id: bigo-q47
+    question: Recursive DFS flood fill on an m × n grid that is all land. What is the worst-case recursion depth?
+    options:
+      - O(1)
+      - O(log(m · n))
+      - O(m + n)
+      - O(m · n)
+    answer: 3
+    explanation: The DFS can snake through every cell before it backtracks, so the stack can hold m · n frames at once. Python's default limit is 1000 frames, so big grids need BFS or an explicit stack.
+  # --- Algorithm complexities ---
+  - id: bigo-q48
+    method: bigo-graph-traversal
+    question: DFS over a graph stored as an adjacency list with V vertices and E edges. What is the time complexity?
+    options:
+      - O(V)
+      - O(E)
+      - O(V · E)
+      - O(V + E)
+    answer: 3
+    explanation: The visited set makes each vertex get processed once, and each adjacency list is scanned once, which touches every edge once (twice if undirected). Total O(V + E).
+  - id: bigo-q49
+    question: Dijkstra with a binary heap on V vertices and E edges. What is the time complexity?
+    options:
+      - O(V + E)
+      - O((V + E) log V)
+      - O(V · E)
+      - O(E²)
+    answer: 1
+    explanation: Each edge relaxation can push onto the heap, and every push or pop costs O(log V) (the heap holds at most E ≤ V² entries, and log V² = 2 log V). That gives O((V + E) log V).
+  - id: bigo-q50
+    question: Union-find with path compression and union by rank. What does each find or union cost?
+    options:
+      - O(n)
+      - O(log n)
+      - O(n log n)
+      - ≈ O(1) amortized (inverse Ackermann)
+    answer: 3
+    explanation: Union by rank keeps the trees shallow and path compression flattens them on every find, so m operations cost O(m · α(n)). The inverse Ackermann α(n) is at most 4 for any real input, so treat each operation as constant.
+  - id: bigo-q51
+    method: bigo-halving
+    question: Find Minimum in Rotated Sorted Array with binary search. What is the time complexity?
+    options:
+      - O(1)
+      - O(log n)
+      - O(n)
+      - O(n log n)
+    answer: 1
+    explanation: Each step compares the middle with the right end and throws away the half that can't hold the minimum. Any loop that halves the range is O(log n), rotated or not.
+  - id: bigo-q52
+    question: Merge sort on n items. What are its time and extra space?
+    options:
+      - O(n log n) time, O(n) space
+      - O(n log n) time, O(1) space
+      - O(n²) time, O(1) space
+      - O(n) time, O(n) space
+    answer: 0
+    explanation: "Halving gives about log₂ n levels and merging does O(n) work per level: O(n log n) time. Merging needs a temporary buffer, so the extra space is O(n)."
+  - id: bigo-q53
+    question: Scan n numbers and keep a min-heap of size k (push each one, pop when the size passes k). What is the time complexity?
+    options:
+      - O(n)
+      - O(n log k)
+      - O(k log n)
+      - O(n · k)
+    answer: 1
+    explanation: Each of the n numbers costs at most one push and one pop on a heap of size k, so O(log k) each. That's O(n log k) time and O(k) space, better than sorting everything when k is small.
+  - id: bigo-q54
+    question: "Top K Frequent Elements with bucket sort: count with a Counter, put each value in `buckets[count]`, then read the buckets from high to low. What is the time complexity?"
+    options:
+      - O(n)
+      - O(n log k)
+      - O(n log n)
+      - O(k · n)
+    answer: 0
+    explanation: "A count can't exceed n, so n + 1 buckets cover every possibility. Counting, filling the buckets and scanning them are each one pass: O(n), beating the O(n log k) heap."
+  - id: bigo-q55
+    method: bigo-graph-traversal
+    question: Course Schedule with Kahn's algorithm (in-degree counts plus a queue), with V courses and E prerequisites. What is the time complexity?
+    options:
+      - O(V + E)
+      - O(V · E)
+      - O(V²)
+      - O((V + E) log V)
+    answer: 0
+    explanation: Each course enters the queue once and each prerequisite edge decrements an in-degree once. It's a BFS, so O(V + E).
+  # --- Which complexity do the constraints call for? ---
+  - id: bigo-q56
+    method: bigo-output-size
+    question: Constraints say 1 ≤ n ≤ 20. What is the slowest complexity that still runs in time?
+    options:
+      - O(n²)
+      - O(n³)
+      - O(2ⁿ)
+      - O(n!)
+    answer: 2
+    explanation: 2²⁰ is about a million, so trying every subset (backtracking or bitmasks) is intended. 20! is about 2.4 · 10¹⁸ and would never finish.
+  - id: bigo-q57
+    question: Constraints say 1 ≤ n ≤ 5,000. What is the slowest complexity that still runs in time?
+    options:
+      - O(n)
+      - O(n log n)
+      - O(n²)
+      - O(n³)
+    answer: 2
+    explanation: 5,000² = 2.5 · 10⁷ simple steps is fine, so checking all pairs or filling a 2-D DP table is intended. 5,000³ = 1.25 · 10¹¹ is far too slow.
+  - id: bigo-q58
+    question: Constraints say n ≤ 10⁵ and your idea checks every pair. Will it pass?
+    options:
+      - "No: that's about 5 · 10⁹ pairs, so aim for O(n log n) or better"
+      - Yes, 10⁵ is a small input
+      - Yes, if the inner loop breaks early on a match
+      - "No: at this size only O(log n) passes"
+    answer: 0
+    explanation: n(n - 1)/2 at n = 10⁵ is about 5 · 10⁹, hundreds of times over the roughly 10⁷ to 10⁸ simple steps a judge allows. At this size think sorting, hashing, two pointers, heaps or prefix sums.
+  - id: bigo-q59
+    method: bigo-halving
+    question: "Koko Eating Bananas: n ≤ 10⁴ piles, each holding up to M = 10⁹ bananas. You need the minimum eating speed. Which complexity is intended?"
+    options:
+      - "O(n · M): try every speed"
+      - "O(n log M): binary search on the speed"
+      - "O(n²): compare every pair of piles"
+      - "O(M): one pass over the speeds"
+    answer: 1
+    explanation: Trying all 10⁹ speeds is hopeless, but "can she finish at speed s?" only gets easier as s grows. That monotone yes/no lets you binary search 1..M with about 30 checks of O(n) each.
+  - id: bigo-q60
+    question: Number of Islands on an m × n grid with m, n ≤ 300. Which bound is intended?
+    options:
+      - O(log(m · n))
+      - O(m + n)
+      - O((m · n)²)
+      - O(m · n)
+    answer: 3
+    explanation: 300 · 300 = 90,000 cells, so visiting each cell once is instant, while (m · n)² ≈ 8 · 10⁹ is far too slow. Nothing faster than O(m · n) can work, because every cell has to be read.
+drills:
+  - id: bigo-d-set-lookup
+    method: bigo-hidden-linear
+    title: Make membership O(1)
+    task: "`blocked` is checked once per word. Build it so each `in` check is O(1) instead of a scan through all of `banned`."
+    setup: |-
+      banned = ["spam", "ads", "junk"] * 1000   # 3,000 entries
+      words = ["hi", "ads", "yo", "junk"]
+    line: blocked = ___
+    after: kept = [w for w in words if w not in blocked]
+    answer: set(banned)
+    accept:
+      - frozenset(banned)
+      - "{*banned}"
+      - dict.fromkeys(banned)
+    decoys:
+      - banned
+      - sorted(banned)
+      - set(words)
+    show: (kept, type(blocked).__name__)
+    expected: "(['hi', 'yo'], 'set')"
+    check: "kept == ['hi', 'yo'] and isinstance(blocked, (set, frozenset, dict))"
+    hint: Which built-in container finds an item by hashing instead of scanning?
+    explain: "`set(banned)` costs O(m) once (and drops the duplicates); after that each `w not in blocked` is O(1) average, so the filter is O(n + m) instead of O(n · m). Sorting doesn't help: `in` on a list still scans from the front."
+  - id: bigo-d-binary-mid
+    method: bigo-halving
+    title: Halve the range
+    task: "Pick `mid` so the search finds `target` in O(log n) probes: at most 10 for these 1,000 numbers."
+    setup: |-
+      nums = list(range(0, 2000, 2))   # 1,000 sorted numbers
+      target, probes = 1234, 0
+      lo, hi = 0, len(nums) - 1
+      while lo <= hi:
+          probes += 1
+    line: "    mid = ___"
+    after: |2-
+          if nums[mid] == target:
+              break
+          if nums[mid] < target:
+              lo = mid + 1
+          else:
+              hi = mid - 1
+    answer: (lo + hi) // 2
+    accept:
+      - lo + (hi - lo) // 2
+      - (lo + hi) >> 1
+    decoys:
+      - lo
+      - hi
+      - (lo + hi) / 2
+    show: (nums[mid], probes)
+    expected: (1234, 10)
+    check: nums[mid] == target and probes <= 10
+    hint: Probe the middle of `lo..hi`, so that either outcome throws away half of the range.
+    explain: "Probing the midpoint discards half of what's left each time, so 1,000 items need at most 10 probes (log₂ 1000 ≈ 10). Probing `lo` or `hi` discards one item per probe, a linear scan (618 or 383 probes here), and `/` gives a float, which can't index a list."
+  - id: bigo-d-memo
+    method: bigo-memoization
+    title: Cache every state
+    task: "Decorate `fib` so each `n` is computed only once. The call counter should show O(n) work, not O(2ⁿ)."
+    setup: |-
+      from functools import lru_cache
+      calls = 0
+    line: "@___"
+    after: |-
+      def fib(n):
+          global calls
+          calls += 1
+          return n if n < 2 else fib(n - 1) + fib(n - 2)
+
+      result = fib(25)
+    answer: lru_cache(maxsize=None)
+    accept:
+      - lru_cache(None)
+      - lru_cache
+    decoys:
+      - lru_cache(maxsize=0)
+      - lru_cache(maxsize=1)
+    show: (result, calls)
+    expected: (75025, 26)
+    check: result == 75025 and calls <= 26
+    hint: The cache has to remember the result for every `n` it has seen, so don't cap its size.
+    explain: "`lru_cache(maxsize=None)` remembers every argument, so each of the 26 states 0..25 runs once: O(n) time and O(n) space. A cache of size 0 or 1 forgets results it needs again, and `fib(25)` is back to 242,785 calls."
+  - id: bigo-d-prefix
+    title: Prefix sums for O(1) queries
+    task: "Build `prefix` once in O(n) so each inclusive `range_sum(l, r)` is O(1) instead of re-adding the slice."
+    setup: |-
+      from itertools import accumulate
+      nums = [3, 1, 4, 1, 5, 9]
+    line: prefix = ___
+    after: |-
+      def range_sum(l, r):      # O(1) per query
+          return prefix[r + 1] - prefix[l]
+    answer: "[0] + list(accumulate(nums))"
+    accept:
+      - list(accumulate(nums, initial=0))
+      - "[0, *accumulate(nums)]"
+    decoys:
+      - list(accumulate(nums))
+      - "[0] * (len(nums) + 1)"
+      - "[0] + sorted(nums)"
+    show: "[range_sum(0, 5), range_sum(2, 4), range_sum(3, 3)]"
+    expected: "[23, 10, 1]"
+    hint: "`prefix[i]` should be the sum of the first i numbers, so it starts with a 0."
+    explain: "With `prefix[i] = sum(nums[:i])`, any range sum is one subtraction, so q queries cost O(n + q) instead of O(n · q). Without the leading 0, `prefix[r + 1]` runs off the end."

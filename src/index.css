@@ -139,8 +139,13 @@ body {
 
 code,
 pre,
-kbd {
+kbd,
+textarea,
+.font-mono {
   font-family: var(--font-mono);
+  /* Show code exactly as typed: no "<=" -> "≤" style ligatures. */
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
 }
 
 /* ------------------------------------------------------------------ prose (markdown) */

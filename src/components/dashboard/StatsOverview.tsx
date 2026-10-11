@@ -1,5 +1,7 @@
 import { Link, useNavigate } from "react-router";
-import { ArrowRight, CalendarCheck, Play, Shuffle } from "lucide-react";
+import { ArrowRight, CalendarCheck, Dumbbell, Play, Shuffle } from "lucide-react";
+import { dayKey } from "@shared/srs";
+import { useAppStore } from "@/lib/store";
 import type { OverallStats } from "@/lib/stats";
 import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
@@ -109,6 +111,7 @@ export function TodayCard({
         ))}
         {items.length === 0 && <li className="text-xs text-muted">Everything is solved. Impressive.</li>}
       </ol>
+      <DrillsDueRow />
       <div className="mt-auto flex gap-2 pt-4">
         {continueTo && (
           <Button size="sm" variant="primary" icon={<Play className="size-3.5" />} onClick={() => navigate(`/problems/${continueTo.slug}`)} title={continueTo.title}>
@@ -125,5 +128,19 @@ export function TodayCard({
         )}
       </div>
     </Card>
+  );
+}
+
+function DrillsDueRow() {
+  const states = useAppStore((s) => s.drills);
+  const today = dayKey(new Date());
+  const due = Object.values(states).filter((c) => c.due <= today).length;
+  const seen = Object.keys(states).length;
+  return (
+    <Link to="/drills" className="mt-3 flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted hover:border-border-strong hover:text-fg">
+      <Dumbbell className="size-3.5" />
+      {seen === 0 ? "Python drills: start building muscle memory" : due > 0 ? `${due} drill card${due === 1 ? "" : "s"} due today` : "Drills: all caught up today"}
+      <ArrowRight className="ml-auto size-3.5" />
+    </Link>
   );
 }
