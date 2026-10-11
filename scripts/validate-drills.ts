@@ -26,11 +26,30 @@ function normOut(s: string): string {
     .trim();
 }
 
+/** Compare two Python literals, ignoring whitespace outside strings and quote style. */
+function sameLiteral(a: string, b: string): boolean {
+  const norm = (x: string) => {
+    let out = "";
+    let quote: string | null = null;
+    for (const ch of x.trim()) {
+      if (quote) {
+        out += ch === quote ? "'" : ch;
+        if (ch === quote) quote = null;
+      } else if (ch === "'" || ch === '"') {
+        quote = ch;
+        out += "'";
+      } else if (!/\s/.test(ch)) out += ch;
+    }
+    return out;
+  };
+  return norm(a) === norm(b);
+}
+
 async function validateTopic(t: DrillTopic): Promise<{ errors: string[]; warnings: string[] }> {
   const errors: string[] = [];
   const warnings: string[] = [];
   const items: DrillRunItem[] = [];
-  const expect = new Map<string, { want: "pass" | "fail" | "output"; output?: string; label: string }>();
+  const expect = new Map<string, { want: "pass" | "fail" | "output"; output?: string; expected?: string; label: string }>();
 
   for (const m of t.methods) {
     const key = `method:${m.id}`;
@@ -46,7 +65,7 @@ async function validateTopic(t: DrillTopic): Promise<{ errors: string[]; warning
     fills.forEach(([fill, want], i) => {
       const key = `drill:${d.id}:${i}`;
       items.push({ key, kind: "drill", setup: d.setup, code: drillProgram(d, fill), show: d.show, check: drillCheckExpr(d) });
-      expect.set(key, { want, label: `drill ${d.id} ${want === "pass" ? "answer" : "decoy"} \`${fill}\`` });
+      expect.set(key, { want, expected: d.expected, label: `drill ${d.id} ${want === "pass" ? "answer" : "decoy"} \`${fill}\`` });
     });
     if ([d.answer, ...(d.accept ?? [])].some((a) => d.decoys.includes(a))) errors.push(`drill ${d.id}: a decoy equals an accepted answer`);
   }
@@ -78,6 +97,9 @@ async function validateTopic(t: DrillTopic): Promise<{ errors: string[]; warning
       errors.push(`${e.label} does not pass${r.error ? ` (${r.error.type}: ${r.error.message})` : r.got ? ` (got ${r.got})` : ""}`);
     } else if (e.want === "fail" && r.ok) {
       errors.push(`${e.label} passes the check, so it is not a wrong option`);
+    } else if (e.want === "fail" && r.got != null && e.expected != null && sameLiteral(r.got, e.expected)) {
+      // The learner would see "Python produced <target>" yet be marked wrong.
+      warnings.push(`${e.label} fails the check but displays the target value ${e.expected}; put every checked call in \`show\``);
     }
   }
   if (t.methods.length === 0 && t.drills.length === 0 && t.quiz.length === 0) errors.push("topic is empty");

@@ -1,0 +1,2402 @@
+# Interview Templates: the canonical code skeletons behind LeetCode patterns.
+# Every example, answer and decoy is checked by scripts/validate-drills.ts.
+id: templates
+title: Interview Templates
+group: Interview templates
+order: 20
+blurb: "The code skeletons behind most LeetCode patterns, drilled until you can write them cold."
+intro: "Most interview problems are a known template plus a few problem-specific lines. If the skeleton (loop condition, pointer updates, visited set, base case) comes out of your fingers automatically, your thinking goes into the actual problem instead of off-by-one bugs and infinite loops. Each card is the clean, standard version, and each drill blanks out the exact line people get wrong under pressure."
+methods:
+  - id: tpl-binary-search
+    name: "Binary search: exact match"
+    summary: Find a target in a sorted array in O(log n) by halving a closed range [lo, hi].
+    details: "Signals: sorted (or rotated sorted) input and you need one specific value or its index. The range is closed, so the loop runs while it still holds at least one candidate (`lo <= hi`), and both pointer updates step past `mid`."
+    example: |-
+      def search(nums, target):
+          lo, hi = 0, len(nums) - 1
+          while lo <= hi:
+              mid = (lo + hi) // 2
+              if nums[mid] == target:
+                  return mid
+              if nums[mid] < target:
+                  lo = mid + 1
+              else:
+                  hi = mid - 1
+          return -1
+
+      print(search([1, 3, 5, 7, 9], 7))
+      print(search([1, 3, 5, 7, 9], 4))
+      print(search([], 1))
+    output: |-
+      3
+      -1
+      -1
+    complexity: O(log n) time, O(1) space
+    tip: "Closed range `[lo, hi]` means `while lo <= hi` with `lo = mid + 1` and `hi = mid - 1`. Writing `lo = mid` here can loop forever: when `hi == lo + 1`, `mid` equals `lo` and nothing moves. Python ints never overflow, so `(lo + hi) // 2` is safe; `lo + (hi - lo) // 2` is the Java/C++ habit."
+  - id: tpl-lower-bound
+    name: Lower bound / binary search on the answer
+    summary: Find the first index (or smallest value) where a yes/no condition becomes true, with `while lo < hi` and `hi = mid`.
+    details: "Signals: 'first position where...', 'insert position', 'minimum speed / capacity / days such that...'. Whenever a condition reads false, false, ..., true, true over a range, binary search for the first true. For 'binary search on the answer' the range is every possible answer (e.g. speeds 1..max(piles)) and the condition is a feasibility check."
+    example: |-
+      def lower_bound(nums, target):
+          lo, hi = 0, len(nums)          # hi = len: the answer may be "past the end"
+          while lo < hi:
+              mid = (lo + hi) // 2
+              if nums[mid] >= target:    # condition true: mid might be the answer
+                  hi = mid
+              else:
+                  lo = mid + 1
+          return lo
+
+      def min_eating_speed(piles, h):    # Koko Eating Bananas
+          lo, hi = 1, max(piles)
+          while lo < hi:
+              mid = (lo + hi) // 2
+              hours = sum((p + mid - 1) // mid for p in piles)   # ceil(p / mid)
+              if hours <= h:             # fast enough: try slower
+                  hi = mid
+              else:
+                  lo = mid + 1
+          return lo
+
+      print(lower_bound([1, 3, 3, 5], 3))
+      print(lower_bound([1, 3, 3, 5], 6))
+      print(min_eating_speed([3, 6, 7, 11], 8))
+    output: |-
+      1
+      4
+      4
+    complexity: O(log n) for lower bound; O(n log M) on the answer (M = size of the answer range, O(n) per check)
+    tip: "`hi = mid` must pair with `while lo < hi`. With `lo <= hi` the loop reaches `lo == hi == mid`, sets `hi = mid` and never moves again. `bisect_left(nums, target)` is the library version of `lower_bound`."
+  - id: tpl-two-pointers
+    name: Two pointers from both ends
+    summary: Start at both ends of a sorted array (or a string) and move the pointer that can still improve the answer.
+    details: "Signals: sorted input with a pair or target sum (Two Sum II, 3Sum after sorting), palindromes, Container With Most Water, Trapping Rain Water. Each step rules out one end for good, so the scan is O(n) instead of trying all O(n^2) pairs."
+    example: |-
+      def two_sum_sorted(nums, target):
+          left, right = 0, len(nums) - 1
+          while left < right:
+              s = nums[left] + nums[right]
+              if s == target:
+                  return [left, right]
+              if s < target:
+                  left += 1          # need a bigger sum
+              else:
+                  right -= 1         # need a smaller sum
+          return []
+
+      def max_area(height):          # Container With Most Water
+          left, right = 0, len(height) - 1
+          res = 0
+          while left < right:
+              res = max(res, (right - left) * min(height[left], height[right]))
+              if height[left] < height[right]:
+                  left += 1          # move the shorter wall
+              else:
+                  right -= 1
+          return res
+
+      print(two_sum_sorted([1, 2, 4, 7, 11], 9))
+      print(max_area([1, 8, 6, 2, 5, 4, 8, 3, 7]))
+    output: |-
+      [1, 3]
+      49
+    complexity: O(n) time, O(1) space (plus O(n log n) if you sort first)
+    tip: "`while left < right`, not `<=`: a pair needs two different indices. In 3Sum, sort first and after a match skip duplicates with `while left < right and nums[left] == nums[left - 1]: left += 1`."
+  - id: tpl-sliding-window
+    name: Variable sliding window (longest valid)
+    summary: Grow the window with `right`, shrink it from `left` while it is invalid, then record its size.
+    details: "Signals: 'longest / shortest substring or subarray such that...', 'without repeating characters', 'at most k distinct', 'at most k replacements'. After the shrink loop the window is valid again, so `right - left + 1` is a candidate answer at every step. Longest Repeating Character Replacement uses the same skeleton with `while (right - left + 1) - max(count.values()) > k`."
+    example: |-
+      def longest_unique(s):         # Longest Substring Without Repeating Characters
+          seen = set()
+          left = res = 0
+          for right, ch in enumerate(s):
+              while ch in seen:      # shrink until valid again
+                  seen.remove(s[left])
+                  left += 1
+              seen.add(ch)
+              res = max(res, right - left + 1)
+          return res
+
+      print(longest_unique("abcabcbb"))
+      print(longest_unique("abba"))
+      print(longest_unique(""))
+    output: |-
+      3
+      2
+      0
+    complexity: O(n) time; each index enters the window once and leaves at most once
+    tip: "Shrink with `while`, not `if`: one step from the left may not be enough to make the window valid. For 'shortest valid window' problems, flip it: record the answer inside the while loop, before each shrink."
+  - id: tpl-fixed-window
+    name: Fixed-size sliding window
+    summary: "Slide a window of exactly k items: add the item entering on the right, subtract the one leaving on the left."
+    details: "Signals: 'every subarray / substring of length k', 'maximum average of k consecutive', 'permutation of p inside s' (a window of len(p) with letter counts). Sum the first window once; after that each step costs O(1) instead of re-summing k items."
+    example: |-
+      def max_window_sum(nums, k):
+          window = sum(nums[:k])         # first window: nums[0..k-1]
+          res = window
+          for right in range(k, len(nums)):
+              window += nums[right] - nums[right - k]   # enters, leaves
+              res = max(res, window)
+          return res
+
+      print(max_window_sum([2, 1, 5, 1, 3, 2], 3))
+      print(max_window_sum([4, 2], 2))
+    output: |-
+      9
+      6
+    complexity: O(n) time, O(1) space
+    tip: "The item leaving is `nums[right - k]`, and the window now starts at `right - k + 1`. For anagram windows, keep a 26-slot count list and compare it with the target counts after each slide."
+  - id: tpl-prefix-sum
+    name: Prefix sums (+ hash map)
+    summary: "`prefix[i]` is the sum of the first i items, so any range sum is one subtraction; a hash map of earlier prefix sums counts subarrays that sum to k."
+    details: "Signals: many range-sum queries, 'number of subarrays with sum k', 'subarray sum divisible by k', 'equal number of 0s and 1s'. A subarray ending here sums to k exactly when some earlier prefix equals `total - k`. Unlike a sliding window, this works with negative numbers."
+    example: |-
+      def build_prefix(nums):
+          prefix = [0] * (len(nums) + 1)  # prefix[0] = 0: the empty prefix
+          for i, x in enumerate(nums):
+              prefix[i + 1] = prefix[i] + x
+          return prefix
+
+      def subarray_sum(nums, k):          # Subarray Sum Equals K
+          seen = {0: 1}                   # the empty prefix, seen once
+          total = count = 0
+          for x in nums:
+              total += x
+              count += seen.get(total - k, 0)
+              seen[total] = seen.get(total, 0) + 1
+          return count
+
+      prefix = build_prefix([3, 1, 4, 1, 5])
+      print(prefix)
+      print(prefix[4] - prefix[1])        # nums[1] + nums[2] + nums[3]
+      print(subarray_sum([1, 1, 1], 2))
+      print(subarray_sum([1, -1, 0], 0))
+    output: |-
+      [0, 3, 4, 8, 9, 14]
+      6
+      2
+      3
+    complexity: O(n) to build, O(1) per range query; the subarray count is O(n) time and space
+    tip: "The sum of `nums[i..j]` (inclusive) is `prefix[j + 1] - prefix[i]`. In the counting version, look up `total - k` BEFORE storing `total`; otherwise k = 0 would count the empty subarray."
+  - id: tpl-monotonic-stack
+    name: Monotonic stack (next greater element)
+    summary: Keep a stack of indices whose values are decreasing; a bigger new value pops them and is their answer.
+    details: "Signals: 'next greater / smaller element', 'days until a warmer temperature', 'largest rectangle in histogram', 'stock span'. Every index still on the stack is waiting for its answer."
+    example: |-
+      def next_greater(nums):
+          res = [-1] * len(nums)
+          stack = []                     # indices; their values are decreasing
+          for i, x in enumerate(nums):
+              while stack and nums[stack[-1]] < x:
+                  res[stack.pop()] = x   # x is the next greater for that index
+              stack.append(i)
+          return res
+
+      def daily_temperatures(temps):
+          res = [0] * len(temps)
+          stack = []
+          for i, t in enumerate(temps):
+              while stack and temps[stack[-1]] < t:
+                  j = stack.pop()
+                  res[j] = i - j         # days waited
+              stack.append(i)
+          return res
+
+      print(next_greater([2, 1, 2, 4, 3]))
+      print(daily_temperatures([73, 74, 75, 71, 69, 72, 76, 73]))
+    output: |-
+      [4, 2, 4, -1, -1]
+      [1, 1, 4, 2, 1, 1, 0, 0]
+    complexity: O(n) amortized; each index is pushed once and popped at most once
+    tip: "Store indices, not values: from an index you can read the value AND compute distances. Pop with strict `<` for 'strictly greater'; `<=` would also pop equal values."
+  - id: tpl-bfs
+    name: BFS shortest path (grid or graph)
+    summary: Explore level by level with a deque; the level at which you first reach the target is the shortest distance.
+    details: "Signals: 'minimum number of steps / moves', shortest path in an UNWEIGHTED grid or graph, Rotting Oranges, Word Ladder, anything that spreads one step per minute. Mark a cell visited when you enqueue it. In a graph, `for nb in graph[node]` replaces the four grid directions."
+    example: |-
+      from collections import deque
+
+      def shortest_path(grid):           # 0 = open, 1 = wall
+          rows, cols = len(grid), len(grid[0])
+          queue = deque([(0, 0)])
+          visited = {(0, 0)}
+          steps = 0
+          while queue:
+              for _ in range(len(queue)):        # exactly one level
+                  r, c = queue.popleft()
+                  if (r, c) == (rows - 1, cols - 1):
+                      return steps
+                  for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                      nr, nc = r + dr, c + dc
+                      if (0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 0
+                              and (nr, nc) not in visited):
+                          visited.add((nr, nc))  # mark when enqueued
+                          queue.append((nr, nc))
+              steps += 1
+          return -1
+
+      print(shortest_path([[0, 0, 0], [1, 1, 0], [0, 0, 0]]))
+      print(shortest_path([[0, 1], [1, 0]]))
+    output: |-
+      4
+      -1
+    complexity: O(V + E); on an R x C grid, O(R*C) time and space
+    tip: "Use `popleft()`, never `pop()`: a stack turns BFS into DFS, and the first arrival is no longer the shortest. For multi-source BFS (Rotting Oranges, Walls and Gates), put every source in the queue before the loop starts."
+  - id: tpl-dfs-grid
+    name: DFS flood fill (count islands)
+    summary: Scan every cell; each unvisited land cell starts a DFS that sinks its whole island, so the number of DFS starts is the answer.
+    details: "Signals: 'number of islands', 'connected components', 'max area of island', Surrounded Regions, Pacific Atlantic. In the base case check bounds first, then the cell; mark the cell before recursing into its neighbors."
+    example: |-
+      def num_islands(grid):
+          rows, cols = len(grid), len(grid[0])
+
+          def dfs(r, c):
+              if r < 0 or r >= rows or c < 0 or c >= cols or grid[r][c] != "1":
+                  return
+              grid[r][c] = "0"           # sink it: marks it visited
+              for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                  dfs(r + dr, c + dc)
+
+          count = 0
+          for r in range(rows):
+              for c in range(cols):
+                  if grid[r][c] == "1":
+                      dfs(r, c)
+                      count += 1
+          return count
+
+      grid = [["1", "1", "0", "0"],
+              ["1", "0", "0", "1"],
+              ["0", "0", "1", "1"]]
+      print(num_islands(grid))
+      print(num_islands([["1", "0", "1"]]))
+    output: |-
+      2
+      2
+    complexity: O(R*C) time; recursion depth up to O(R*C)
+    tip: "Python does NOT raise on `grid[-1][c]`: a negative index silently wraps to the last row, so a missing `r < 0` check merges islands across the border. If the input must not change, use a `visited` set instead of sinking; for huge grids switch to an explicit stack or BFS to avoid the recursion limit."
+  - id: tpl-backtracking
+    name: Backtracking (subsets / combinations)
+    summary: "Choose, explore, un-choose: `path.append`, recurse, `path.pop()`, and save a COPY of `path` whenever it is an answer."
+    details: "Signals: 'all subsets', 'all combinations / permutations', 'generate all valid...', N-Queens, Word Search. The `start` index keeps each combination in index order, so [1, 2] and [2, 1] are not both produced. Recurse with `i + 1` to use each item once, with `i` to allow reuse."
+    example: |-
+      def subsets(nums):
+          res, path = [], []
+
+          def backtrack(start):
+              res.append(path[:])            # copy: path keeps changing
+              for i in range(start, len(nums)):
+                  path.append(nums[i])       # choose
+                  backtrack(i + 1)           # explore
+                  path.pop()                 # un-choose
+
+          backtrack(0)
+          return res
+
+      def combination_sum(candidates, target):
+          res, path = [], []
+
+          def backtrack(start, remaining):
+              if remaining == 0:
+                  res.append(path[:])
+                  return
+              if remaining < 0:
+                  return
+              for i in range(start, len(candidates)):
+                  path.append(candidates[i])
+                  backtrack(i, remaining - candidates[i])   # i: reuse allowed
+                  path.pop()
+
+          backtrack(0, target)
+          return res
+
+      print(subsets([1, 2, 3]))
+      print(combination_sum([2, 3, 6, 7], 7))
+    output: |-
+      [[], [1], [1, 2], [1, 2, 3], [1, 3], [2], [2, 3], [3]]
+      [[2, 2, 3], [7]]
+    complexity: O(n * 2^n) for subsets (2^n answers, O(n) to copy each)
+    tip: "`res.append(path)` stores a reference to the one list you keep mutating, so every saved answer ends up equal to the final (usually empty) `path`. Copy with `path[:]` or `list(path)`."
+  - id: tpl-memo-dp
+    name: Top-down DP (memoization)
+    summary: Write the plain recursion first, then cache each state's answer so every state is solved only once.
+    details: "Signals: 'number of ways', 'minimum cost / coins / steps', 'can you reach / partition / break', where a state's answer depends on smaller states. Define `dp(state)`, write the base cases, then the recurrence; the memo turns exponential recursion into O(states x choices)."
+    example: |-
+      from math import inf
+
+      def coin_change(coins, amount):
+          memo = {}
+
+          def dp(rem):                       # fewest coins that make rem
+              if rem == 0:
+                  return 0
+              if rem < 0:
+                  return inf                 # impossible branch
+              if rem in memo:
+                  return memo[rem]
+              memo[rem] = min(dp(rem - c) + 1 for c in coins)
+              return memo[rem]
+
+          res = dp(amount)
+          return res if res != inf else -1
+
+      print(coin_change([1, 2, 5], 11))
+      print(coin_change([2], 3))
+    output: |-
+      3
+      -1
+    complexity: O(amount * len(coins)) time, O(amount) space
+    tip: "An impossible branch must return a value that always loses: `inf` for a min, `-inf` (or 0) for a max. `@lru_cache(maxsize=None)` (or `@cache` on Python 3.9+) above `dp` replaces the memo dict; very deep inputs may need the bottom-up version to dodge the recursion limit."
+  - id: tpl-bottom-up-dp
+    name: Bottom-up 1-D DP (house robber)
+    summary: Fill answers from the smallest subproblem up; when a step needs only the last two answers, keep two variables instead of an array.
+    details: "Signals: a sequence where the best answer at i depends on i - 1 and i - 2: House Robber, Climbing Stairs, Decode Ways, Min Cost Climbing Stairs. Write the array version if it helps you think, then shrink it to two variables."
+    example: |-
+      def rob(nums):
+          prev2, prev1 = 0, 0                # best up to i-2, best up to i-1
+          for x in nums:
+              prev2, prev1 = prev1, max(prev1, prev2 + x)   # skip x, or rob it
+          return prev1
+
+      def climb_stairs(n):
+          dp = [0] * (n + 1)
+          dp[0] = dp[1] = 1
+          for i in range(2, n + 1):
+              dp[i] = dp[i - 1] + dp[i - 2]
+          return dp[n]
+
+      print(rob([2, 7, 9, 3, 1]))
+      print(rob([2, 1, 1, 2]))
+      print(climb_stairs(5))
+    output: |-
+      12
+      4
+      8
+    complexity: O(n) time; O(1) space with two variables
+    tip: "Update both variables in ONE tuple assignment. Writing `prev2 = prev1` first and then `prev1 = max(prev1, prev2 + x)` reads a `prev2` that was already overwritten."
+  - id: tpl-2d-dp
+    name: 2-D DP table (LCS / unique paths)
+    summary: "`dp[i][j]` is the answer for the first i items of one input and the first j of the other (or for grid cell (i, j))."
+    details: "Signals: two strings or sequences (LCS, Edit Distance, Interleaving String), or a grid you cross moving right/down (Unique Paths, Minimum Path Sum). An extra row and column of zeros makes `i - 1` and `j - 1` always valid."
+    example: |-
+      def lcs(a, b):                         # Longest Common Subsequence
+          m, n = len(a), len(b)
+          dp = [[0] * (n + 1) for _ in range(m + 1)]
+          for i in range(1, m + 1):
+              for j in range(1, n + 1):
+                  if a[i - 1] == b[j - 1]:
+                      dp[i][j] = dp[i - 1][j - 1] + 1
+                  else:
+                      dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+          return dp[m][n]
+
+      def unique_paths(m, n):
+          dp = [[1] * n for _ in range(m)]   # first row and column: one way
+          for r in range(1, m):
+              for c in range(1, n):
+                  dp[r][c] = dp[r - 1][c] + dp[r][c - 1]
+          return dp[m - 1][n - 1]
+
+      print(lcs("abcde", "ace"))
+      print(lcs("abc", "def"))
+      print(unique_paths(3, 7))
+    output: |-
+      3
+      0
+      28
+    complexity: O(m * n) time and space (space drops to O(n) if you keep one row)
+    tip: "Build the table with a comprehension: `[[0] * (n + 1)] * (m + 1)` repeats ONE row object, so writing a cell writes it in every row. And mind the shift: `dp[i][j]` looks at characters `a[i - 1]` and `b[j - 1]`."
+  - id: tpl-topo-sort
+    name: Topological sort (Kahn's algorithm)
+    summary: Count incoming edges; repeatedly output a node with indegree 0 and decrement its neighbors.
+    details: "Signals: 'prerequisites', Course Schedule, 'build order', Alien Dictionary, any 'X must come before Y' with a question about an order or whether one exists. Nodes that never reach indegree 0 sit on (or behind) a cycle."
+    example: |-
+      from collections import defaultdict, deque
+
+      def topo_order(n, edges):              # (a, b): a must come before b
+          graph = defaultdict(list)
+          indeg = [0] * n
+          for a, b in edges:
+              graph[a].append(b)
+              indeg[b] += 1
+          queue = deque(i for i in range(n) if indeg[i] == 0)
+          order = []
+          while queue:
+              node = queue.popleft()
+              order.append(node)
+              for nb in graph[node]:
+                  indeg[nb] -= 1
+                  if indeg[nb] == 0:         # all prerequisites done
+                      queue.append(nb)
+          return order if len(order) == n else []   # [] means a cycle
+
+      print(topo_order(4, [(0, 1), (0, 2), (1, 3), (2, 3)]))
+      print(topo_order(3, [(0, 1), (1, 2), (2, 1)]))
+    output: |-
+      [0, 1, 2, 3]
+      []
+    complexity: O(V + E) time and space
+    tip: "On LeetCode, `prerequisites[i] = [a, b]` means b comes BEFORE a, so the edge is b -> a and `indeg[a] += 1`. Course Schedule I is just `len(order) == n`."
+  - id: tpl-union-find
+    name: Union-find (path compression + union by size)
+    summary: "Track connected components with a `parent` array: `find` returns a node's root, `union` links two roots."
+    details: "Signals: 'number of connected components', Redundant Connection, Graph Valid Tree, Accounts Merge, 'are a and b connected', edges that arrive one at a time. `union` returning False means both ends were already connected, i.e. this edge closes a cycle."
+    example: |-
+      def count_components(n, edges):
+          parent = list(range(n))
+          size = [1] * n
+
+          def find(x):
+              if parent[x] != x:
+                  parent[x] = find(parent[x])    # path compression
+              return parent[x]
+
+          def union(a, b):
+              ra, rb = find(a), find(b)
+              if ra == rb:
+                  return False                   # already connected
+              if size[ra] < size[rb]:
+                  ra, rb = rb, ra                # attach smaller under larger
+              parent[rb] = ra
+              size[ra] += size[rb]
+              return True
+
+          components = n
+          for a, b in edges:
+              if union(a, b):
+                  components -= 1
+          return components
+
+      print(count_components(5, [(0, 1), (1, 2), (3, 4)]))
+      print(count_components(3, [(0, 1), (1, 2), (0, 2)]))
+    output: |-
+      2
+      1
+    complexity: O(alpha(n)) amortized per operation, effectively constant; O(n) space
+    tip: "Always union the ROOTS (`find(a)`, `find(b)`), never the nodes themselves. Path compression plus union by size keeps the trees almost flat; without either, a chain of unions can make `find` O(n)."
+  - id: tpl-dijkstra
+    name: Dijkstra with heapq
+    summary: "Shortest paths with non-negative weights: pop the closest node from a min-heap and relax its edges."
+    details: "Signals: weighted graph, 'minimum cost / time / effort to reach', Network Delay Time, Path With Minimum Effort, Swim in Rising Water. Push `(distance, node)` so the heap orders by distance, and skip stale entries instead of decreasing keys."
+    example: |-
+      import heapq
+      from collections import defaultdict
+      from math import inf
+
+      def dijkstra(n, edges, src):           # edges: (u, v, weight), directed
+          graph = defaultdict(list)
+          for u, v, w in edges:
+              graph[u].append((v, w))
+          dist = [inf] * n
+          dist[src] = 0
+          heap = [(0, src)]
+          while heap:
+              d, node = heapq.heappop(heap)
+              if d > dist[node]:
+                  continue                   # stale entry: already improved
+              for nb, w in graph[node]:
+                  nd = d + w
+                  if nd < dist[nb]:
+                      dist[nb] = nd
+                      heapq.heappush(heap, (nd, nb))
+          return dist
+
+      edges = [(0, 1, 4), (0, 2, 1), (2, 1, 2), (1, 3, 1), (2, 3, 5)]
+      print(dijkstra(4, edges, 0))
+    output: "[0, 3, 1, 4]"
+    complexity: O((V + E) log V)
+    tip: "Weights must be non-negative; with negative edges use Bellman-Ford. Push the total distance `nd`, not the edge weight `w`: ordering by edge weight is Prim's minimum spanning tree, a different algorithm."
+  - id: tpl-top-k
+    name: Top k with a size-k heap
+    summary: Push every item into a min-heap and pop whenever it grows past k; the survivors are the k largest.
+    details: "Signals: 'k largest / smallest', 'kth largest', 'k most frequent', 'k closest points', data streams. A size-k heap costs O(n log k) instead of sorting everything in O(n log n)."
+    example: |-
+      import heapq
+      from collections import Counter
+
+      def kth_largest(nums, k):
+          heap = []
+          for x in nums:
+              heapq.heappush(heap, x)
+              if len(heap) > k:
+                  heapq.heappop(heap)        # evict the smallest
+          return heap[0]                     # weakest of the top k
+
+      def top_k_frequent(nums, k):
+          heap = []
+          for num, freq in Counter(nums).items():
+              heapq.heappush(heap, (freq, num))
+              if len(heap) > k:
+                  heapq.heappop(heap)
+          return [num for freq, num in heap]
+
+      print(kth_largest([3, 2, 1, 5, 6, 4], 2))
+      print(sorted(top_k_frequent([1, 1, 1, 2, 2, 3], 2)))
+    output: |-
+      5
+      [1, 2]
+    complexity: O(n log k) time, O(k) space
+    tip: "k LARGEST uses a MIN-heap (so you can evict the smallest survivor); k smallest or k closest uses a max-heap via negated keys. The root is the kth best, not the best."
+  - id: tpl-fast-slow
+    name: Fast and slow pointers
+    summary: "Move `slow` one node and `fast` two: they meet if there is a cycle, and `slow` sits at the middle when `fast` runs out."
+    details: "Signals: Linked List Cycle, Middle of the Linked List, Reorder List and Palindrome Linked List (find the middle, then reverse the second half), Happy Number and Find the Duplicate Number (a cycle in a function)."
+    example: |-
+      class ListNode:
+          def __init__(self, val=0, next=None):
+              self.val = val
+              self.next = next
+
+      def build(vals):
+          head = None
+          for v in reversed(vals):
+              head = ListNode(v, head)
+          return head
+
+      def middle(head):
+          slow = fast = head
+          while fast and fast.next:
+              slow, fast = slow.next, fast.next.next
+          return slow
+
+      def has_cycle(head):
+          slow = fast = head
+          while fast and fast.next:
+              slow, fast = slow.next, fast.next.next
+              if slow is fast:
+                  return True
+          return False
+
+      print(middle(build([1, 2, 3, 4, 5])).val)
+      print(middle(build([1, 2, 3, 4])).val)
+      head = build([1, 2, 3])
+      head.next.next.next = head.next        # 3 -> 2: a cycle
+      print(has_cycle(head), has_cycle(build([1, 2, 3])))
+    output: |-
+      3
+      3
+      True False
+    complexity: O(n) time, O(1) space
+    tip: "`while fast and fast.next` guards both hops of `fast.next.next`. On an even-length list it stops `slow` on the SECOND middle; loop on `fast.next and fast.next.next` when you need the first middle (e.g. to cut a list in half)."
+  - id: tpl-reverse-list
+    name: Reverse a linked list
+    summary: Walk the list once and point each node back at the previous one; `prev` ends on the new head.
+    details: "Signals: reverse a whole list or part of it (Reverse Linked List II, Reverse Nodes in k-Group, Reorder List, Palindrome Linked List). Three names: `prev`, `curr`, and `nxt`, saved before `curr.next` is overwritten."
+    example: |-
+      class ListNode:
+          def __init__(self, val=0, next=None):
+              self.val = val
+              self.next = next
+
+      def build(vals):
+          head = None
+          for v in reversed(vals):
+              head = ListNode(v, head)
+          return head
+
+      def to_list(head):
+          out = []
+          while head:
+              out.append(head.val)
+              head = head.next
+          return out
+
+      def reverse(head):
+          prev, curr = None, head
+          while curr:
+              nxt = curr.next            # save the rest of the list
+              curr.next = prev           # flip the pointer
+              prev, curr = curr, nxt     # step forward
+          return prev                    # curr is None; prev is the new head
+
+      print(to_list(reverse(build([1, 2, 3, 4]))))
+      print(to_list(reverse(build([7]))))
+      print(to_list(reverse(None)))
+    output: |-
+      [4, 3, 2, 1]
+      [7]
+      []
+    complexity: O(n) time, O(1) space
+    tip: "Save `nxt = curr.next` BEFORE flipping and advance with that saved `nxt`; after the flip, `curr.next` points backwards. Return `prev`, not `curr` (None) or `head` (now the tail)."
+  - id: tpl-trie
+    name: Trie (insert / search / prefix)
+    summary: A tree of dicts with one character per edge; walk it to insert a word or to look up a word or prefix in O(length).
+    details: "Signals: Implement Trie, 'starts with', many words sharing prefixes, autocomplete, Word Search II, Design Add and Search Words. `search` and `starts_with` walk the same way; only the final check differs."
+    example: |-
+      class TrieNode:
+          def __init__(self):
+              self.children = {}
+              self.is_end = False
+
+      class Trie:
+          def __init__(self):
+              self.root = TrieNode()
+
+          def insert(self, word):
+              node = self.root
+              for ch in word:
+                  if ch not in node.children:
+                      node.children[ch] = TrieNode()
+                  node = node.children[ch]
+              node.is_end = True
+
+          def search(self, word):
+              node = self.root
+              for ch in word:
+                  if ch not in node.children:
+                      return False
+                  node = node.children[ch]
+              return node.is_end             # a word must END here
+
+          def starts_with(self, prefix):
+              node = self.root
+              for ch in prefix:
+                  if ch not in node.children:
+                      return False
+                  node = node.children[ch]
+              return True                    # any path is a prefix
+
+      trie = Trie()
+      trie.insert("apple")
+      trie.insert("app")
+      print(trie.search("app"), trie.search("ap"), trie.starts_with("ap"))
+    output: True False True
+    complexity: O(L) per operation for a word of length L; O(total characters) space
+    tip: "Set `is_end` on the LAST node, after the loop. The create-if-missing step can also be written `node = node.children.setdefault(ch, TrieNode())`."
+  - id: tpl-merge-intervals
+    name: Merge intervals
+    summary: Sort by start, then either extend the last merged interval or start a new one.
+    details: "Signals: Merge Intervals, Insert Interval, Meeting Rooms, Non-overlapping Intervals, Minimum Number of Arrows. Once sorted by start, a new interval can only overlap the LAST merged one."
+    example: |-
+      def merge(intervals):
+          intervals.sort(key=lambda iv: iv[0])
+          res = []
+          for start, end in intervals:
+              if res and start <= res[-1][1]:    # overlaps the last one
+                  res[-1][1] = max(res[-1][1], end)
+              else:
+                  res.append([start, end])
+          return res
+
+      print(merge([[1, 3], [8, 10], [2, 6], [15, 18]]))
+      print(merge([[1, 4], [4, 5]]))
+      print(merge([[1, 4], [2, 3]]))
+    output: |-
+      [[1, 6], [8, 10], [15, 18]]
+      [[1, 5]]
+      [[1, 4]]
+    complexity: O(n log n) for the sort, O(n) for the scan
+    tip: "Extend with `max(res[-1][1], end)`, not just `end`: an interval can sit entirely inside the previous one, like [2, 3] inside [1, 4]. Whether touching intervals merge (`<=`) or not (`<`) depends on the problem statement."
+quiz:
+  - id: tpl-q-bs-pairing
+    method: tpl-lower-bound
+    question: "A binary search moves with `hi = mid` and `lo = mid + 1`. Which loop condition must it use?"
+    options:
+      - "while lo <= hi"
+      - "while lo < hi"
+      - "Either one works"
+      - "while lo + 1 < hi"
+    answer: 1
+    explanation: "`hi = mid` keeps `mid` as a candidate, so the range only shrinks while `lo < hi`. With `lo <= hi`, the state `lo == hi == mid` repeats forever. `lo <= hi` belongs with `hi = mid - 1`, the closed-range exact-match search."
+  - id: tpl-q-bfs-visited
+    method: tpl-bfs
+    question: In BFS, why add a node to `visited` when you enqueue it rather than when you dequeue it?
+    options:
+      - Marking at dequeue time gives wrong shortest distances
+      - A deque cannot hold the same item twice
+      - "So no node is in the queue twice: until it is marked, every neighbor that reaches it adds it again"
+      - It makes BFS explore depth-first
+    answer: 2
+    explanation: "Distances would still come out right, but a node waiting in the queue would be re-added by every other neighbor that reaches it. The queue can then hold O(E) entries instead of O(V), the classic time-limit failure on large grids."
+  - id: tpl-q-path-alias
+    method: tpl-backtracking
+    question: What does this print?
+    code: |-
+      res, path = [], []
+      for x in [1, 2]:
+          path.append(x)
+          res.append(path)
+      print(res)
+    options:
+      - "[[1], [1, 2]]"
+      - "[[1], [2]]"
+      - "[[1, 2]]"
+      - "[[1, 2], [1, 2]]"
+    answer: 3
+    explanation: "`res.append(path)` stores the same list object twice, and the later append shows through both entries. That is why backtracking saves `path[:]`, a snapshot."
+  - id: tpl-q-bfs-grid
+    method: tpl-bfs
+    question: What is the time complexity of BFS over an R x C grid with 4-directional moves and a visited set?
+    options:
+      - O(R + C)
+      - O(R * C)
+      - O((R * C)^2)
+      - O(4^(R * C))
+    answer: 1
+    explanation: "Each cell is enqueued at most once and checks 4 neighbors, so the work is O(4 * R * C) = O(R * C). The grid is a graph with V = R * C nodes and E <= 4V edges, so this is the usual O(V + E)."
+  - id: tpl-q-uf-compress
+    method: tpl-union-find
+    question: "What does path compression, `parent[x] = find(parent[x])`, buy you?"
+    options:
+      - "Later finds are nearly O(1): every node on the searched path now points straight at its root"
+      - It keeps the two components balanced by size
+      - It lets you split a component apart again
+      - It lets union skip calling find
+    answer: 0
+    explanation: "Each `find` flattens the path it walked. Together with union by size (or rank), operations cost O(alpha(n)) amortized, where alpha, the inverse Ackermann function, is at most 4 for any realistic n. Balancing by size is the separate union-by-size rule, and union-find cannot split components."
+  - id: tpl-q-dijkstra-negative
+    method: tpl-dijkstra
+    question: When can Dijkstra's algorithm return wrong shortest distances?
+    options:
+      - When the graph has cycles
+      - When several edges have the same weight
+      - When the graph is undirected
+      - When some edge weights are negative
+    answer: 3
+    explanation: "Dijkstra finalizes the closest node first, assuming no later path can make it cheaper; a negative edge breaks that assumption. Cycles, ties and undirected edges are fine. With negative weights use Bellman-Ford, which is also the tool for 'at most k stops' problems."
+  - id: tpl-q-kahn-cycle
+    method: tpl-topo-sort
+    question: "Kahn's algorithm finishes with `len(order) < n`. What does that tell you?"
+    options:
+      - The graph is not connected
+      - The graph has a cycle
+      - Some nodes have no edges at all
+      - The queue was seeded with the wrong node
+    answer: 1
+    explanation: "Nodes on a cycle wait on each other, never reach indegree 0 and are never output (nor is anything that depends on them). Disconnected parts and isolated nodes are fine, because every node that starts at indegree 0 is queued at the beginning."
+  - id: tpl-q-prefix-seed
+    method: tpl-prefix-sum
+    question: "In Subarray Sum Equals K, why does the prefix map start as `{0: 1}`?"
+    options:
+      - It prevents a KeyError on the first lookup
+      - It makes negative numbers work
+      - "It counts subarrays that start at index 0: for them the earlier prefix is the empty one, with sum 0"
+      - It stops the empty subarray from being counted
+    answer: 2
+    explanation: "A subarray ending at the current index sums to k when an earlier prefix equals `total - k`. For a subarray starting at index 0 that earlier prefix is empty, with sum 0, so it must be in the map before the loop. `.get(key, 0)` already avoids KeyError."
+  - id: tpl-q-bs-answer
+    method: tpl-lower-bound
+    question: Koko Eating Bananas binary searches over the eating speed, not over the piles. What makes that valid?
+    options:
+      - The piles are sorted
+      - "Feasibility is monotonic: if speed s finishes in time, every faster speed does too"
+      - The answer is always one of the pile sizes
+      - Speeds are integers
+    answer: 1
+    explanation: "Binary search needs a yes/no condition that flips exactly once: no, no, ..., yes, yes. Any 'minimum X such that feasible(X)' with a monotonic check fits (Capacity to Ship Packages, Split Array Largest Sum). The piles need not be sorted and the answer need not be a pile size."
+  - id: tpl-q-row-alias
+    method: tpl-2d-dp
+    question: What does this print?
+    code: |-
+      dp = [[0] * 3] * 2
+      dp[0][0] = 1
+      print(dp)
+    options:
+      - "[[1, 0, 0], [0, 0, 0]]"
+      - "[[1, 1, 1], [0, 0, 0]]"
+      - "[[1, 0, 0], [1, 0, 0]]"
+      - "[[1, 1, 1], [1, 1, 1]]"
+    answer: 2
+    explanation: "`[row] * 2` repeats a reference to one row, so both rows are the same list. Build DP tables with `[[0] * cols for _ in range(rows)]`. The inner `[0] * 3` is safe because ints are immutable."
+  - id: tpl-q-window-linear
+    method: tpl-sliding-window
+    question: The variable sliding window has a `while` loop inside a `for` loop. Why is it still O(n)?
+    options:
+      - The inner while runs at most once per step
+      - The window size is capped at k
+      - Set operations make the inner loop free
+      - "`left` only moves forward: over the whole run each index is added once and removed at most once"
+    answer: 3
+    explanation: "Count the total work instead of the work per iteration: `right` moves n times and `left` moves at most n times in total, because it never goes back. The same amortized argument makes the monotonic stack O(n)."
+  - id: tpl-q-fast-slow-middle
+    method: tpl-fast-slow
+    question: "With `while fast and fast.next: slow, fast = slow.next, fast.next.next`, where does `slow` stop on 1 -> 2 -> 3 -> 4?"
+    options:
+      - Node 3, the second middle
+      - Node 2, the first middle
+      - Node 4, the tail
+      - None, past the end
+    answer: 0
+    explanation: "fast visits 1, 3, then None, while slow visits 1, 2, 3. To stop on the first middle (to cut a list in half for merge sort or Reorder List), loop while `fast.next and fast.next.next`."
+drills:
+  # ---------------------------------------------------------------- binary search
+  - id: tpl-d-bs-loop
+    method: tpl-binary-search
+    title: Loop condition (closed range)
+    task: "The range `[lo, hi]` includes both ends. Keep looping while at least one candidate is left."
+    setup: |-
+      def search(nums, target):
+          lo, hi = 0, len(nums) - 1
+    line: "    while ___:"
+    after: |2-
+              mid = (lo + hi) // 2
+              if nums[mid] == target:
+                  return mid
+              if nums[mid] < target:
+                  lo = mid + 1
+              else:
+                  hi = mid - 1
+          return -1
+    answer: "lo <= hi"
+    accept:
+      - "hi >= lo"
+    decoys:
+      - "lo < hi"
+      - "lo + 1 < hi"
+    show: "[search([1, 3, 5], 5), search([1, 3, 5], 4), search([7], 7), search([], 1)]"
+    expected: "[2, -1, 0, -1]"
+    hint: When `lo == hi` there is still one index you have not looked at.
+    explain: "In a closed range, `lo == hi` still names one unchecked element, so the loop must run then too. With `lo < hi`, `search([1, 3, 5], 5)` stops at `lo == hi == 2` and returns -1 without ever reading the 5."
+  - id: tpl-d-bs-mid
+    method: tpl-binary-search
+    title: The midpoint
+    task: "Compute the middle index of `[lo, hi]` as an int."
+    setup: |-
+      def search(nums, target):
+          lo, hi = 0, len(nums) - 1
+          while lo <= hi:
+    line: "        mid = ___"
+    after: |2-
+              if nums[mid] == target:
+                  return mid
+              if nums[mid] < target:
+                  lo = mid + 1
+              else:
+                  hi = mid - 1
+          return -1
+    answer: "(lo + hi) // 2"
+    accept:
+      - "lo + (hi - lo) // 2"
+      - "(lo + hi) >> 1"
+    decoys:
+      - "(lo + hi) / 2"
+      - "lo + hi // 2"
+    show: "[search([1, 3, 5], 5), search([1, 3, 5], 4), search([7], 7), search([], 1)]"
+    expected: "[2, -1, 0, -1]"
+    hint: List indices must be ints. Also mind operator precedence.
+    explain: "`//` is floor division, so the index stays an int; `/` always returns a float, and `nums[1.0]` raises TypeError. `lo + hi // 2` halves only `hi` and jumps outside the range. `lo + (hi - lo) // 2` is the overflow-safe form from Java/C++; Python does not need it, but it is correct."
+  # ---------------------------------------------------------------- lower bound / on the answer
+  - id: tpl-d-lb-loop
+    method: tpl-lower-bound
+    title: Loop condition for hi = mid
+    task: "This lower bound keeps `mid` as a candidate with `hi = mid`. Write the loop condition that can never get stuck."
+    setup: |-
+      def lower_bound(nums, target):
+          lo, hi = 0, len(nums)
+    line: "    while ___:"
+    after: |2-
+              mid = (lo + hi) // 2
+              if nums[mid] >= target:
+                  hi = mid
+              else:
+                  lo = mid + 1
+          return lo
+    answer: "lo < hi"
+    accept:
+      - "hi > lo"
+    decoys:
+      - "lo <= hi"
+      - "lo + 1 < hi"
+    show: "[lower_bound([1, 3, 5], t) for t in (9, 0, 3, 4)]"
+    expected: "[3, 0, 1, 2]"
+    hint: "`hi = mid` does not shrink the range once `lo == hi`."
+    explain: "The half-open range `[lo, hi)` is empty once `lo == hi`, and that index is the answer. With `lo <= hi` the loop runs again with `mid == lo == hi`: it either reads `nums[len(nums)]` (IndexError, as for target 9) or sets `hi = mid` and spins forever."
+  - id: tpl-d-lb-feasible
+    method: tpl-lower-bound
+    title: Is this speed fast enough?
+    task: "Koko Eating Bananas: `hours` is the time needed at speed `mid`. Write the condition for 'fast enough', which moves the search toward slower speeds."
+    setup: |-
+      def min_eating_speed(piles, h):
+          lo, hi = 1, max(piles)
+          while lo < hi:
+              mid = (lo + hi) // 2
+              hours = sum((p + mid - 1) // mid for p in piles)
+    line: "        if ___:"
+    after: |2-
+                  hi = mid
+              else:
+                  lo = mid + 1
+          return lo
+    answer: "hours <= h"
+    accept:
+      - "h >= hours"
+      - "not hours > h"
+    decoys:
+      - "hours < h"
+      - "hours >= h"
+    show: "[min_eating_speed([3, 6, 7, 11], 8), min_eating_speed([30, 11, 23, 4, 20], 6)]"
+    expected: "[4, 23]"
+    hint: Finishing in exactly `h` hours is allowed.
+    explain: "We want the first speed where 'finishes within h hours' turns true, and `hi = mid` keeps such a speed as a candidate. `hours < h` rejects a speed that finishes exactly on time (speed 4 needs exactly 8 hours), and `hours >= h` searches the wrong side of the boundary."
+  - id: tpl-d-lb-ceil
+    method: tpl-lower-bound
+    title: Hours for one pile
+    task: "Koko eats at most `mid` bananas per hour, one pile at a time. Compute the hours for pile `p`, rounded UP, without floats."
+    setup: |-
+      def min_eating_speed(piles, h):
+          lo, hi = 1, max(piles)
+          while lo < hi:
+              mid = (lo + hi) // 2
+    line: "        hours = sum(___ for p in piles)"
+    after: |2-
+              if hours <= h:
+                  hi = mid
+              else:
+                  lo = mid + 1
+          return lo
+    answer: "(p + mid - 1) // mid"
+    accept:
+      - "-(-p // mid)"
+      - "(p - 1) // mid + 1"
+      - "math.ceil(p / mid)"
+      - "ceil(p / mid)"
+    decoys:
+      - "p // mid"
+      - "p // mid + 1"
+      - "p / mid"
+    show: "[min_eating_speed([3, 6, 7, 11], 8), min_eating_speed([30, 11, 23, 4, 20], 6)]"
+    expected: "[4, 23]"
+    hint: A pile of 7 at speed 3 takes 3 hours, not 2.
+    explain: "`(p + mid - 1) // mid` is ceiling division in integers (`-(-p // mid)` is the other classic). `p // mid` rounds down, so a pile smaller than `mid` takes 0 hours; `p // mid + 1` overcounts piles that divide exactly (6 at speed 3 takes 2 hours, not 3)."
+  # ---------------------------------------------------------------- two pointers
+  - id: tpl-d-tp-loop
+    method: tpl-two-pointers
+    title: Two different indices
+    task: "Two Sum II on a sorted array: return the indices of two numbers that add up to `target`, or `[]`. Write the loop condition."
+    setup: |-
+      def two_sum_sorted(nums, target):
+          left, right = 0, len(nums) - 1
+    line: "    while ___:"
+    after: |2-
+              s = nums[left] + nums[right]
+              if s == target:
+                  return [left, right]
+              if s < target:
+                  left += 1
+              else:
+                  right -= 1
+          return []
+    answer: "left < right"
+    accept:
+      - "right > left"
+    decoys:
+      - "left <= right"
+      - "right - left > 1"
+    show: "[two_sum_sorted([1, 3, 4], 6), two_sum_sorted([2, 7, 11, 15], 9)]"
+    expected: "[[], [0, 1]]"
+    hint: May one element be used twice?
+    explain: "A pair needs two distinct indices, so stop when the pointers meet. With `<=`, `[1, 3, 4]` and target 6 ends at `left == right == 1` and returns `[1, 1]` (3 + 3). `right - left > 1` stops one step early and misses adjacent pairs like 2 + 7."
+  - id: tpl-d-tp-move
+    method: tpl-two-pointers
+    title: Which wall moves?
+    task: "Container With Most Water: after scoring the current pair, decide when `left` is the pointer to move inward."
+    setup: |-
+      def max_area(height):
+          left, right = 0, len(height) - 1
+          res = 0
+          while left < right:
+              res = max(res, (right - left) * min(height[left], height[right]))
+    line: "        if ___:"
+    after: |2-
+                  left += 1
+              else:
+                  right -= 1
+          return res
+    answer: "height[left] < height[right]"
+    accept:
+      - "height[left] <= height[right]"
+      - "height[right] > height[left]"
+    decoys:
+      - "height[left] > height[right]"
+      - "left < right"
+    show: "[max_area([1, 8, 6, 2, 5, 4, 8, 3, 7]), max_area([1, 8, 8, 1])]"
+    expected: "[49, 8]"
+    hint: The area is capped by the shorter wall. Which move could possibly find a bigger one?
+    explain: "Moving inward always loses width, so only a taller limiting wall can help. Moving the taller wall keeps the shorter one as the limit with less width, which can never be better; moving the shorter wall is the only move that might be."
+  # ---------------------------------------------------------------- variable sliding window
+  - id: tpl-d-sw-while
+    method: tpl-sliding-window
+    title: Shrink until valid
+    task: "Longest Substring Without Repeating Characters: before adding `ch`, shrink from the left until `ch` is no longer in the window. Write the whole loop header."
+    setup: |-
+      def longest_unique(s):
+          seen = set()
+          left = res = 0
+          for right, ch in enumerate(s):
+    line: "        ___"
+    after: |2-
+                  seen.remove(s[left])
+                  left += 1
+              seen.add(ch)
+              res = max(res, right - left + 1)
+          return res
+    answer: "while ch in seen:"
+    decoys:
+      - "if ch in seen:"
+      - "while s[left] in seen:"
+    show: '[longest_unique("abba"), longest_unique("pwwkew"), longest_unique("abcabcbb"), longest_unique("")]'
+    expected: "[2, 3, 3, 0]"
+    hint: Removing a single character from the left is not always enough.
+    explain: "The earlier copy of `ch` can be anywhere in the window, so keep removing from the left until it is gone. With `if`, the second 'b' of 'abba' removes only the first 'a', the window 'bb' stays invalid, and the answer comes out 3."
+  - id: tpl-d-sw-size
+    method: tpl-sliding-window
+    title: Window length
+    task: "The window is `s[left..right]`, both ends included. Record its length."
+    setup: |-
+      def longest_unique(s):
+          seen = set()
+          left = res = 0
+          for right, ch in enumerate(s):
+              while ch in seen:
+                  seen.remove(s[left])
+                  left += 1
+              seen.add(ch)
+    line: "        res = max(res, ___)"
+    after: |2-
+          return res
+    answer: "right - left + 1"
+    accept:
+      - "len(seen)"
+    decoys:
+      - "right - left"
+      - "right"
+    show: '[longest_unique("abcabcbb"), longest_unique("pwwkew"), longest_unique("a")]'
+    expected: "[3, 3, 1]"
+    hint: How many characters are there from index 1 to index 3, both included?
+    explain: "An inclusive range `[left, right]` holds `right - left + 1` items; `right - left` is off by one, so a one-character window would count as 0. Here `len(seen)` works too, because the set holds exactly the window's characters."
+  - id: tpl-d-sw-replace
+    method: tpl-sliding-window
+    title: When is the window invalid?
+    task: "Longest Repeating Character Replacement: you may replace at most `k` characters. Shrink while the window needs MORE than `k` replacements, i.e. its length minus the count of its most common character."
+    setup: |-
+      from collections import defaultdict
+
+      def character_replacement(s, k):
+          count = defaultdict(int)
+          left = res = 0
+          for right, ch in enumerate(s):
+              count[ch] += 1
+    line: "        while ___:"
+    after: |2-
+                  count[s[left]] -= 1
+                  left += 1
+              res = max(res, right - left + 1)
+          return res
+    answer: "(right - left + 1) - max(count.values()) > k"
+    accept:
+      - "right - left + 1 - max(count.values()) > k"
+      - "right - left + 1 > max(count.values()) + k"
+    decoys:
+      - "(right - left + 1) - max(count.values()) >= k"
+      - "len(count) > k"
+    show: '[character_replacement("AABABBA", 1), character_replacement("ABAB", 2)]'
+    expected: "[4, 4]"
+    hint: Replacements needed = characters that are not the most frequent one.
+    explain: "Keep the most frequent character and replace the rest: that costs `window - max count`. The window is still valid when that equals `k`, so shrink only when it EXCEEDS `k`. With `>= k` a window needing exactly k replacements is thrown away (for k = 1 only single-letter runs survive, giving 2). `len(count) > k` is the 'at most k distinct' rule, a different problem."
+  # ---------------------------------------------------------------- fixed window
+  - id: tpl-d-fw-leave
+    method: tpl-fixed-window
+    title: The item that leaves
+    task: "The window holds the `k` items ending at `right - 1`. Slide it one step: add `nums[right]` and subtract the item that falls out."
+    setup: |-
+      def max_window_sum(nums, k):
+          window = sum(nums[:k])
+          res = window
+          for right in range(k, len(nums)):
+    line: "        window += nums[right] - ___"
+    after: |2-
+              res = max(res, window)
+          return res
+    answer: "nums[right - k]"
+    decoys:
+      - "nums[right - k + 1]"
+      - "nums[right - 1]"
+    show: "max_window_sum([2, 1, 5, 1, 3, 2], 3)"
+    expected: "9"
+    hint: "After the step the window is `nums[right - k + 1 .. right]`. Which index just dropped out?"
+    explain: "A size-k window ending at `right` starts at `right - k + 1`, so the item that just left is `nums[right - k]`. `nums[right - k + 1]` subtracts an item that is still inside the window."
+  - id: tpl-d-fw-start
+    method: tpl-fixed-window
+    title: Where sliding starts
+    task: "The first window `nums[0..k-1]` is already summed. Start the loop at the first index that is not in it yet."
+    setup: |-
+      def max_window_sum(nums, k):
+          window = sum(nums[:k])
+          res = window
+    line: "    for right in range(___, len(nums)):"
+    after: |2-
+              window += nums[right] - nums[right - k]
+              res = max(res, window)
+          return res
+    answer: "k"
+    decoys:
+      - "k - 1"
+      - "k + 1"
+      - "0"
+    show: "max_window_sum([2, 1, 5, 1, 3, 2], 3)"
+    expected: "9"
+    hint: Indices 0 to k - 1 are already inside the window.
+    explain: "The next item to enter is index `k`. Starting at `k - 1` adds an item that is already counted (and subtracts `nums[-1]`, which Python happily reads from the end); starting at `k + 1` never adds `nums[k]` and never removes `nums[0]`, so every later window is wrong."
+  # ---------------------------------------------------------------- prefix sums
+  - id: tpl-d-ps-range
+    method: tpl-prefix-sum
+    title: Range sum from prefixes
+    task: "`prefix[i]` is the sum of the first `i` numbers. Return the sum of `nums[i..j]`, both ends included."
+    setup: |-
+      nums = [3, 1, 4, 1, 5]
+      prefix = [0, 3, 4, 8, 9, 14]
+
+      def range_sum(i, j):
+    line: "    return ___"
+    answer: "prefix[j + 1] - prefix[i]"
+    decoys:
+      - "prefix[j] - prefix[i]"
+      - "prefix[j + 1] - prefix[i - 1]"
+      - "prefix[j] - prefix[i - 1]"
+    show: "[range_sum(1, 3), range_sum(0, 4), range_sum(2, 2)]"
+    expected: "[6, 14, 4]"
+    hint: "`prefix` has one more entry than `nums`. What does `prefix[j + 1]` cover?"
+    explain: "`prefix[j + 1]` covers `nums[0..j]` and `prefix[i]` covers `nums[0..i-1]`, so the difference is exactly `nums[i..j]`. The leading 0 is what lets `i = 0` work with no special case; `prefix[i - 1]` would wrap around to the total."
+  - id: tpl-d-ps-seed
+    method: tpl-prefix-sum
+    title: Seed the prefix map
+    task: "Subarray Sum Equals K: `seen` maps each prefix total to how many times it has occurred. Initialize it before the loop."
+    setup: |-
+      def subarray_sum(nums, k):
+    line: "    seen = ___"
+    after: |2-
+          total = count = 0
+          for x in nums:
+              total += x
+              count += seen.get(total - k, 0)
+              seen[total] = seen.get(total, 0) + 1
+          return count
+    answer: "{0: 1}"
+    accept:
+      - "Counter({0: 1})"
+      - "defaultdict(int, {0: 1})"
+    decoys:
+      - "{}"
+      - "{0: 0}"
+      - "{k: 1}"
+    show: "[subarray_sum([1, 1, 1], 2), subarray_sum([3, 4, 7], 7)]"
+    expected: "[2, 2]"
+    hint: Before the first number, the running total is already some value.
+    explain: "The empty prefix, with sum 0, exists before any element. Without it, a subarray that starts at index 0 (like [3, 4] in [3, 4, 7] with k = 7) is never counted, because no earlier total equals `total - k = 0`."
+  - id: tpl-d-ps-lookup
+    method: tpl-prefix-sum
+    title: Which earlier total?
+    task: "The running total is `total`. Count the earlier prefix totals that leave a subarray summing to exactly `k`."
+    setup: |-
+      def subarray_sum(nums, k):
+          seen = {0: 1}
+          total = count = 0
+          for x in nums:
+              total += x
+    line: "        count += seen.get(___, 0)"
+    after: |2-
+              seen[total] = seen.get(total, 0) + 1
+          return count
+    answer: "total - k"
+    decoys:
+      - "k - total"
+      - "total + k"
+      - "total"
+    show: "[subarray_sum([1, 1, 1], 2), subarray_sum([1, 2, 3], 3)]"
+    expected: "[2, 2]"
+    hint: "If an earlier prefix is P, the numbers since then sum to `total - P`."
+    explain: "The numbers after an earlier prefix P sum to `total - P`, which equals k exactly when `P == total - k`. Every earlier occurrence of that total is a different starting point, which is why the map stores counts, not just presence."
+  # ---------------------------------------------------------------- monotonic stack
+  - id: tpl-d-ms-while
+    method: tpl-monotonic-stack
+    title: Pop while smaller
+    task: "Next Greater Element: pop every index whose value is smaller than `x` (x is their answer). Guard against an empty stack."
+    setup: |-
+      def next_greater(nums):
+          res = [-1] * len(nums)
+          stack = []
+          for i, x in enumerate(nums):
+    line: "        while ___:"
+    after: |2-
+                  res[stack.pop()] = x
+              stack.append(i)
+          return res
+    answer: "stack and nums[stack[-1]] < x"
+    accept:
+      - "stack and x > nums[stack[-1]]"
+      - "len(stack) > 0 and nums[stack[-1]] < x"
+    decoys:
+      - "nums[stack[-1]] < x"
+      - "stack and nums[stack[-1]] <= x"
+      - "stack and stack[-1] < x"
+    show: "next_greater([2, 1, 2, 4, 3])"
+    expected: "[4, 2, 4, -1, -1]"
+    hint: The stack stores indices, and it can be empty.
+    explain: "`stack and` stops the loop once the stack is empty (otherwise `stack[-1]` raises IndexError), and `nums[stack[-1]]` turns the stored index into a value. Pop on strict `<`: with `<=`, the second 2 would become the 'next greater' of the first 2."
+  - id: tpl-d-ms-days
+    method: tpl-monotonic-stack
+    title: Days until warmer
+    task: "Daily Temperatures: index `j` was just popped because day `i` is warmer. Store how many days it waited."
+    setup: |-
+      def daily_temperatures(temps):
+          res = [0] * len(temps)
+          stack = []
+          for i, t in enumerate(temps):
+              while stack and temps[stack[-1]] < t:
+                  j = stack.pop()
+    line: "            res[j] = ___"
+    after: |2-
+              stack.append(i)
+          return res
+    answer: "i - j"
+    decoys:
+      - "i"
+      - "j - i"
+      - "t"
+    show: "daily_temperatures([73, 74, 75, 71, 69, 72, 76, 73])"
+    expected: "[1, 1, 4, 2, 1, 1, 0, 0]"
+    hint: Day `j` waits until day `i`.
+    explain: "The wait is the distance between the two days, `i - j`. This is why the stack stores indices: with values on the stack you could still find the next warmer temperature, but not how far away it is."
+  # ---------------------------------------------------------------- BFS
+  - id: tpl-d-bfs-popleft
+    method: tpl-bfs
+    title: Take from the front
+    task: "Grid BFS, one level per pass of the inner loop. Take the next cell in first-in, first-out order."
+    setup: |-
+      from collections import deque
+
+      def shortest_path(grid):
+          rows, cols = len(grid), len(grid[0])
+          queue = deque([(0, 0)])
+          visited = {(0, 0)}
+          steps = 0
+          while queue:
+              for _ in range(len(queue)):
+    line: "            r, c = ___"
+    after: |2-
+                  if (r, c) == (rows - 1, cols - 1):
+                      return steps
+                  for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                      nr, nc = r + dr, c + dc
+                      if (0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 0
+                              and (nr, nc) not in visited):
+                          visited.add((nr, nc))
+                          queue.append((nr, nc))
+              steps += 1
+          return -1
+    answer: "queue.popleft()"
+    decoys:
+      - "queue.pop()"
+      - "queue.pop(0)"
+    show: "[shortest_path([[0, 0, 0], [0, 0, 0], [0, 0, 0]]), shortest_path([[0, 0, 0], [1, 1, 0], [0, 0, 0]])]"
+    expected: "[4, 4]"
+    hint: Cells are appended on the right. Which end holds the oldest one?
+    explain: "BFS needs FIFO order so every cell at distance d is handled before any cell at d + 1. `pop()` takes the newest cell, a stack, which mixes levels: on the open 3x3 grid it reaches the corner after 2 'levels' instead of 4. `deque.pop` takes no index, and on a list `pop(0)` would be O(n) anyway."
+  - id: tpl-d-bfs-level
+    method: tpl-bfs
+    title: One level at a time
+    task: "Process exactly the cells that are in the queue right now (one distance level); `steps` goes up by one after each level."
+    setup: |-
+      from collections import deque
+
+      def shortest_path(grid):
+          rows, cols = len(grid), len(grid[0])
+          queue = deque([(0, 0)])
+          visited = {(0, 0)}
+          steps = 0
+          while queue:
+    line: "        for _ in ___:"
+    after: |2-
+                  r, c = queue.popleft()
+                  if (r, c) == (rows - 1, cols - 1):
+                      return steps
+                  for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                      nr, nc = r + dr, c + dc
+                      if (0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 0
+                              and (nr, nc) not in visited):
+                          visited.add((nr, nc))
+                          queue.append((nr, nc))
+              steps += 1
+          return -1
+    answer: "range(len(queue))"
+    decoys:
+      - "queue"
+      - "range(len(visited))"
+    show: "[shortest_path([[0, 0, 0], [1, 1, 0], [0, 0, 0]]), shortest_path([[0, 0, 0], [0, 0, 0], [0, 0, 0]])]"
+    expected: "[4, 4]"
+    hint: The queue grows while you loop. Fix the count before you start.
+    explain: "`range(len(queue))` is evaluated once, so it covers only the cells of the current level even though new cells are appended during the loop. Iterating the deque itself raises 'deque mutated during iteration'."
+  - id: tpl-d-bfs-visited
+    method: tpl-bfs
+    title: Mark when you enqueue
+    task: "Graph BFS that records the visiting order. Mark the neighbor as visited at the moment it is queued."
+    setup: |-
+      from collections import deque
+
+      def bfs_order(graph, start):
+          visited = {start}
+          queue = deque([start])
+          order = []
+          while queue:
+              node = queue.popleft()
+              order.append(node)
+              for nb in graph[node]:
+                  if nb not in visited:
+    line: "                ___"
+    after: |2-
+                      queue.append(nb)
+          return order
+    answer: "visited.add(nb)"
+    accept:
+      - "visited |= {nb}"
+    decoys:
+      - "visited.add(node)"
+      - "pass"
+    show: "bfs_order({1: [2, 3], 2: [4], 3: [4], 4: []}, 1)"
+    expected: "[1, 2, 3, 4]"
+    hint: Node 4 is a neighbor of both 2 and 3.
+    explain: "If 4 is not marked as soon as 2 queues it, then 3 queues it again and it is visited twice. Marking at enqueue time puts every node in the queue at most once, which is what keeps BFS at O(V + E)."
+  # ---------------------------------------------------------------- DFS grid
+  - id: tpl-d-dfs-bounds
+    method: tpl-dfs-grid
+    title: Bounds before the cell
+    task: "Island DFS: return early when `(r, c)` is off the grid on any side. Fill in the bounds part of the base case."
+    setup: |-
+      def num_islands(grid):
+          rows, cols = len(grid), len(grid[0])
+
+          def dfs(r, c):
+    line: '        if ___ or grid[r][c] != "1":'
+    after: |2-
+                  return
+              grid[r][c] = "0"
+              for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                  dfs(r + dr, c + dc)
+
+          count = 0
+          for r in range(rows):
+              for c in range(cols):
+                  if grid[r][c] == "1":
+                      dfs(r, c)
+                      count += 1
+          return count
+    answer: "r < 0 or r >= rows or c < 0 or c >= cols"
+    accept:
+      - "not (0 <= r < rows and 0 <= c < cols)"
+      - "not 0 <= r < rows or not 0 <= c < cols"
+    decoys:
+      - "r >= rows or c >= cols"
+      - "r < 0 or r > rows or c < 0 or c > cols"
+    show: '[num_islands([["1", "0", "1"]]), num_islands([["1", "1"], ["0", "1"]])]'
+    expected: "[2, 1]"
+    hint: "In Python, `grid[0][-1]` is not an error."
+    explain: "Negative indices wrap around: `grid[0][-1]` is the LAST cell of the row. Without `c < 0`, the DFS on `[['1', '0', '1']]` steps off the left edge, lands on the other '1' and merges two islands into one. Use `>=` on the high side, because index `rows` is already out of range."
+  - id: tpl-d-dfs-neighbors
+    method: tpl-dfs-grid
+    title: Step to a neighbor
+    task: "Recurse into the four neighbors of `(r, c)` using the direction offsets."
+    setup: |-
+      def num_islands(grid):
+          rows, cols = len(grid), len(grid[0])
+
+          def dfs(r, c):
+              if r < 0 or r >= rows or c < 0 or c >= cols or grid[r][c] != "1":
+                  return
+              grid[r][c] = "0"
+              for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+    line: "            dfs(___)"
+    after: |2-
+          count = 0
+          for r in range(rows):
+              for c in range(cols):
+                  if grid[r][c] == "1":
+                      dfs(r, c)
+                      count += 1
+          return count
+    answer: "r + dr, c + dc"
+    decoys:
+      - "r + dr, c + dr"
+      - "dr, dc"
+    show: '[num_islands([["1", "0"], ["0", "1"]]), num_islands([["1", "1", "0"], ["0", "1", "1"]])]'
+    expected: "[2, 1]"
+    hint: Each pair is an offset from the current cell.
+    explain: "The neighbor is the current cell plus the offset, `(r + dr, c + dc)`. Adding `dr` to the column turns the four moves into two diagonals plus the cell itself, so cells touching only at a corner get merged. `dfs(dr, dc)` visits fixed cells near the top-left corner."
+  # ---------------------------------------------------------------- backtracking
+  - id: tpl-d-bt-copy
+    method: tpl-backtracking
+    title: Save a copy
+    task: "Subsets: every `path` is an answer. Append a snapshot of it to `res`."
+    setup: |-
+      def subsets(nums):
+          res, path = [], []
+
+          def backtrack(start):
+    line: "        res.append(___)"
+    after: |2-
+              for i in range(start, len(nums)):
+                  path.append(nums[i])
+                  backtrack(i + 1)
+                  path.pop()
+
+          backtrack(0)
+          return res
+    answer: "path[:]"
+    accept:
+      - "list(path)"
+      - "path.copy()"
+      - "path + []"
+      - "[*path]"
+    decoys:
+      - "path"
+      - "[path]"
+    show: "subsets([1, 2])"
+    expected: "[[], [1], [1, 2], [2]]"
+    hint: "`path` is one list that keeps changing after you save it."
+    explain: "Appending `path` stores a reference to the one list you keep mutating, so after the final `pop()` every entry of `res` is that same empty list. `path[:]` freezes its current contents."
+  - id: tpl-d-bt-pop
+    method: tpl-backtracking
+    title: Undo the choice
+    task: "After exploring with `nums[i]` in the path, undo that choice so the next iteration starts from the same state."
+    setup: |-
+      def subsets(nums):
+          res, path = [], []
+
+          def backtrack(start):
+              res.append(path[:])
+              for i in range(start, len(nums)):
+                  path.append(nums[i])
+                  backtrack(i + 1)
+    line: "            ___"
+    after: |2-
+
+          backtrack(0)
+          return res
+    answer: "path.pop()"
+    accept:
+      - "del path[-1]"
+      - "path.pop(-1)"
+    decoys:
+      - "path.pop(0)"
+      - "path.clear()"
+    show: "subsets([1, 2, 3])"
+    expected: "[[], [1], [1, 2], [1, 2, 3], [1, 3], [2], [2, 3], [3]]"
+    hint: Undo exactly what the `append` two lines up did.
+    explain: "Backtracking restores the state it changed: one `append` before the call, one `pop()` after it, so every sibling starts from the same `path`. `pop(0)` removes the wrong item, and `clear()` also wipes the choices made by the callers above."
+  - id: tpl-d-bt-next
+    method: tpl-backtracking
+    title: Where the next pick starts
+    task: "Subsets: each number is used at most once, and no subset may appear twice in a different order. Recurse from the right index."
+    setup: |-
+      def subsets(nums):
+          res, path = [], []
+
+          def backtrack(start):
+              res.append(path[:])
+              for i in range(start, len(nums)):
+                  path.append(nums[i])
+    line: "            backtrack(___)"
+    after: |2-
+                  path.pop()
+
+          backtrack(0)
+          return res
+    answer: "i + 1"
+    decoys:
+      - "start + 1"
+      - "len(path)"
+    show: "subsets([1, 2, 3])"
+    expected: "[[], [1], [1, 2], [1, 2, 3], [1, 3], [2], [2, 3], [3]]"
+    hint: The next pick must come after the one you just made.
+    explain: "Recursing with `i + 1` only allows picks to the right of `nums[i]`, so each subset is built in index order exactly once. `start + 1` ignores which `i` you picked: after picking 2 (i = 1) at the top level it recurses with start 1 and can pick 2 again, producing [2, 2], [1, 3, 3] and more."
+  - id: tpl-d-bt-reuse
+    method: tpl-backtracking
+    title: Unlimited reuse
+    task: "Combination Sum: a candidate may be used any number of times, but [2, 2, 3] and [2, 3, 2] count once. Choose where the recursion starts."
+    setup: |-
+      def combination_sum(candidates, target):
+          res, path = [], []
+
+          def backtrack(start, remaining):
+              if remaining == 0:
+                  res.append(path[:])
+                  return
+              if remaining < 0:
+                  return
+              for i in range(start, len(candidates)):
+                  path.append(candidates[i])
+    line: "            backtrack(___, remaining - candidates[i])"
+    after: |2-
+                  path.pop()
+
+          backtrack(0, target)
+          return res
+    answer: "i"
+    decoys:
+      - "i + 1"
+      - "0"
+    show: "combination_sum([2, 3, 6, 7], 7)"
+    expected: "[[2, 2, 3], [7]]"
+    hint: You may pick the same candidate again, but never one to its left.
+    explain: "Recursing with `i` lets the same candidate be picked again while never going back to smaller indices, so each combination appears in one order only. `i + 1` forbids reuse and misses [2, 2, 3]; `0` allows every order and also returns [2, 3, 2] and [3, 2, 2]."
+  # ---------------------------------------------------------------- top-down DP
+  - id: tpl-d-memo-hit
+    method: tpl-memo-dp
+    title: Check the memo
+    task: "Before computing `dp(rem)`, return the cached answer if this state was already solved."
+    setup: |-
+      from math import inf
+
+      def coin_change(coins, amount):
+          memo = {}
+
+          def dp(rem):
+              if rem == 0:
+                  return 0
+              if rem < 0:
+                  return inf
+    line: "        if ___:"
+    after: |2-
+                  return memo[rem]
+              memo[rem] = min(dp(rem - c) + 1 for c in coins)
+              return memo[rem]
+
+          res = dp(amount)
+          return res if res != inf else -1
+    answer: "rem in memo"
+    decoys:
+      - "memo[rem]"
+      - "rem not in memo"
+    show: "[coin_change([1, 2, 5], 11), coin_change([2], 3)]"
+    expected: "[3, -1]"
+    hint: Test whether the key exists without reading it.
+    explain: "Test membership with `in`. `memo[rem]` raises KeyError on the first visit of every state, which is exactly when you need to compute it. (`if memo.get(rem):` is a quieter bug: a cached 0 is falsy and gets recomputed every time.)"
+  - id: tpl-d-memo-base
+    method: tpl-memo-dp
+    title: The impossible branch
+    task: "`dp(rem)` is the fewest coins that make `rem`. A negative remainder cannot be made: return a value that can never win the `min`."
+    setup: |-
+      from math import inf
+
+      def coin_change(coins, amount):
+          memo = {}
+
+          def dp(rem):
+              if rem == 0:
+                  return 0
+              if rem < 0:
+    line: "            return ___"
+    after: |2-
+              if rem in memo:
+                  return memo[rem]
+              memo[rem] = min(dp(rem - c) + 1 for c in coins)
+              return memo[rem]
+
+          res = dp(amount)
+          return res if res != inf else -1
+    answer: "inf"
+    accept:
+      - "float('inf')"
+      - "math.inf"
+    decoys:
+      - "-1"
+      - "0"
+    show: "[coin_change([1, 2, 5], 11), coin_change([2], 3)]"
+    expected: "[3, -1]"
+    hint: The caller takes a `min` over all branches.
+    explain: "`min` must never choose an impossible branch, so it returns infinity; `inf + 1` is still `inf`, and the last line maps it to -1. Returning -1 makes overshooting the BEST option, and 0 makes it look free."
+  - id: tpl-d-memo-rec
+    method: tpl-memo-dp
+    title: The recurrence
+    task: "Try every coin `c` as the last coin used: one coin plus the best way to make what is left."
+    setup: |-
+      from math import inf
+
+      def coin_change(coins, amount):
+          memo = {}
+
+          def dp(rem):
+              if rem == 0:
+                  return 0
+              if rem < 0:
+                  return inf
+              if rem in memo:
+                  return memo[rem]
+    line: "        memo[rem] = min(___ for c in coins)"
+    after: |2-
+              return memo[rem]
+
+          res = dp(amount)
+          return res if res != inf else -1
+    answer: "dp(rem - c) + 1"
+    accept:
+      - "1 + dp(rem - c)"
+    decoys:
+      - "dp(rem - c)"
+      - "dp(rem - c) + c"
+    show: "[coin_change([1, 2, 5], 11), coin_change([2], 3)]"
+    expected: "[3, -1]"
+    hint: You are counting coins, not adding up their values.
+    explain: "Using coin `c` leaves `rem - c` to make, at a cost of `dp(rem - c)` coins, plus this one. Without `+ 1` nothing is ever counted and every amount costs 0 coins; `+ c` adds the coin's value and just rebuilds the amount."
+  # ---------------------------------------------------------------- bottom-up 1-D DP
+  - id: tpl-d-1d-rob
+    method: tpl-bottom-up-dp
+    title: Rob it or skip it
+    task: "House Robber: `prev1` is the best total up to the previous house, `prev2` up to the one before it. At house `x`, either skip it or rob it."
+    setup: |-
+      def rob(nums):
+          prev2, prev1 = 0, 0
+          for x in nums:
+    line: "        prev2, prev1 = prev1, ___"
+    after: |2-
+          return prev1
+    answer: "max(prev1, prev2 + x)"
+    accept:
+      - "max(prev2 + x, prev1)"
+    decoys:
+      - "max(prev1, prev1 + x)"
+      - "prev2 + x"
+      - "max(prev2, prev1 + x)"
+    show: "[rob([2, 7, 9, 3, 1]), rob([2, 1, 1, 2])]"
+    expected: "[12, 4]"
+    hint: Robbing `x` means the previous house was NOT robbed.
+    explain: "Skipping `x` keeps `prev1`; robbing it adds `x` to the best total that does not use the neighbor, `prev2`. `prev1 + x` robs two adjacent houses, and plain `prev2 + x` forces you to rob every other house even when skipping two in a row pays more ([2, 1, 1, 2] -> 4)."
+  - id: tpl-d-1d-tuple
+    method: tpl-bottom-up-dp
+    title: Update both at once
+    task: "Advance both variables by one house: `prev2` takes the old `prev1`, and `prev1` becomes the new best. Write the whole update."
+    setup: |-
+      def rob(nums):
+          prev2, prev1 = 0, 0
+          for x in nums:
+    line: "        ___"
+    after: |2-
+          return prev1
+    answer: "prev2, prev1 = prev1, max(prev1, prev2 + x)"
+    accept:
+      - "prev1, prev2 = max(prev1, prev2 + x), prev1"
+    decoys:
+      - "prev2 = prev1; prev1 = max(prev1, prev2 + x)"
+      - "prev1 = max(prev1, prev2 + x); prev2 = prev1"
+    show: "[rob([2, 7, 9, 3, 1]), rob([2, 1, 1, 2])]"
+    expected: "[12, 4]"
+    hint: Both new values must be computed from the OLD values.
+    explain: "A tuple assignment evaluates the whole right side before assigning anything, so both updates read the old values. Two separate statements overwrite one variable before the other reads it; either order ends up adding every house."
+  # ---------------------------------------------------------------- 2-D DP
+  - id: tpl-d-2d-grid
+    method: tpl-2d-dp
+    title: Build the table
+    task: "LCS: create an `(m + 1) x (n + 1)` table of zeros in which every row is its own list."
+    setup: |-
+      def lcs(a, b):
+          m, n = len(a), len(b)
+    line: "    dp = ___"
+    after: |2-
+          for i in range(1, m + 1):
+              for j in range(1, n + 1):
+                  if a[i - 1] == b[j - 1]:
+                      dp[i][j] = dp[i - 1][j - 1] + 1
+                  else:
+                      dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+          return dp[m][n]
+    answer: "[[0] * (n + 1) for _ in range(m + 1)]"
+    accept:
+      - "[[0] * (n + 1) for i in range(m + 1)]"
+      - "[[0 for _ in range(n + 1)] for _ in range(m + 1)]"
+    decoys:
+      - "[[0] * (n + 1)] * (m + 1)"
+      - "[[0] * n for _ in range(m)]"
+    show: '[lcs("abcde", "ace"), lcs("abc", "def"), lcs("abcba", "abcbcba")]'
+    expected: "[3, 0, 5]"
+    hint: "`[row] * k` does not copy `row`."
+    explain: "The comprehension builds a new row per iteration. `[[0] * (n + 1)] * (m + 1)` is m + 1 references to ONE row, so writing `dp[i][j]` also overwrites the 'previous row' the recurrence reads. Without the extra row and column, `dp[m][n]` is out of range."
+  - id: tpl-d-2d-match
+    method: tpl-2d-dp
+    title: Characters match
+    task: "`a[i - 1] == b[j - 1]`: extend the best LCS of both prefixes WITHOUT these two characters."
+    setup: |-
+      def lcs(a, b):
+          m, n = len(a), len(b)
+          dp = [[0] * (n + 1) for _ in range(m + 1)]
+          for i in range(1, m + 1):
+              for j in range(1, n + 1):
+                  if a[i - 1] == b[j - 1]:
+    line: "                dp[i][j] = ___"
+    after: |2-
+                  else:
+                      dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+          return dp[m][n]
+    answer: "dp[i - 1][j - 1] + 1"
+    accept:
+      - "1 + dp[i - 1][j - 1]"
+    decoys:
+      - "dp[i - 1][j] + 1"
+      - "max(dp[i - 1][j], dp[i][j - 1]) + 1"
+    show: '[lcs("abcde", "ace"), lcs("aa", "a"), lcs("abc", "def")]'
+    expected: "[3, 1, 0]"
+    hint: Both matched characters are used up. Which cell has neither of them?
+    explain: "A matching pair can be used once, so it extends the answer for `a[:i-1]` and `b[:j-1]`: the diagonal cell. `dp[i - 1][j]` may already have used `b[j - 1]`, matched to an earlier character, so the same character gets counted twice: lcs('aa', 'a') would come out 2."
+  - id: tpl-d-2d-skip
+    method: tpl-2d-dp
+    title: Characters differ
+    task: "`a[i - 1] != b[j - 1]`: drop the last character of one string or of the other, whichever leaves the longer LCS."
+    setup: |-
+      def lcs(a, b):
+          m, n = len(a), len(b)
+          dp = [[0] * (n + 1) for _ in range(m + 1)]
+          for i in range(1, m + 1):
+              for j in range(1, n + 1):
+                  if a[i - 1] == b[j - 1]:
+                      dp[i][j] = dp[i - 1][j - 1] + 1
+                  else:
+    line: "                dp[i][j] = ___"
+    after: |2-
+          return dp[m][n]
+    answer: "max(dp[i - 1][j], dp[i][j - 1])"
+    accept:
+      - "max(dp[i][j - 1], dp[i - 1][j])"
+    decoys:
+      - "dp[i - 1][j - 1]"
+      - "0"
+    show: '[lcs("abcde", "ace"), lcs("abc", "def"), lcs("abc", "acb")]'
+    expected: "[3, 0, 2]"
+    hint: At least one of the two last characters is not in the LCS. You do not know which.
+    explain: "If the last characters differ, skip `a[i - 1]` (`dp[i - 1][j]`) or skip `b[j - 1]` (`dp[i][j - 1]`) and keep the better. The diagonal drops both and can lose a match; writing `0` resets the run, which is the recurrence for longest common SUBSTRING, a different problem."
+  # ---------------------------------------------------------------- topological sort
+  - id: tpl-d-topo-indeg
+    method: tpl-topo-sort
+    title: Count incoming edges
+    task: "Edge `(a, b)` means `a` must come before `b`. After adding the edge to the graph, update the indegree count."
+    setup: |-
+      from collections import defaultdict, deque
+
+      def topo_order(n, edges):
+          graph = defaultdict(list)
+          indeg = [0] * n
+          for a, b in edges:
+              graph[a].append(b)
+    line: "        ___"
+    after: |2-
+          queue = deque(i for i in range(n) if indeg[i] == 0)
+          order = []
+          while queue:
+              node = queue.popleft()
+              order.append(node)
+              for nb in graph[node]:
+                  indeg[nb] -= 1
+                  if indeg[nb] == 0:
+                      queue.append(nb)
+          return order if len(order) == n else []
+    answer: "indeg[b] += 1"
+    decoys:
+      - "indeg[a] += 1"
+      - "indeg[b] = 1"
+    show: "[topo_order(4, [(0, 3), (1, 2), (2, 3)]), topo_order(3, [(0, 1), (1, 2), (2, 1)])]"
+    expected: "[[0, 1, 2, 3], []]"
+    hint: The edge points INTO one of its ends.
+    explain: "The edge points into `b`, so `b` has one more prerequisite. `indeg[b] = 1` forgets that node 3 has two prerequisites (0 and 2), so it is released as soon as 0 is done, before 2. `indeg[a]` counts edges in the wrong direction."
+  - id: tpl-d-topo-ready
+    method: tpl-topo-sort
+    title: Release a node
+    task: "You just finished `node`, so each neighbor lost one prerequisite. Queue the neighbor once it has none left."
+    setup: |-
+      from collections import defaultdict, deque
+
+      def topo_order(n, edges):
+          graph = defaultdict(list)
+          indeg = [0] * n
+          for a, b in edges:
+              graph[a].append(b)
+              indeg[b] += 1
+          queue = deque(i for i in range(n) if indeg[i] == 0)
+          order = []
+          while queue:
+              node = queue.popleft()
+              order.append(node)
+              for nb in graph[node]:
+                  indeg[nb] -= 1
+    line: "            if ___:"
+    after: |2-
+                      queue.append(nb)
+          return order if len(order) == n else []
+    answer: "indeg[nb] == 0"
+    accept:
+      - "not indeg[nb]"
+      - "indeg[nb] < 1"
+    decoys:
+      - "indeg[node] == 0"
+      - "indeg[nb] > 0"
+    show: "[topo_order(4, [(0, 3), (1, 2), (2, 3)]), topo_order(3, [(0, 1), (1, 2), (2, 1)])]"
+    expected: "[[0, 1, 2, 3], []]"
+    hint: A node is ready only when ALL of its prerequisites are done.
+    explain: "The neighbor is ready when its indegree has dropped to 0. `indeg[node] == 0` is always true for a node you just popped, so neighbors get queued after their FIRST prerequisite, out of order and possibly more than once."
+  - id: tpl-d-topo-cycle
+    method: tpl-topo-sort
+    title: Detect a cycle
+    task: "Return the order, or `[]` if the graph has a cycle (some nodes never reached indegree 0)."
+    setup: |-
+      from collections import defaultdict, deque
+
+      def topo_order(n, edges):
+          graph = defaultdict(list)
+          indeg = [0] * n
+          for a, b in edges:
+              graph[a].append(b)
+              indeg[b] += 1
+          queue = deque(i for i in range(n) if indeg[i] == 0)
+          order = []
+          while queue:
+              node = queue.popleft()
+              order.append(node)
+              for nb in graph[node]:
+                  indeg[nb] -= 1
+                  if indeg[nb] == 0:
+                      queue.append(nb)
+    line: "    return order if ___ else []"
+    answer: "len(order) == n"
+    decoys:
+      - "order"
+      - "len(order) > 0"
+    show: "[topo_order(3, [(0, 1), (1, 2), (2, 1)]), topo_order(4, [(0, 1), (0, 2), (1, 3), (2, 3)])]"
+    expected: "[[], [0, 1, 2, 3]]"
+    hint: Did every node make it into `order`?
+    explain: "Nodes on a cycle wait on each other forever, never reach indegree 0 and never enter `order`. So the sort succeeded exactly when all n nodes were output. A non-empty `order` only proves that SOME node had no prerequisites (here node 0)."
+  # ---------------------------------------------------------------- union-find
+  - id: tpl-d-uf-find
+    method: tpl-union-find
+    title: Path compression
+    task: "`find` returns the root of `x`. On the way back, point `x` straight at the root so the next lookup takes one step."
+    setup: |-
+      parent = [0, 0, 1, 2, 3]  # a chain: 4 -> 3 -> 2 -> 1 -> 0
+
+      def find(x):
+          if parent[x] != x:
+    line: "        parent[x] = ___"
+    after: |2-
+          return parent[x]
+    answer: "find(parent[x])"
+    decoys:
+      - "parent[parent[x]]"
+      - "x"
+    show: "(find(4), parent)"
+    expected: "(0, [0, 0, 0, 0, 0])"
+    hint: The root is found by recursing up from the parent.
+    explain: "Recursing to the root and storing the result in `parent[x]` flattens the whole path: after one `find(4)` every node on the chain points at 0. In this recursive form `parent[parent[x]]` only skips one level and returns a node that is not the root."
+  - id: tpl-d-uf-roots
+    method: tpl-union-find
+    title: Union the roots
+    task: "In `union(a, b)`, get the two things that actually get linked: the roots of both components."
+    setup: |-
+      def count_components(n, edges):
+          parent = list(range(n))
+          size = [1] * n
+
+          def find(x):
+              if parent[x] != x:
+                  parent[x] = find(parent[x])
+              return parent[x]
+
+          def union(a, b):
+    line: "        ra, rb = ___"
+    after: |2-
+              if ra == rb:
+                  return False
+              if size[ra] < size[rb]:
+                  ra, rb = rb, ra
+              parent[rb] = ra
+              size[ra] += size[rb]
+              return True
+
+          components = n
+          for a, b in edges:
+              if union(a, b):
+                  components -= 1
+          return components
+    answer: "find(a), find(b)"
+    decoys:
+      - "a, b"
+      - "parent[a], parent[b]"
+    show: "[count_components(4, [(0, 1), (2, 3), (0, 2), (3, 1)]), count_components(5, [(0, 1), (3, 4)])]"
+    expected: "[1, 3]"
+    hint: Two nodes are in the same component exactly when they share a ROOT.
+    explain: "Only roots may be re-parented, and two nodes are connected exactly when their roots match. With raw nodes (or `parent[a]`, one step up), the last edge (3, 1) looks new even though 3 and 1 are already connected, so it is counted again and the result drops to 0."
+  # ---------------------------------------------------------------- Dijkstra
+  - id: tpl-d-dij-stale
+    method: tpl-dijkstra
+    title: Skip stale entries
+    task: "A node can sit in the heap several times. Skip the popped entry if a shorter distance to `node` was already recorded."
+    setup: |-
+      import heapq
+      from collections import defaultdict
+      from math import inf
+
+      def dijkstra(n, edges, src):
+          graph = defaultdict(list)
+          for u, v, w in edges:
+              graph[u].append((v, w))
+          dist = [inf] * n
+          dist[src] = 0
+          heap = [(0, src)]
+          while heap:
+              d, node = heapq.heappop(heap)
+    line: "        if ___:"
+    after: |2-
+                  continue
+              for nb, w in graph[node]:
+                  nd = d + w
+                  if nd < dist[nb]:
+                      dist[nb] = nd
+                      heapq.heappush(heap, (nd, nb))
+          return dist
+
+      edges = [(0, 1, 4), (0, 2, 1), (2, 1, 2), (1, 3, 1), (2, 3, 5)]
+    answer: "d > dist[node]"
+    accept:
+      - "dist[node] < d"
+      - "d != dist[node]"
+    decoys:
+      - "d >= dist[node]"
+      - "d == dist[node]"
+    show: "dijkstra(4, edges, 0)"
+    expected: "[0, 3, 1, 4]"
+    hint: The current entry has `d == dist[node]` and must NOT be skipped.
+    explain: "Only an entry whose distance is worse than the best known one is stale. `>=` also skips the current entry, starting with the source itself (0 >= 0), so nothing is ever relaxed and every other distance stays `inf`."
+  - id: tpl-d-dij-push
+    method: tpl-dijkstra
+    title: What goes on the heap
+    task: "A shorter path to `nb` was found. Push an entry so the heap pops the closest node (from the source) first."
+    setup: |-
+      import heapq
+      from collections import defaultdict
+      from math import inf
+
+      def dijkstra(n, edges, src):
+          graph = defaultdict(list)
+          for u, v, w in edges:
+              graph[u].append((v, w))
+          dist = [inf] * n
+          dist[src] = 0
+          heap = [(0, src)]
+          while heap:
+              d, node = heapq.heappop(heap)
+              if d > dist[node]:
+                  continue
+              for nb, w in graph[node]:
+                  nd = d + w
+                  if nd < dist[nb]:
+                      dist[nb] = nd
+    line: "                heapq.heappush(heap, ___)"
+    after: |2-
+          return dist
+
+      edges = [(0, 1, 4), (0, 2, 1), (2, 1, 2), (1, 3, 1), (2, 3, 5)]
+    answer: "(nd, nb)"
+    decoys:
+      - "(nb, nd)"
+      - "(w, nb)"
+    show: "dijkstra(4, edges, 0)"
+    expected: "[0, 3, 1, 4]"
+    hint: Tuples compare by their first field, and the pop unpacks `d, node`.
+    explain: "The heap orders by the first field, so it must be the total distance from the source. `(w, nb)` orders by the last edge's weight only, which is Prim's minimum-spanning-tree rule, and the popped `d` is no longer a distance. `(nb, nd)` orders by node number."
+  - id: tpl-d-dij-relax
+    method: tpl-dijkstra
+    title: Relax an edge
+    task: "`nd` is the distance to `nb` through `node`. Decide when to update `nb`."
+    setup: |-
+      import heapq
+      from collections import defaultdict
+      from math import inf
+
+      def dijkstra(n, edges, src):
+          graph = defaultdict(list)
+          for u, v, w in edges:
+              graph[u].append((v, w))
+          dist = [inf] * n
+          dist[src] = 0
+          heap = [(0, src)]
+          while heap:
+              d, node = heapq.heappop(heap)
+              if d > dist[node]:
+                  continue
+              for nb, w in graph[node]:
+                  nd = d + w
+    line: "            if ___:"
+    after: |2-
+                      dist[nb] = nd
+                      heapq.heappush(heap, (nd, nb))
+          return dist
+
+      edges = [(0, 1, 4), (0, 2, 1), (2, 1, 2), (1, 3, 1), (2, 3, 5)]
+    answer: "nd < dist[nb]"
+    accept:
+      - "dist[nb] > nd"
+    decoys:
+      - "dist[nb] == inf"
+      - "nd > dist[nb]"
+    show: "dijkstra(4, edges, 0)"
+    expected: "[0, 3, 1, 4]"
+    hint: With weights, the first path you find is not always the shortest.
+    explain: "Update a neighbor whenever this route beats the best known one. 'First time seen' (`dist[nb] == inf`) is the BFS rule and only works when every edge costs the same: here node 1 is first reached directly for 4, but 0 -> 2 -> 1 costs 3."
+  # ---------------------------------------------------------------- top k
+  - id: tpl-d-topk-size
+    method: tpl-top-k
+    title: Keep only k
+    task: "Kth Largest Element: after pushing `x`, evict when the heap holds too many items, so it keeps the k largest so far."
+    setup: |-
+      import heapq
+
+      def kth_largest(nums, k):
+          heap = []
+          for x in nums:
+              heapq.heappush(heap, x)
+    line: "        if ___:"
+    after: |2-
+                  heapq.heappop(heap)
+          return heap[0]
+    answer: "len(heap) > k"
+    accept:
+      - "len(heap) == k + 1"
+      - "len(heap) >= k + 1"
+    decoys:
+      - "len(heap) >= k"
+      - "len(heap) < k"
+    show: "[kth_largest([3, 2, 1, 5, 6, 4], 2), kth_largest([3, 2, 3, 1, 2, 4, 5, 5, 6], 4)]"
+    expected: "[5, 4]"
+    hint: Exactly k items must survive each step.
+    explain: "Evict only once there are k + 1 items, so exactly k survive and the root is the kth largest. With `>= k` the heap is trimmed to k - 1 items, and `heap[0]` is the (k-1)th largest."
+  - id: tpl-d-topk-entry
+    method: tpl-top-k
+    title: Order by frequency
+    task: "Top K Frequent Elements: push an entry so that the size-k min-heap evicts the LEAST frequent number."
+    setup: |-
+      import heapq
+      from collections import Counter
+
+      def top_k_frequent(nums, k):
+          heap = []
+          for num, freq in Counter(nums).items():
+    line: "        heapq.heappush(heap, ___)"
+    after: |2-
+              if len(heap) > k:
+                  heapq.heappop(heap)
+          return [num for freq, num in heap]
+    answer: "(freq, num)"
+    decoys:
+      - "(num, freq)"
+      - "(-freq, num)"
+    show: "sorted(top_k_frequent([4, 4, 4, 5, 5, 6], 2))"
+    expected: "[4, 5]"
+    hint: A min-heap pops the smallest tuple, comparing the first field first.
+    explain: "With `(freq, num)` the root is the least frequent survivor, the right one to evict. Negating the frequency is the max-heap trick, but in a size-k min-heap it evicts the MOST frequent number; `(num, freq)` orders by the number itself."
+  # ---------------------------------------------------------------- fast / slow
+  - id: tpl-d-fs-step
+    method: tpl-fast-slow
+    title: Two speeds
+    task: "Linked List Cycle: move `slow` one node and `fast` two nodes per step. (`ListNode(val, next)` is predefined.)"
+    setup: |-
+      def has_cycle(head):
+          slow = fast = head
+          while fast and fast.next:
+    line: "        slow, fast = ___"
+    after: |2-
+              if slow is fast:
+                  return True
+          return False
+
+      a, b, c = ListNode(1), ListNode(2), ListNode(3)
+      a.next, b.next, c.next = b, c, b       # 1 -> 2 -> 3 -> back to 2
+      plain = ListNode(1, ListNode(2, ListNode(3)))
+    answer: "slow.next, fast.next.next"
+    decoys:
+      - "slow.next, fast.next"
+      - "slow.next.next, fast.next"
+    show: "(has_cycle(a), has_cycle(plain))"
+    expected: "(True, False)"
+    hint: The gap between the pointers must change by one node per step.
+    explain: "Inside a cycle the faster pointer gains one node per step, so it must land on the slower one. At equal speeds both pointers stand on the same node after the first step, so every list looks cyclic; swapping the speeds runs `slow` off the end."
+  - id: tpl-d-fs-guard
+    method: tpl-fast-slow
+    title: Guard both hops
+    task: "Middle of the Linked List (second middle for even lengths): keep looping while `fast` can safely jump two nodes."
+    setup: |-
+      def middle(head):
+          slow = fast = head
+    line: "    while ___:"
+    after: |2-
+              slow, fast = slow.next, fast.next.next
+          return slow
+
+      def build(vals):
+          head = None
+          for v in reversed(vals):
+              head = ListNode(v, head)
+          return head
+    answer: "fast and fast.next"
+    accept:
+      - "fast is not None and fast.next is not None"
+      - "fast is not None and fast.next"
+    decoys:
+      - "fast.next"
+      - "slow and fast"
+      - "fast.next and fast.next.next"
+    show: "[middle(build([1, 2, 3, 4])).val, middle(build([1, 2, 3, 4, 5])).val, middle(build([1])).val]"
+    expected: "[3, 3, 1]"
+    hint: "`fast.next.next` reads two attributes. Each one needs a node that is not None."
+    explain: "`fast.next.next` needs both `fast` and `fast.next` to exist, and `and` short-circuits so `fast.next` is only read when `fast` is a node. `fast.next and fast.next.next` is the variant that stops on the FIRST middle of an even list (2 here)."
+  # ---------------------------------------------------------------- reverse a list
+  - id: tpl-d-rev-flip
+    method: tpl-reverse-list
+    title: Flip the pointer
+    task: "Point the current node back at the node before it. (`ListNode` is predefined; the helpers are below the function.)"
+    setup: |-
+      def reverse(head):
+          prev, curr = None, head
+          while curr:
+              nxt = curr.next
+    line: "        curr.next = ___"
+    after: |2-
+              prev, curr = curr, nxt
+          return prev
+
+      def build(vals):
+          head = None
+          for v in reversed(vals):
+              head = ListNode(v, head)
+          return head
+
+      def to_list(head):
+          out = []
+          while head and len(out) < 10:
+              out.append(head.val)
+              head = head.next
+          return out
+    answer: "prev"
+    decoys:
+      - "nxt"
+      - "None"
+    show: "to_list(reverse(build([1, 2, 3])))"
+    expected: "[3, 2, 1]"
+    hint: In the reversed list, which node comes after `curr`?
+    explain: "Reversed, every node's `next` is the node that used to come before it, which is `prev` (None for the old head, the new tail). `None` cuts every node loose, and `nxt` leaves the list unchanged; both return a one-node list."
+  - id: tpl-d-rev-advance
+    method: tpl-reverse-list
+    title: Step forward
+    task: "Move both pointers one node forward: `prev` to the current node, `curr` to the node you saved before flipping."
+    setup: |-
+      def reverse(head):
+          prev, curr = None, head
+          while curr:
+              nxt = curr.next
+              curr.next = prev
+    line: "        prev, curr = ___"
+    after: |2-
+          return prev
+
+      def build(vals):
+          head = None
+          for v in reversed(vals):
+              head = ListNode(v, head)
+          return head
+
+      def to_list(head):
+          out = []
+          while head and len(out) < 10:
+              out.append(head.val)
+              head = head.next
+          return out
+    answer: "curr, nxt"
+    decoys:
+      - "curr, curr.next"
+      - "prev, nxt"
+    show: "to_list(reverse(build([1, 2, 3])))"
+    expected: "[3, 2, 1]"
+    hint: "Where does `curr.next` point now, after the flip?"
+    explain: "After the flip, `curr.next` points BACKWARDS, so the saved `nxt` is the only way forward. Advancing with `curr.next` walks back to `prev` (None on the first step) and stops after one node; keeping `prev` unchanged never links anything."
+  - id: tpl-d-rev-return
+    method: tpl-reverse-list
+    title: The new head
+    task: "The loop has finished. Return the head of the reversed list."
+    setup: |-
+      def reverse(head):
+          prev, curr = None, head
+          while curr:
+              nxt = curr.next
+              curr.next = prev
+              prev, curr = curr, nxt
+    line: "    return ___"
+    after: |2-
+
+      def build(vals):
+          head = None
+          for v in reversed(vals):
+              head = ListNode(v, head)
+          return head
+
+      def to_list(head):
+          out = []
+          while head and len(out) < 10:
+              out.append(head.val)
+              head = head.next
+          return out
+    answer: "prev"
+    decoys:
+      - "curr"
+      - "head"
+    show: "to_list(reverse(build([1, 2, 3])))"
+    expected: "[3, 2, 1]"
+    hint: The loop stopped because `curr` became None.
+    explain: "The loop ends when `curr` is None, one step past the old tail, so `prev` holds the old tail: the new head. `head` still names the old first node, which is now the LAST node."
+  # ---------------------------------------------------------------- trie
+  - id: tpl-d-trie-step
+    method: tpl-trie
+    title: Step into the child
+    task: "Insert: the child for `ch` now exists. Move `node` down to it."
+    setup: |-
+      class TrieNode:
+          def __init__(self):
+              self.children = {}
+              self.is_end = False
+
+      class Trie:
+          def __init__(self):
+              self.root = TrieNode()
+
+          def insert(self, word):
+              node = self.root
+              for ch in word:
+                  if ch not in node.children:
+                      node.children[ch] = TrieNode()
+    line: "            node = ___"
+    after: |2-
+              node.is_end = True
+
+          def search(self, word):
+              node = self.root
+              for ch in word:
+                  if ch not in node.children:
+                      return False
+                  node = node.children[ch]
+              return node.is_end
+
+          def starts_with(self, prefix):
+              node = self.root
+              for ch in prefix:
+                  if ch not in node.children:
+                      return False
+                  node = node.children[ch]
+              return True
+
+      trie = Trie()
+      trie.insert("apple")
+      trie.insert("app")
+    answer: "node.children[ch]"
+    decoys:
+      - "TrieNode()"
+      - "node.children"
+    show: '(trie.search("app"), trie.search("ap"), trie.starts_with("ap"), trie.search("apple"))'
+    expected: "(True, False, True, True)"
+    hint: The child was just created (or already existed) in `node.children`.
+    explain: "After making sure the child exists, step INTO it. `TrieNode()` creates a fresh node that is linked to nothing, so each word only ever stores its first letter; `node.children` is the dict itself, not a node."
+  - id: tpl-d-trie-search
+    method: tpl-trie
+    title: Word or just a prefix?
+    task: "`search` walked every character of `word`. Decide whether `word` itself was inserted, not merely a longer word that starts with it."
+    setup: |-
+      class TrieNode:
+          def __init__(self):
+              self.children = {}
+              self.is_end = False
+
+      class Trie:
+          def __init__(self):
+              self.root = TrieNode()
+
+          def insert(self, word):
+              node = self.root
+              for ch in word:
+                  if ch not in node.children:
+                      node.children[ch] = TrieNode()
+                  node = node.children[ch]
+              node.is_end = True
+
+          def search(self, word):
+              node = self.root
+              for ch in word:
+                  if ch not in node.children:
+                      return False
+                  node = node.children[ch]
+    line: "        return ___"
+    after: |2-
+
+          def starts_with(self, prefix):
+              node = self.root
+              for ch in prefix:
+                  if ch not in node.children:
+                      return False
+                  node = node.children[ch]
+              return True
+
+      trie = Trie()
+      trie.insert("apple")
+      trie.insert("app")
+    answer: "node.is_end"
+    decoys:
+      - "True"
+      - "node is not None"
+    show: '(trie.search("app"), trie.search("ap"), trie.starts_with("ap"), trie.search("apple"))'
+    expected: "(True, False, True, True)"
+    hint: "'ap' is a path inside 'apple' but was never inserted."
+    explain: "Reaching the end of the path only proves that some inserted word STARTS with `word`. 'ap' is on the path of 'apple' and 'app' but was never inserted, so `search` must check the end-of-word flag; returning True there turns `search` into `starts_with`."
+  # ---------------------------------------------------------------- merge intervals
+  - id: tpl-d-mi-overlap
+    method: tpl-merge-intervals
+    title: Does it overlap?
+    task: "Intervals are sorted by start. Decide whether `[start, end]` overlaps the last merged interval `res[-1]` (touching counts as overlapping)."
+    setup: |-
+      def merge(intervals):
+          intervals.sort(key=lambda iv: iv[0])
+          res = []
+          for start, end in intervals:
+    line: "        if res and ___:"
+    after: |2-
+                  res[-1][1] = max(res[-1][1], end)
+              else:
+                  res.append([start, end])
+          return res
+    answer: "start <= res[-1][1]"
+    accept:
+      - "res[-1][1] >= start"
+    decoys:
+      - "start < res[-1][1]"
+      - "start <= res[-1][0]"
+      - "end <= res[-1][1]"
+    show: "[merge([[1, 3], [2, 6], [8, 10], [15, 18]]), merge([[1, 4], [4, 5]])]"
+    expected: "[[[1, 6], [8, 10], [15, 18]], [[1, 5]]]"
+    hint: Compare the new start with the END of the last merged interval.
+    explain: "Sorted by start, the new interval overlaps the last merged one exactly when it starts before (or where) that one ends. Comparing with `res[-1][0]` checks the wrong end, and `<` keeps [1, 4] and [4, 5] apart even though they touch."
+  - id: tpl-d-mi-extend
+    method: tpl-merge-intervals
+    title: Extend the last interval
+    task: "`[start, end]` overlaps `res[-1]`. Update the end of `res[-1]` so the merged interval covers both."
+    setup: |-
+      def merge(intervals):
+          intervals.sort(key=lambda iv: iv[0])
+          res = []
+          for start, end in intervals:
+              if res and start <= res[-1][1]:
+    line: "            res[-1][1] = ___"
+    after: |2-
+              else:
+                  res.append([start, end])
+          return res
+    answer: "max(res[-1][1], end)"
+    accept:
+      - "max(end, res[-1][1])"
+    decoys:
+      - "end"
+      - "max(res[-1][0], end)"
+    show: "[merge([[1, 4], [2, 3]]), merge([[1, 3], [2, 6], [8, 10], [15, 18]])]"
+    expected: "[[[1, 4]], [[1, 6], [8, 10], [15, 18]]]"
+    hint: The new interval might end BEFORE the current one does.
+    explain: "The new interval can sit entirely inside the last one ([2, 3] inside [1, 4]), so keep whichever end is later. Plain `end` would shrink [1, 4] to [1, 3]."

@@ -72,8 +72,8 @@ are labelled as measurements; the Big-O figures come from the algorithm.
 
 - *Complete the line*: a tiny task, a few lines of setup and one blank. Type the missing piece (or press `Shift+Tab` for multiple choice). Real Python checks it, so any correct answer counts. A wrong answer shows what Python actually produced, the right answer and why.
 - *Python topics* (imported from your CodeToGo app): collections, heapq, bisect, lists, dicts, sets, strings, built-ins, itertools, functools, math & bits, gotchas. Each topic has method cards with runnable examples.
-- *Interview templates*: binary search, sliding window, BFS/DFS, backtracking, DP, topological sort, union-find, Dijkstra and more. You fill in the line people get wrong under pressure.
-- *Big-O*: quick-fire questions on the cost of operations and code.
+- *Interview templates*: 21 templates (binary search, sliding window, prefix sums, monotonic stack, BFS/DFS, backtracking, DP, topological sort, union-find, Dijkstra, top-k, trie, ...) with 53 drills. Each drill blanks the line people get wrong under pressure.
+- *Big-O*: 60 quick-fire questions on the cost of operations and code, plus lesson cards.
 - *Pattern recognition*: read a Blind 75 problem with the title hidden and name the technique.
 - *Spaced repetition*: unaided correct answers come back after 1, 3, 7, 14, 30 and then 60 days, and misses come back the same day. Using a hint or the choices counts as help, so the card returns sooner. Each day's **Daily review** mixes due cards with a few new ones.
 - *Other modes*: **Speed round** (60 seconds), **Weak spots** (cards you miss or answer slowly), and per-topic or per-method drills.
