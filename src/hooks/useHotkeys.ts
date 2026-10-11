@@ -25,6 +25,8 @@ export function useHotkeys(map: Record<string, Handler>, enabled = true) {
         if (wantMod !== mod || wantShift !== e.shiftKey) continue;
         const target = e.target as HTMLElement;
         if (!wantMod && (/input|textarea|select/i.test(target?.tagName ?? "") || target?.isContentEditable)) continue;
+        // Enter on a focused button or link should activate that control, not a page shortcut.
+        if (k === "enter" && !wantMod && target?.closest?.("button, a, [role='button'], [role='tab']")) continue;
         if (k === key || (k === "enter" && key === "enter") || (k === "'" && key === "'")) {
           // Let Monaco handle its own bindings when the editor has focus.
           if ((e.target as HTMLElement)?.closest?.(".monaco-editor")) return;

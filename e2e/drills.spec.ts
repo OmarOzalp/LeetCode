@@ -11,6 +11,15 @@ test("drills home shows topics, modes and the daily review", async ({ page }) =>
   for (const t of ["collections", "heapq (Heaps)", "bisect (Binary Search)"]) await expect(page.getByRole("heading", { name: t })).toBeVisible();
   await expect(page.getByText("Speed round", { exact: true })).toBeVisible();
   await expect(page.getByText("Pattern recognition", { exact: true })).toBeVisible();
+  // Enter on a focused button activates that button (not the "start review" shortcut).
+  await page.getByRole("button", { name: "Learn" }).first().focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/drills\/topics\//);
+  // Enter with nothing focused starts the daily review.
+  await page.goto("/drills");
+  await expect(page.getByText("Daily review")).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/mode=review/);
   expect(errors).toEqual([]);
 });
 
