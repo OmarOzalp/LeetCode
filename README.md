@@ -18,10 +18,14 @@ npm run dev
 Open http://localhost:5173. `npm run dev` starts the API server (port 3001) and
 the web UI (port 5173) together.
 
+For everyday use, `npm run app` is simpler: it builds the UI when needed, starts
+everything on http://localhost:3001 and opens your browser.
+
 Other ways to run it:
 
 | Command | What it does |
 | --- | --- |
+| `npm run app` | Build if needed, start at http://localhost:3001 and open the browser |
 | `npm run build && npm start` | Production build served by one process at http://localhost:3001 |
 | `docker compose up --build` | Same, in a container (Node + Python included) at http://localhost:3001; progress is stored in `./.data` |
 
