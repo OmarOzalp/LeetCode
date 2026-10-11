@@ -98,3 +98,22 @@ export function CodeBlock({
     </div>
   );
 }
+
+/** Single-line syntax highlighting rendered inline (for code around an input). */
+export function InlineHighlight({ code, language = "python" }: { code: string; language?: string }) {
+  return (
+    <Highlight theme={prismTheme} code={code} language={language}>
+      {({ tokens, getTokenProps }) => (
+        <span className="font-mono whitespace-pre">
+          {tokens.flatMap((line, i) =>
+            line.map((token, j) => {
+              const { key: _k, ...props } = getTokenProps({ token, key: `${i}-${j}` }) as Record<string, unknown> & { key?: unknown };
+              void _k;
+              return <span key={`${i}-${j}`} {...(props as object)} />;
+            }),
+          )}
+        </span>
+      )}
+    </Highlight>
+  );
+}

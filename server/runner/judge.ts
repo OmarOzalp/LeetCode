@@ -249,3 +249,49 @@ export async function runSnippet(code: string): Promise<SnippetResponse> {
     elapsedMs: rec.elapsed_ms as number | undefined,
   };
 }
+
+// ------------------------------------------------------------------ drills
+
+export interface DrillRunItem {
+  key: string;
+  kind: "drill" | "snippet";
+  setup?: string;
+  code: string;
+  show?: string;
+  check?: string;
+}
+
+export interface DrillRunResult {
+  key: string;
+  ok: boolean;
+  got: string | null;
+  error: RuntimeErrorInfo | null;
+  stdout: string;
+}
+
+/** Run many drills/snippets in one Python process (used by checks and validation). */
+export async function runDrillBatch(items: DrillRunItem[], timeLimitS = 3): Promise<DrillRunResult[]> {
+  if (!items.length) return [];
+  const run = await runPython({ mode: "drill", items, time_limit_s: timeLimitS }, { timeoutMs: Math.min(120_000, 6_000 + items.length * 1_500) });
+  const byKey = new Map<string, DrillRunResult>();
+  for (const rec of run.records) {
+    if (rec.type !== "drill") continue;
+    byKey.set(rec.key as string, {
+      key: rec.key as string,
+      ok: Boolean(rec.ok),
+      got: (rec.got as string | null) ?? null,
+      error: (rec.error as RuntimeErrorInfo | null) ?? null,
+      stdout: (rec.stdout as string) ?? "",
+    });
+  }
+  return items.map(
+    (it) =>
+      byKey.get(it.key) ?? {
+        key: it.key,
+        ok: false,
+        got: null,
+        error: { type: "RunnerError", message: run.killed ? "Execution stopped: time limit exceeded." : crashMessage(run.stderr, run.exitCode), line: null },
+        stdout: "",
+      },
+  );
+}

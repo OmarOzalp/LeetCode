@@ -154,6 +154,78 @@ def run_snippet_mode(payload, worker):
     emit({"type": "done"})
 
 
+def run_drill_mode(payload, worker):
+    """Run "complete the line" drills (and plain snippets) in one process.
+
+    items: [{"key", "kind": "drill", "setup", "code", "show", "check"}
+            | {"key", "kind": "snippet", "code"}]
+    """
+    from sandbox import describe_exception, describe_syntax_error, make_namespace
+
+    items = payload.get("items") or []
+    limit = float(payload.get("time_limit_s", 3.0))
+    progress = {"key": None, "done": set()}
+
+    def run_one(item):
+        kind = item.get("kind", "drill")
+        setup = item.get("setup") or ""
+        code = (setup + "\n" if setup else "") + item.get("code", "")
+        import linecache
+
+        linecache.cache["solution.py"] = (len(code), None, code.splitlines(True), "solution.py")
+        try:
+            compiled = compile(code, "solution.py", "exec")
+        except SyntaxError as err:
+            info = describe_syntax_error(err)
+            info["kind"] = "compile"
+            return {"ok": False, "got": None, "error": info, "stdout": ""}
+        ns = make_namespace()
+        ns["__name__"] = "__main__"
+        state = {}
+
+        def body():
+            exec(compiled, ns)
+            if kind == "drill":
+                got = repr(eval(item["show"], ns))
+                state["got"] = got if len(got) <= 300 else got[:300] + " ..."
+                state["ok"] = bool(eval(item["check"], ns))
+
+        run = worker.guarded_call(body, limit)
+        error = None
+        if run["timed_out"]:
+            error = {"type": "TimeLimitExceeded", "message": "Execution stopped: time limit exceeded.", "line": None, "hint": None}
+        elif run["error"] is not None:
+            error = describe_exception(run["error"], run["error"].__traceback__)
+        return {
+            "ok": bool(state.get("ok")) and error is None,
+            "got": state.get("got"),
+            "error": error,
+            "stdout": run["stdout"],
+            "ms": round(run["elapsed_ms"], 3),
+        }
+
+    def job():
+        for item in items:
+            progress["key"] = item.get("key")
+            try:
+                res = run_one(item)
+            except Exception as e:  # harness failure: report and continue
+                res = {"ok": False, "got": None, "error": {"type": type(e).__name__, "message": str(e), "line": None}, "stdout": ""}
+            res.update(type="drill", key=item.get("key"))
+            emit(_json_safe(res))
+            progress["done"].add(item.get("key"))
+
+    def on_hard_timeout():
+        for item in items:
+            if item.get("key") not in progress["done"]:
+                emit({"type": "drill", "key": item.get("key"), "ok": False, "got": None, "stdout": "",
+                      "error": {"type": "TimeLimitExceeded", "message": "Execution stopped: time limit exceeded.", "line": None}})
+        emit({"type": "done", "aborted": True})
+
+    worker.run(job, on_hard_timeout)
+    emit({"type": "done"})
+
+
 def _json_safe(record):
     try:
         json.dumps(record, allow_nan=False)
@@ -180,6 +252,8 @@ def main():
         run_benchmark_mode(payload, worker)
     elif mode == "snippet":
         run_snippet_mode(payload, worker)
+    elif mode == "drill":
+        run_drill_mode(payload, worker)
     elif mode == "analyze":
         from analyze import run_analyze_mode
 

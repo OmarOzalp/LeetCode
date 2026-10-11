@@ -1,0 +1,468 @@
+# Imported from CodeToGo (src/content/python/gotchas.ts + drills/gotchas.ts).
+# Re-run scripts/import-codetogo.ts to refresh; edits here will be overwritten.
+id: gotchas
+title: Classes & Gotchas
+group: Python
+order: 12
+blurb: Classes, scope, copies and the traps that cost interview points.
+intro: LeetCode wraps every answer in a class, and many Python bugs come from reference semantics and scoping rules. Learn these once and they stop biting.
+methods:
+  - id: gotchas-class
+    name: class, __init__ and self
+    summary: Define a class with per-instance state and methods that call each other.
+    example: |-
+      class Solution:
+          def __init__(self):
+              self.calls = 0          # per-instance state
+          def double(self, x):
+              self.calls += 1
+              return x * 2
+          def solve(self, nums):
+              return [self.double(x) for x in nums]
+      s = Solution()
+      print(s.solve([1, 2, 3]), s.calls)
+    output: "[2, 4, 6] 3"
+    tip: Call helpers as `self.helper(x)`; a bare `helper(x)` raises NameError. Keep state in `__init__` as `self.x`, not in class attributes or globals, which can leak between test cases.
+  - id: gotchas-dataclass
+    name: "@dataclass"
+    summary: Auto-generates `__init__`, `__repr__` and `__eq__` from typed fields.
+    example: |-
+      from dataclasses import dataclass
+
+      @dataclass(order=True)
+      class Task:
+          priority: int
+          name: str = ''
+
+      t = Task(2, 'b')
+      print(t, t == Task(2, 'b'))
+      print(min(Task(5, 'x'), Task(1, 'y')))
+    output: |-
+      Task(priority=2, name='b') True
+      Task(priority=1, name='y')
+    tip: "`order=True` adds `<` and friends, comparing fields in order, so instances can be sorted or pushed onto a heap. Fields with defaults must come after fields without."
+  - id: gotchas-lt-heap
+    name: __lt__ for heap ordering
+    summary: Teach `heapq` how to compare your objects.
+    details: "Merge k Sorted Lists is the classic case: `ListNode` objects cannot be compared until you define `__lt__` or add a tie-breaker."
+    example: |-
+      import heapq
+      class Item:
+          def __init__(self, val):
+              self.val = val
+          def __lt__(self, other):     # heapq uses <
+              return self.val < other.val
+      h = [Item(5), Item(1), Item(3)]
+      heapq.heapify(h)
+      print([heapq.heappop(h).val for _ in range(3)])
+    output: "[1, 3, 5]"
+    complexity: O(log n) per push / pop
+    tip: Pushing `(dist, node)` raises TypeError when two dists tie and the nodes cannot be compared. Define `__lt__`, or push `(dist, i, node)` with a unique counter `i`.
+  - id: gotchas-mutable-default
+    name: mutable default argument
+    summary: A default list is created once and shared by every call.
+    example: |-
+      def add(x, items=[]):        # BUG: shared list
+          items.append(x)
+          return items
+      print(add(1), add(2))
+      def add_ok(x, items=None):
+          if items is None:
+              items = []           # fresh list per call
+          items.append(x)
+          return items
+      print(add_ok(1), add_ok(2))
+    output: |-
+      [1, 2] [1, 2]
+      [1] [2]
+    tip: Defaults are evaluated once, when `def` runs. Use `None` and create the list, dict or set inside the function. Watch for this in recursive helpers like `def dfs(node, path=[])`.
+  - id: gotchas-is-copy
+    name: is vs ==, shallow vs deep copy
+    summary: "`==` compares values, `is` compares identity; copies differ in depth."
+    example: |-
+      import copy
+      a = [[1, 2], [3]]
+      b = a                    # alias: same object
+      c = copy.copy(a)         # shallow: new outer list
+      d = copy.deepcopy(a)     # deep: new everything
+      print(b is a, c is a, c == a)
+      a[0].append(9)
+      print(c[0], d[0])        # c shares inner lists
+      x = None
+      print(x is None)         # the right None check
+    output: |-
+      True False True
+      [1, 2, 9] [1, 2]
+      True
+    complexity: copy O(n), deepcopy O(total size)
+    tip: Use `is` only for `None` and sentinels. `is` on ints or strings may happen to work for small values and then fail for large ones.
+  - id: gotchas-nonlocal
+    name: nonlocal in nested functions
+    summary: Lets an inner function reassign a variable of its enclosing function.
+    example: |-
+      def outer():
+          count, seen = 0, []
+          def visit(x):
+              nonlocal count     # needed: we reassign it
+              count += 1
+              seen.append(x)     # mutation: no keyword
+          for x in 'abc':
+              visit(x)
+          return count, seen
+      print(outer())
+    output: (3, ['a', 'b', 'c'])
+    tip: Without `nonlocal`, `count += 1` makes `count` local to `visit` and raises UnboundLocalError. Common in DFS helpers that track a best answer; `self.best` is an alternative.
+  - id: gotchas-recursion-limit
+    name: sys.setrecursionlimit(n)
+    summary: Raise the default cap of about 1000 nested calls.
+    example: |-
+      import sys
+      def depth(n):
+          return 0 if n == 0 else 1 + depth(n - 1)
+      try:
+          depth(10**6)               # far past the limit
+      except RecursionError:
+          print('RecursionError')
+      sys.setrecursionlimit(10**4)   # raise the cap
+      print(sys.getrecursionlimit())
+      print(depth(3000))
+    output: |-
+      RecursionError
+      10000
+      3000
+    tip: A recursive DFS on a 10^4-node path or linked list exceeds the default limit. Raise it with `sys.setrecursionlimit`, or rewrite the DFS with an explicit stack.
+  - id: gotchas-scope
+    name: late binding & comprehension scope
+    summary: Closures read variables when called; loop variables outlive the loop.
+    example: |-
+      fns = [lambda: i for i in range(3)]
+      print([f() for f in fns])     # all see last i
+      fns = [lambda i=i: i for i in range(3)]
+      print([f() for f in fns])     # default binds now
+      x = 'outer'
+      sq = [x * x for x in range(3)]
+      print(x)                      # comp has own scope
+      for j in range(3):
+          pass
+      print(j)                      # loop var leaks
+    output: |-
+      [2, 2, 2]
+      [0, 1, 2]
+      outer
+      2
+    tip: "Capture the current value with a default argument (`lambda i=i: ...`). A `for` loop variable still exists after the loop; a comprehension variable does not."
+  - id: gotchas-try-except
+    name: try / except / finally
+    summary: Handle a specific error and always run cleanup code.
+    example: |-
+      def parse(s):
+          try:
+              return int(s)
+          except ValueError:       # catch a specific type
+              print('bad input', s)
+              return None
+          finally:
+              print('done', s)     # always runs
+      print(parse('42'))
+      print(parse('x'))
+    output: |-
+      done 42
+      42
+      bad input x
+      done x
+      None
+    tip: Catch specific exceptions; a bare `except:` hides real bugs. For normal control flow, plain checks like `if k in d` are usually clearer than try/except.
+  - id: gotchas-unpacking
+    name: a, b = b, a and *rest
+    summary: Swap without a temp and unpack sequences into names.
+    example: |-
+      a, b = 1, 2
+      a, b = b, a                 # swap, no temp
+      print(a, b)
+      first, *rest = [1, 2, 3, 4]
+      print(first, rest)
+      *init, last = 'abc'
+      print(init, last)
+      (r, c), val = (2, 3), 'x'
+      print(r, c, val)
+    output: |-
+      2 1
+      1 [2, 3, 4]
+      ['a', 'b'] c
+      2 3 x
+    complexity: O(1) swap, O(n) to build rest
+    tip: The right side is evaluated first, then targets are assigned left to right. So `cur.next, prev, cur = prev, cur, cur.next` reverses a linked list, but reordering the targets can break it.
+quiz:
+  - id: gotchas-q1
+    question: What does this print?
+    code: |-
+      def f(x, acc=[]):
+          acc.append(x)
+          return len(acc)
+      f(1)
+      print(f(2))
+    options:
+      - "1"
+      - "2"
+      - TypeError
+    answer: 1
+    explanation: The default list is created once and shared, so the second call sees the item from the first.
+  - id: gotchas-q2
+    question: What does this print?
+    code: |-
+      fs = [lambda: k * 10 for k in range(3)]
+      print(fs[0]())
+    options:
+      - "0"
+      - "20"
+      - "30"
+      - NameError
+    answer: 1
+    explanation: "Each lambda looks up `k` when called, after the loop has finished with `k == 2`. Use `lambda k=k: k * 10` to capture each value."
+  - id: gotchas-q3
+    question: What does this print?
+    code: |-
+      def outer():
+          n = 0
+          def inc():
+              n += 1
+          inc()
+          return n
+      print(outer())
+    options:
+      - "1"
+      - "0"
+      - UnboundLocalError
+    answer: 2
+    explanation: Assigning to `n` inside `inc` makes it local there, so `n += 1` reads it before assignment. Add `nonlocal n`.
+  - id: gotchas-q4
+    question: What does this print?
+    code: |-
+      a = [1, 2]
+      b = [1, 2]
+      print(a == b, a is b)
+    options:
+      - True True
+      - True False
+      - False False
+    answer: 1
+    explanation: The lists have equal values but are two separate objects.
+  - id: gotchas-q5
+    question: Heap entries `(dist, node)` crash with TypeError when two dists tie. What is the standard fix?
+    options:
+      - Push (node, dist) instead
+      - Push (dist, i, node) with a unique counter i
+      - Wrap each push in try/except
+    answer: 1
+    explanation: Tuples compare item by item; a unique counter settles ties before Python ever compares nodes. Defining `__lt__` on the node also works.
+  - id: gotchas-q6
+    question: What does this print?
+    code: |-
+      first, *rest = 'a'
+      print(first, rest)
+    options:
+      - a []
+      - a ''
+      - ValueError
+      - a None
+    answer: 0
+    explanation: A starred target always becomes a list, and it may be empty.
+drills:
+  - id: gotchas-d-self-helper
+    method: gotchas-class
+    title: Call a helper method
+    task: Finish `solve` so it doubles every number by calling the `double` helper of the same class.
+    setup: |-
+      class Solution:
+          def double(self, x):
+              return x * 2
+          def solve(self, nums):
+    line: "        return [___ for x in nums]"
+    answer: self.double(x)
+    accept:
+      - Solution.double(self, x)
+    decoys:
+      - double(x)
+      - Solution.double(x)
+      - self.double(self, x)
+    show: Solution().solve([1, 2, 3])
+    expected: "[2, 4, 6]"
+    hint: Methods are not plain names inside the class body. Reach them through the instance.
+    explain: "`self.double(x)` looks the method up on the instance, and Python passes `self` for you. A bare `double(x)` raises NameError, and passing `self` again gives one argument too many."
+  - id: gotchas-d-dataclass-default
+    method: gotchas-dataclass
+    title: Field with a default
+    task: Add an int field `cost` that defaults to 1, so `Edge(4)` works without giving a cost.
+    setup: |-
+      from dataclasses import dataclass
+      @dataclass
+      class Edge:
+          to: int
+    line: "    ___"
+    answer: "cost: int = 1"
+    accept:
+      - "cost: float = 1"
+    decoys:
+      - "cost: int"
+      - cost = 1
+      - self.cost = 1
+    show: Edge(4)
+    expected: Edge(to=4, cost=1)
+    hint: Dataclass fields are declared with a type annotation in the class body, not in `__init__`.
+    explain: Every annotated line becomes a field, and `= 1` makes it optional in the generated `__init__`. Without the annotation `cost = 1` is a plain class attribute, not a field, and there is no `self` in the class body.
+  - id: gotchas-d-lt-heap
+    method: gotchas-lt-heap
+    title: Make nodes comparable
+    task: heapq and `sorted` compare items with `<`. Finish `__lt__` so nodes order by `val`, smallest first.
+    setup: |-
+      class Node:
+          def __init__(self, val):
+              self.val = val
+          def __lt__(self, other):
+    line: "        return ___"
+    answer: self.val < other.val
+    accept:
+      - other.val > self.val
+    decoys:
+      - self.val > other.val
+      - self < other
+      - self.val < other
+    show: "[n.val for n in sorted(map(Node, [5, 1, 3]))]"
+    expected: "[1, 3, 5]"
+    hint: '`__lt__` answers "is `self` less than `other`?" by comparing their values.'
+    explain: With `__lt__` defined, nodes work directly in `heapq` (Merge k Sorted Lists). `self < other` calls `__lt__` again forever. The other fix is pushing `(val, i, node)` with a unique counter `i`, so nodes never get compared.
+  - id: gotchas-d-mutable-default
+    method: gotchas-mutable-default
+    title: Dodge a shared default list
+    task: "`add` has a mutable default, so its list remembers earlier calls. Call it so that `b` starts from a fresh, empty list."
+    setup: |-
+      def add(x, items=[]):
+          items.append(x)
+          return items
+      a = add(1)
+    line: b = add(2, ___)
+    answer: "[]"
+    accept:
+      - list()
+    decoys:
+      - a
+      - items
+      - "[2]"
+    show: b
+    expected: "[2]"
+    hint: The default list was created once and already holds 1. Hand this call its own list.
+    explain: "Defaults are evaluated once, when `def` runs, so every call without `items` shares one list (`add(2)` would give `[1, 2]`). The real fix is `items=None` plus `if items is None: items = []` inside the function."
+  - id: gotchas-d-copy-grid
+    method: gotchas-is-copy
+    title: Copy a grid safely
+    task: "Copy `grid` so that changing a cell in `new` can never change `grid`: every row must be a new list."
+    setup: |-
+      import copy
+      grid = [[0, 0], [0, 0]]
+    line: new = ___
+    answer: "[row[:] for row in grid]"
+    accept:
+      - copy.deepcopy(grid)
+      - "[r[:] for r in grid]"
+      - "[list(row) for row in grid]"
+      - "[row.copy() for row in grid]"
+    decoys:
+      - grid[:]
+      - grid.copy()
+      - grid
+    show: "[r is g for r, g in zip(new, grid)]"
+    expected: "[False, False]"
+    check: new == grid and [r is g for r, g in zip(new, grid)] == [False, False]
+    hint: Copying the outer list is not enough when the items are lists themselves.
+    explain: "`grid[:]` and `grid.copy()` are shallow: a new outer list holding the **same** row objects, so `r is g` is True. Copy each row (or use `copy.deepcopy`) before mutating, e.g. when simulating Game of Life."
+  - id: gotchas-d-recursion-limit
+    method: gotchas-recursion-limit
+    title: Recurse 3000 deep
+    task: The default cap of about 1000 nested calls makes `depth(3000)` crash. Raise the cap to 10^4.
+    setup: |-
+      import sys
+      def depth(n):
+          return 0 if n == 0 else 1 + depth(n - 1)
+    line: ___
+    answer: sys.setrecursionlimit(10**4)
+    accept:
+      - sys.setrecursionlimit(10000)
+    decoys:
+      - sys.getrecursionlimit(10**4)
+      - sys.setrecursionlimit(100)
+      - sys.recursionlimit = 10**4
+    show: depth(3000)
+    expected: "3000"
+    hint: The `sys` module has a setter and a getter for the recursion limit.
+    explain: "`sys.setrecursionlimit(n)` raises the cap so deep DFS on a long path or linked list stops hitting RecursionError. Assigning an attribute does nothing, and when recursion depth is unbounded, an explicit stack is the safer rewrite."
+  - id: gotchas-d-late-binding
+    method: gotchas-scope
+    title: Capture the loop variable
+    task: Each lambda should return the `i` from its own loop step. Bind the current value when the lambda is created.
+    setup: ""
+    line: "fs = [lambda ___: i for i in range(3)]"
+    answer: i=i
+    decoys:
+      - i
+      - x=i
+      - i=0
+    show: "[f() for f in fs]"
+    expected: "[0, 1, 2]"
+    hint: Default argument values are evaluated when the function is defined, not when it is called.
+    explain: "Closures look up `i` when called, after the loop ended with `i == 2`, so every plain lambda returns 2. `lambda i=i: i` stores each value as a default. `x=i` captures it under another name, but the body still reads the outer `i`."
+  - id: gotchas-d-except-value
+    method: gotchas-try-except
+    title: Catch a bad number
+    task: Parsing `"12a"` fails. Catch exactly the error `int()` raises for bad text and fall back to -1.
+    setup: |-
+      s = "12a"
+      try:
+          n = int(s)
+    line: "except ___: n = -1"
+    answer: ValueError
+    accept:
+      - (ValueError, TypeError)
+      - (TypeError, ValueError)
+    decoys:
+      - TypeError
+      - ValueError()
+      - '"ValueError"'
+    show: n
+    expected: "-1"
+    hint: '`int("abc")` has the right type (a string) but a bad value.'
+    explain: "`int()` raises ValueError for text that is not a number, while TypeError is for the wrong type, like `int([1])`. `except` needs the exception class itself, not an instance or a string. Avoid a bare `except:`, which hides real bugs."
+  - id: gotchas-d-star-rest
+    method: gotchas-unpacking
+    title: Split off the first item
+    task: In one assignment, put the first number in `first` and all the others in a list `rest`.
+    setup: nums = [5, 1, 2, 3]
+    line: ___ = nums
+    answer: first, *rest
+    accept:
+      - (first, *rest)
+      - "[first, *rest]"
+    decoys:
+      - first, rest
+      - "*first, rest"
+      - first, *rest, last
+    show: (first, rest)
+    expected: (5, [1, 2, 3])
+    hint: A starred name soaks up "everything else" as a list.
+    explain: The starred target takes whatever the plain targets leave over, always as a list (possibly empty). Without a star the counts must match exactly, so `first, rest = nums` raises ValueError.
+  - id: gotchas-d-reverse-link
+    method: gotchas-unpacking
+    title: Reverse one link
+    task: "One step of reversing a linked list: point `cur.next` back at `prev`, then move `prev` and `cur` forward, all in one assignment."
+    setup: |-
+      # ListNode(val, next) is predefined, as on LeetCode
+      prev, cur = None, ListNode(1, ListNode(2))
+    line: cur.next, prev, cur = ___
+    answer: prev, cur, cur.next
+    decoys:
+      - cur.next, prev, cur
+      - prev, cur.next, cur
+      - cur, cur.next, prev
+    show: (prev.val, cur.val, prev.next)
+    expected: (1, 2, None)
+    hint: The whole right side is evaluated first, using the old values, then assigned left to right.
+    explain: The right side is built from the old `prev`, `cur` and `cur.next` before any assignment happens, so no temp variable is needed. That is the whole loop body of Reverse Linked List; the same trick swaps with `a, b = b, a`.

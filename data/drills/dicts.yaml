@@ -1,0 +1,396 @@
+# Imported from CodeToGo (src/content/python/dicts.ts + drills/dicts.ts).
+# Re-run scripts/import-codetogo.ts to refresh; edits here will be overwritten.
+id: dicts
+title: Dictionaries
+group: Python
+order: 5
+blurb: "Hash maps: O(1) lookups, counting and grouping."
+intro: "A dict maps hashable keys to values with average O(1) get, set and delete. It is the workhorse of hashing problems: counting, grouping, memoizing and remembering where you saw something."
+methods:
+  - id: dicts-basics
+    name: d[k], d[k] = v, k in d, del d[k]
+    summary: Read, write, test and delete keys in O(1) on average.
+    example: |-
+      d = {'a': 1}
+      d['b'] = 2            # insert or overwrite
+      print(d['a'])
+      print('b' in d, 'z' in d)   # checks keys
+      del d['a']
+      print(d, len(d))
+    output: |-
+      1
+      True False
+      {'b': 2} 1
+    complexity: O(1) average
+    tip: "`d[k]` raises KeyError for a missing key; test with `in` or use `get`. `k in d` checks keys only, while `v in d.values()` is an O(n) scan."
+  - id: dicts-get
+    name: d.get(k, default)
+    summary: Look up a key without risking a KeyError.
+    example: |-
+      ages = {'ann': 31}
+      print(ages.get('ann'))
+      print(ages.get('bob'))       # None, no error
+      print(ages.get('bob', 0))    # custom default
+      print(ages)                  # get never inserts
+    output: |-
+      31
+      None
+      0
+      {'ann': 31}
+    complexity: O(1) average
+    tip: "`if d.get(k):` is False when the stored value is 0 or empty. Use `if k in d:` to test whether a key exists."
+  - id: dicts-counting
+    name: d[x] = d.get(x, 0) + 1
+    summary: The counting pattern behind most frequency problems.
+    example: |-
+      count = {}
+      for ch in 'banana':
+          count[ch] = count.get(ch, 0) + 1
+      print(count)
+      best = max(count, key=count.get)
+      print(best, count[best])
+    output: |-
+      {'b': 1, 'a': 3, 'n': 2}
+      a 3
+    complexity: O(n)
+    tip: "`collections.Counter(s)` does this in one call, but be ready to write the loop. `max(d, key=d.get)` returns the key with the largest value."
+  - id: dicts-setdefault
+    name: d.setdefault(k, default)
+    summary: Return the value for k, inserting the default first if k is missing.
+    example: |-
+      groups = {}
+      for w in ['ant', 'bee', 'ape', 'bat']:
+          groups.setdefault(w[0], []).append(w)
+      print(groups)
+      d = {'x': 1}
+      print(d.setdefault('x', 99))   # exists: unchanged
+      print(d.setdefault('y', 5), d)
+    output: |-
+      {'a': ['ant', 'ape'], 'b': ['bee', 'bat']}
+      1
+      5 {'x': 1, 'y': 5}
+    complexity: O(1) average
+    tip: "`setdefault(k, []).append(v)` groups items in one line. `collections.defaultdict(list)` is the cleaner alternative when every key needs a list."
+  - id: dicts-iterate
+    name: items() / keys() / values()
+    summary: Loop over pairs, keys or values.
+    example: |-
+      d = {'a': 3, 'b': 1, 'c': 2}
+      for k, v in d.items():
+          print(k, v)
+      print(list(d.keys()))
+      print(sum(d.values()))
+    output: |-
+      a 3
+      b 1
+      c 2
+      ['a', 'b', 'c']
+      6
+    complexity: O(n) to loop
+    tip: Adding or deleting keys while looping over a dict raises RuntimeError. Loop over `list(d)` instead if you need to delete as you go.
+  - id: dicts-pop
+    name: d.pop(k, default) / popitem()
+    summary: Remove a key and get its value back.
+    example: |-
+      d = {'a': 1, 'b': 2}
+      print(d.pop('a'))          # remove + return
+      print(d.pop('z', None))    # missing: default
+      print(d)
+      print(d.popitem())         # last inserted pair
+      print(d)
+    output: |-
+      1
+      None
+      {'b': 2}
+      ('b', 2)
+      {}
+    complexity: O(1) average
+    tip: Without a default, `pop` on a missing key raises KeyError. `popitem()` removes pairs in LIFO order.
+  - id: dicts-comprehension
+    name: "{k: v for ...}"
+    summary: Build a dict in one expression.
+    example: |-
+      nums = [5, 8, 5, 2]
+      idx = {x: i for i, x in enumerate(nums)}
+      print(idx)            # later index wins
+      sq = {x: x * x for x in range(4) if x % 2}
+      print(sq)
+      inv = {v: k for k, v in {'a': 1, 'b': 2}.items()}
+      print(inv)
+    output: |-
+      {5: 2, 8: 1, 2: 3}
+      {1: 1, 3: 9}
+      {1: 'a', 2: 'b'}
+    complexity: O(n)
+    tip: A repeated key keeps the LAST value but its FIRST position. Inverting a dict silently drops data when values repeat.
+  - id: dicts-order-sort
+    name: insertion order & sorting by value
+    summary: Dicts remember insertion order but are never sorted.
+    example: |-
+      d = {'b': 2, 'c': 3, 'a': 1}
+      print(list(d))         # insertion order
+      by_val = sorted(d.items(), key=lambda kv: kv[1])
+      print(by_val)
+      print(sorted(d, key=d.get, reverse=True))
+      print(dict(sorted(d.items())))   # by key
+    output: |-
+      ['b', 'c', 'a']
+      [('a', 1), ('b', 2), ('c', 3)]
+      ['c', 'b', 'a']
+      {'a': 1, 'b': 2, 'c': 3}
+    complexity: O(n log n) to sort
+    tip: Insertion order is guaranteed since Python 3.7. When the answer depends on key or value order, sort `d.items()` explicitly.
+  - id: dicts-tuple-keys
+    name: "tuple keys: (r, c), sorted letters"
+    summary: Use tuples when a key has several parts.
+    example: |-
+      cells = {(0, 0): 'start'}
+      cells[(1, 2)] = 'wall'
+      print(cells[(1, 2)], (2, 2) in cells)
+      groups = {}
+      for w in ['eat', 'tea', 'tan', 'ate']:
+          key = tuple(sorted(w))   # same for anagrams
+          groups.setdefault(key, []).append(w)
+      print(list(groups.values()))
+    output: |-
+      wall False
+      [['eat', 'tea', 'ate'], ['tan']]
+    complexity: O(1) average lookup, O(k) to hash a k-tuple
+    tip: "Keys must be hashable: ints, strings, tuples and frozensets work; lists, sets and dicts raise TypeError. Convert with `tuple(lst)` first."
+quiz:
+  - id: dicts-q1
+    question: What does this print?
+    code: |-
+      d = {'a': 0}
+      if d.get('a'):
+          print('found')
+      else:
+          print('missing')
+    options:
+      - found
+      - missing
+      - KeyError
+    answer: 1
+    explanation: "`get` returns the stored 0, which is falsy. Use `'a' in d` to test whether a key exists."
+  - id: dicts-q2
+    question: What does this print?
+    code: |-
+      d = {}
+      d['x'] = d.get('x', 0) + 1
+      d['x'] = d.get('x', 0) + 1
+      print(d)
+    options:
+      - "{'x': 1}"
+      - "{'x': 2}"
+      - KeyError
+      - "{'x': 0}"
+    answer: 1
+    explanation: The first line stores 1 (0 + 1), the second reads it back and stores 2.
+  - id: dicts-q3
+    question: What does this print?
+    code: |-
+      d = {[1, 2]: 'pair'}
+      print(d)
+    options:
+      - "{[1, 2]: 'pair'}"
+      - "{(1, 2): 'pair'}"
+      - TypeError
+    answer: 2
+    explanation: Lists are mutable and therefore unhashable, so they cannot be dict keys. Use the tuple `(1, 2)` instead.
+  - id: dicts-q4
+    question: Which expression returns the KEY with the highest value in dict `d`?
+    options:
+      - max(d)
+      - max(d.values())
+      - max(d, key=d.get)
+      - sorted(d)[-1]
+    answer: 2
+    explanation: "`max(d)` compares the keys themselves and `max(d.values())` returns a value. `key=d.get` ranks keys by their values."
+  - id: dicts-q5
+    question: What does this print?
+    code: |-
+      d = {'b': 1, 'a': 2}
+      d['c'] = 0
+      d['b'] = 5
+      print(list(d))
+    options:
+      - "['a', 'b', 'c']"
+      - "['b', 'a', 'c']"
+      - "['a', 'c', 'b']"
+    answer: 1
+    explanation: Dicts keep insertion order, and updating an existing key does not move it.
+drills:
+  - id: dicts-d-key-in
+    method: dicts-basics
+    title: Is the key there?
+    task: "Two Sum: `seen` maps value to index. Check whether `need` is one of its keys."
+    setup: |-
+      seen = {2: 0, 11: 1}
+      need = 2
+    line: found = ___
+    answer: need in seen
+    accept:
+      - need in seen.keys()
+      - seen.get(need) is not None
+    decoys:
+      - seen.get(need)
+      - need in seen.values()
+      - seen[need]
+    show: found
+    expected: "True"
+    hint: "Careful: the index stored for 2 is 0, and 0 is falsy."
+    explain: "`k in d` tests the keys in O(1) on average. `d.get(k)` and `d[k]` return the stored 0 here, which is not True, and `in d.values()` is an O(n) scan of the values."
+  - id: dicts-d-get-default
+    method: dicts-get
+    title: Lookup with a default
+    task: Look up each name's age, using 0 for names that are not in the dict.
+    setup: |-
+      ages = {'ann': 31}
+      names = ['ann', 'bob']
+    line: res = [___ for n in names]
+    answer: ages.get(n, 0)
+    accept:
+      - ages[n] if n in ages else 0
+    decoys:
+      - ages[n]
+      - ages.get(n)
+      - ages.get(0, n)
+    show: res
+    expected: "[31, 0]"
+    hint: One dict method takes the key plus a fallback value.
+    explain: "`d.get(k, default)` never raises and never inserts the key. `d[k]` raises KeyError for `bob`, and `get(k)` without a default returns None."
+  - id: dicts-d-count-loop
+    method: dicts-counting
+    title: Count characters
+    task: Finish the loop so `count` maps each character to how many times it appears.
+    setup: |-
+      word = 'banana'
+      count = {}
+    line: "for c in word: count[c] = ___"
+    answer: count.get(c, 0) + 1
+    accept:
+      - 1 + count.get(c, 0)
+    decoys:
+      - count[c] + 1
+      - count.get(c) + 1
+      - count.get(c, 1)
+    show: count
+    expected: "{'b': 1, 'a': 3, 'n': 2}"
+    hint: The first time a character shows up, its current count should read as 0.
+    explain: "`d.get(c, 0) + 1` handles new and seen keys in one line. `count[c] + 1` raises KeyError on the first `b`, and `get(c)` returns None for a new key. `Counter(word)` is the one-call shortcut."
+  - id: dicts-d-most-frequent
+    method: dicts-counting
+    title: Key with the top count
+    task: Get the character with the largest count.
+    setup: "count = {'b': 1, 'a': 3, 'n': 2}"
+    line: best = ___
+    answer: max(count, key=count.get)
+    accept:
+      - "max(count, key=lambda k: count[k])"
+    decoys:
+      - max(count)
+      - max(count.values())
+      - max(count.items())
+    show: best
+    expected: "'a'"
+    hint: "`max` compares the keys themselves unless you give it a `key=` function."
+    explain: "`max(d, key=d.get)` ranks the keys by their values in O(n). `max(count)` compares the letters (`n` wins), and `max(count.values())` returns 3, not the key."
+  - id: dicts-d-group-setdefault
+    method: dicts-setdefault
+    title: Group with setdefault
+    task: "Group the words by first letter: each key maps to a list of words."
+    setup: |-
+      words = ['ant', 'bee', 'ape']
+      groups = {}
+    line: "for w in words: ___.append(w)"
+    answer: groups.setdefault(w[0], [])
+    decoys:
+      - groups.get(w[0], [])
+      - groups[w[0]]
+      - groups.setdefault(w[0])
+    show: groups
+    expected: "{'a': ['ant', 'ape'], 'b': ['bee']}"
+    hint: You need the list stored for this key, created and saved first if it is missing.
+    explain: "`setdefault(k, [])` stores an empty list only when `k` is missing, then returns the stored list, so `.append` updates the dict. `get(k, [])` returns a throwaway list that is never saved. `defaultdict(list)` is the cleaner alternative."
+  - id: dicts-d-items-filter
+    method: dicts-iterate
+    title: Loop over pairs
+    task: Collect the letters whose count is more than 1.
+    setup: "count = {'a': 3, 'b': 1, 'c': 2}"
+    line: dups = [k for k, v in ___ if v > 1]
+    answer: count.items()
+    decoys:
+      - count
+      - count.values()
+      - enumerate(count)
+    show: dups
+    expected: "['a', 'c']"
+    hint: Looping over a dict directly only gives you its keys.
+    explain: "`d.items()` yields `(key, value)` pairs that unpack into `k, v`. Looping over `count` gives bare keys (unpacking fails), and `enumerate` pairs each key with a position, not its value."
+  - id: dicts-d-pop-safe
+    method: dicts-pop
+    title: Remove keys safely
+    task: Delete each listed key from `d`. Some keys may be missing, and that must not raise.
+    setup: "d = {'a': 1, 'b': 2}"
+    line: "for k in ['a', 'z']: ___"
+    answer: d.pop(k, None)
+    accept:
+      - d.pop(k, 0)
+    decoys:
+      - d.pop(k)
+      - del d[k]
+      - d.remove(k)
+    show: d
+    expected: "{'b': 2}"
+    hint: "`pop` accepts a second argument for the missing case."
+    explain: "`d.pop(k, default)` removes the key and returns its value, or returns the default when the key is absent. Without a default, `pop` and `del` raise KeyError on `z`; dicts have no `remove`."
+  - id: dicts-d-index-map
+    method: dicts-comprehension
+    title: Value to index map
+    task: Build a dict that maps each number to its index in `nums`.
+    setup: nums = [5, 8, 3]
+    line: "pos = {x: i for ___}"
+    answer: i, x in enumerate(nums)
+    decoys:
+      - x, i in enumerate(nums)
+      - x in nums
+      - i, x in nums
+    show: pos
+    expected: "{5: 0, 8: 1, 3: 2}"
+    hint: "`enumerate` yields `(index, value)`, in that order."
+    explain: "`enumerate` gives the index first, so unpack it as `i, x`. If a value repeats, the comprehension keeps its **last** index, because later keys overwrite earlier ones."
+  - id: dicts-d-sort-by-value
+    method: dicts-order-sort
+    title: Keys by value, high to low
+    task: List the letters from the highest count to the lowest.
+    setup: "count = {'a': 1, 'b': 3, 'c': 2}"
+    line: order = sorted(count, ___)
+    answer: key=count.get, reverse=True
+    accept:
+      - reverse=True, key=count.get
+      - "key=lambda k: -count[k]"
+    decoys:
+      - key=count.get
+      - reverse=True
+      - key=count.values, reverse=True
+    show: order
+    expected: "['b', 'c', 'a']"
+    hint: Rank each key by what `count` stores for it, then flip the order.
+    explain: "`sorted(d, key=d.get)` orders the keys by their values, and `reverse=True` puts the biggest first. Dicts keep insertion order but are never sorted, so sort explicitly when order matters."
+  - id: dicts-d-anagram-key
+    method: dicts-tuple-keys
+    title: Anagram group key
+    task: Add `w` to its anagram group. Groups are keyed by the word's letters in sorted order.
+    setup: |-
+      groups = {('a', 'e', 't'): ['eat']}
+      w = 'tea'
+    line: groups[___].append(w)
+    answer: tuple(sorted(w))
+    decoys:
+      - sorted(w)
+      - tuple(w)
+      - set(w)
+    show: groups
+    expected: "{('a', 'e', 't'): ['eat', 'tea']}"
+    hint: "`sorted` returns a list, and lists cannot be dict keys."
+    explain: Anagrams sort to the same letters, and `tuple(...)` makes that hashable so it can be a key. List and set keys raise TypeError, and `tuple(w)` keeps the original letter order, so it misses the group.

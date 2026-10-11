@@ -13,6 +13,9 @@ const ProblemPage = lazy(() => import("@/pages/ProblemPage"));
 const ReviewPage = lazy(() => import("@/pages/ReviewPage"));
 const DocsPage = lazy(() => import("@/pages/DocsPage"));
 const ProgressPage = lazy(() => import("@/pages/ProgressPage"));
+const DrillsPage = lazy(() => import("@/pages/DrillsPage"));
+const DrillSessionPage = lazy(() => import("@/pages/DrillSessionPage"));
+const DrillTopicPage = lazy(() => import("@/pages/DrillTopicPage"));
 
 const router = createBrowserRouter([
   {
@@ -26,6 +29,9 @@ const router = createBrowserRouter([
       { path: "/review", element: <ReviewPage /> },
       { path: "/docs", element: <DocsPage /> },
       { path: "/progress", element: <ProgressPage /> },
+      { path: "/drills", element: <DrillsPage /> },
+      { path: "/drills/session", element: <DrillSessionPage /> },
+      { path: "/drills/topics/:id", element: <DrillTopicPage /> },
       { path: "*", element: <NotFoundPage /> },
         ],
       },

@@ -1,0 +1,476 @@
+# Imported from CodeToGo (src/content/python/lists.ts + drills/lists.ts).
+# Re-run scripts/import-codetogo.ts to refresh; edits here will be overwritten.
+id: lists
+title: Lists
+group: Python
+order: 4
+blurb: Slicing, sorting, grids and the costs interviewers ask about.
+intro: "A Python list is a dynamic array: O(1) to index, read the end or append, but O(n) to insert or remove near the front. Most array problems are list problems, so know these idioms cold."
+methods:
+  - id: lists-slicing
+    name: a[i], a[i:j], a[i:j:k]
+    summary: Index from either end and slice out a new list.
+    details: Negative indexes count from the end (`a[-1]` is the last item). A slice `a[start:stop:step]` excludes `stop` and any part can be left out.
+    example: |-
+      a = [10, 20, 30, 40, 50]
+      print(a[0], a[-1])    # first, last
+      print(a[1:3])         # stop is exclusive
+      print(a[:2], a[3:])   # prefix, suffix
+      print(a[::2])         # every 2nd item
+      print(a[::-1])        # reversed copy
+      print(a[10:])         # out of range: no error
+    output: |-
+      10 50
+      [20, 30]
+      [10, 20] [40, 50]
+      [10, 30, 50]
+      [50, 40, 30, 20, 10]
+      []
+    complexity: O(1) index, O(k) slice of length k
+    tip: Slices never raise IndexError and always build a new list. `a[::-1]` copies in O(n) extra space; `a.reverse()` reverses in place.
+  - id: lists-append-pop
+    name: append(x) / pop() / pop(0)
+    summary: Add or remove at the end in O(1); the front costs O(n).
+    example: |-
+      a = [1, 2, 3]
+      a.append(4)        # O(1) amortized
+      print(a)
+      print(a.pop())     # O(1): removes last
+      print(a.pop(0))    # O(n): shifts the rest left
+      print(a)
+    output: |-
+      [1, 2, 3, 4]
+      4
+      1
+      [2, 3]
+    complexity: append / pop() O(1), pop(0) O(n)
+    tip: Popping from the front in a loop (a BFS queue) makes the whole thing O(n^2). Use `collections.deque` and `popleft()` instead, which is O(1).
+  - id: lists-insert-extend
+    name: insert(i, x) / extend(it) / remove(x)
+    summary: Insert at a position, add many items, or delete by value.
+    example: |-
+      a = [1, 2, 3]
+      a.insert(0, 0)       # O(n): shifts right
+      a.extend([4, 5])     # add each item
+      print(a)
+      a.remove(3)          # first match, O(n)
+      print(a)
+      print(a.index(4))    # position of a value
+      print([1] + [2, 3])  # + builds a new list
+    output: |-
+      [0, 1, 2, 3, 4, 5]
+      [0, 1, 2, 4, 5]
+      3
+      [1, 2, 3]
+    complexity: insert / remove / index O(n), extend O(k)
+    tip: "`a.append([4, 5])` adds ONE nested list; `extend` adds each item. `remove` and `index` raise ValueError when the value is missing."
+  - id: lists-comprehension
+    name: "[expr for x in it if cond]"
+    summary: Build a list in one readable expression.
+    example: |-
+      nums = [1, 2, 3, 4, 5, 6]
+      print([x * x for x in nums])
+      print([x for x in nums if x % 2 == 0])
+      print(['+' if x > 3 else '-' for x in nums])
+      pairs = [(i, j) for i in range(2) for j in range(2)]
+      print(pairs)
+    output: |-
+      [1, 4, 9, 16, 25, 36]
+      [2, 4, 6]
+      ['-', '-', '-', '+', '+', '+']
+      [(0, 0), (0, 1), (1, 0), (1, 1)]
+    complexity: O(n)
+    tip: A filter `if` goes at the end; a choice `a if c else b` goes at the front. Multiple `for`s read left to right, like nested loops.
+  - id: lists-sort-sorted
+    name: a.sort() vs sorted(a)
+    summary: "`sort` changes the list in place; `sorted` returns a new one."
+    details: Both take `key=` (a function applied to each item) and `reverse=True`.
+    example: |-
+      a = [3, 1, 2]
+      b = sorted(a)          # new list, a unchanged
+      print(a, b)
+      r = a.sort()           # in place, returns None
+      print(a, r)
+      words = ['kiwi', 'fig', 'banana']
+      print(sorted(words, key=len))
+      print(sorted(words, reverse=True))
+    output: |-
+      [3, 1, 2] [1, 2, 3]
+      [1, 2, 3] None
+      ['fig', 'kiwi', 'banana']
+      ['kiwi', 'fig', 'banana']
+    complexity: O(n log n)
+    tip: "`a = a.sort()` sets `a` to None, a classic bug. Python's sort is stable: items with equal keys keep their original order."
+  - id: lists-sort-multikey
+    name: sort by several keys
+    summary: Return a tuple from `key`; negate a number to flip its order.
+    example: |-
+      print(sorted([(2, 'b'), (1, 'z'), (2, 'a')]))
+      people = [('bo', 25), ('al', 30), ('cy', 25)]
+      # age ascending, then name ascending
+      people.sort(key=lambda p: (p[1], p[0]))
+      print(people)
+      # age descending, then name ascending
+      people.sort(key=lambda p: (-p[1], p[0]))
+      print(people)
+    output: |-
+      [(1, 'z'), (2, 'a'), (2, 'b')]
+      [('bo', 25), ('cy', 25), ('al', 30)]
+      [('al', 30), ('bo', 25), ('cy', 25)]
+    complexity: O(n log n)
+    tip: Tuples compare item by item, so sorting tuples sorts by the first field, then the second. `-x` flips a number; strings cannot be negated, so sort twice and rely on stability.
+  - id: lists-2d-grid
+    name: "[[0] * n for _ in range(m)]"
+    summary: Build an m x n grid with independent rows.
+    example: |-
+      m, n = 2, 3
+      good = [[0] * n for _ in range(m)]
+      bad = [[0] * n] * m     # m refs to ONE row
+      good[0][0] = 1
+      bad[0][0] = 1
+      print(good)
+      print(bad)              # every row changed!
+      print(len(good), len(good[0]))  # rows, cols
+    output: |-
+      [[1, 0, 0], [0, 0, 0]]
+      [[1, 0, 0], [1, 0, 0]]
+      2 3
+    complexity: O(m * n)
+    tip: "`[0] * n` is safe because ints are immutable, but `[[0] * n] * m` repeats the same inner list m times. Always build DP tables and grids with a comprehension."
+  - id: lists-copy
+    name: a[:], list(a), copy.deepcopy(a)
+    summary: Shallow copies share inner objects; deep copies do not.
+    example: |-
+      import copy
+      grid = [[1, 2], [3, 4]]
+      shallow = grid[:]    # same as list(grid)
+      deep = copy.deepcopy(grid)
+      grid[0][0] = 99
+      print(shallow)       # inner lists are shared
+      print(deep)          # fully independent
+      print(shallow is grid)
+    output: |-
+      [[99, 2], [3, 4]]
+      [[1, 2], [3, 4]]
+      False
+    complexity: O(n) shallow, O(total size) deep
+    tip: In backtracking, append a copy (`res.append(path[:])`). Appending `path` itself stores a reference that later gets changed or emptied.
+  - id: lists-enumerate
+    name: enumerate(a, start=0)
+    summary: Loop over index and value together.
+    example: |-
+      names = ['ann', 'bob', 'cat']
+      for i, name in enumerate(names):
+          print(i, name)
+      print(list(enumerate(names, start=1)))
+    output: |-
+      0 ann
+      1 bob
+      2 cat
+      [(1, 'ann'), (2, 'bob'), (3, 'cat')]
+    complexity: O(1) per step
+    tip: Prefer `enumerate(a)` over `range(len(a))` when you need both. `start=1` only changes the numbers you get, not which items are visited.
+  - id: lists-stack
+    name: list as a stack
+    summary: "`append` to push, `pop()` to pop, `a[-1]` to peek."
+    example: |-
+      stack = []
+      stack.append(1)      # push
+      stack.append(2)
+      stack.append(3)
+      print(stack[-1])     # peek
+      print(stack.pop())   # pop
+      print(stack)
+      while stack:         # empty list is falsy
+          stack.pop()
+      print(len(stack), not stack)
+    output: |-
+      3
+      3
+      [1, 2]
+      0 True
+    complexity: push / pop / peek O(1)
+    tip: Check `if stack:` before `stack[-1]` or `stack.pop()`; both raise IndexError on an empty list. Valid Parentheses and monotonic-stack problems all use this.
+quiz:
+  - id: lists-q1
+    question: What does this print?
+    code: |-
+      a = [1, 2, 3, 4, 5]
+      print(a[-2:])
+    options:
+      - "[4, 5]"
+      - "[5]"
+      - "[1, 2, 3]"
+      - "[5, 4]"
+    answer: 0
+    explanation: A negative start counts from the end, so `a[-2:]` is the last two items in their original order.
+  - id: lists-q2
+    question: What does this print?
+    code: |-
+      grid = [[0] * 2] * 2
+      grid[0][1] = 7
+      print(grid)
+    options:
+      - "[[0, 7], [0, 0]]"
+      - "[[0, 7], [0, 7]]"
+      - "[[7, 7], [0, 0]]"
+      - IndexError
+    answer: 1
+    explanation: Multiplying the outer list repeats a reference to the same row, so both rows change. Use a comprehension instead.
+  - id: lists-q3
+    question: What does this print?
+    code: |-
+      a = [3, 1, 2]
+      a = a.sort()
+      print(a)
+    options:
+      - "[1, 2, 3]"
+      - "[3, 1, 2]"
+      - None
+      - TypeError
+    answer: 2
+    explanation: "`list.sort()` sorts in place and returns None, which then overwrites `a`. Use `a.sort()` alone or `a = sorted(a)`."
+  - id: lists-q4
+    question: Your BFS removes the first item of a large list on every step. What should replace `list.pop(0)`?
+    options:
+      - a.pop()
+      - collections.deque with popleft()
+      - del a[0]
+      - a.remove(a[0])
+    answer: 1
+    explanation: Removing from the front of a list shifts every element (O(n)). `deque.popleft()` is O(1).
+  - id: lists-q5
+    question: What does this print?
+    code: |-
+      pts = [(1, 2), (0, 5), (1, -1)]
+      pts.sort(key=lambda p: (p[0], -p[1]))
+      print(pts)
+    options:
+      - "[(0, 5), (1, 2), (1, -1)]"
+      - "[(0, 5), (1, -1), (1, 2)]"
+      - "[(1, 2), (1, -1), (0, 5)]"
+    answer: 0
+    explanation: The key sorts by x ascending, then by y descending because of the minus sign.
+  - id: lists-q6
+    question: What does this print?
+    code: |-
+      res, path = [], [1]
+      res.append(path)
+      path.append(2)
+      print(res)
+    options:
+      - "[[1]]"
+      - "[[1, 2]]"
+      - "[[1], [2]]"
+    answer: 1
+    explanation: "`res` holds a reference to `path`, so later changes show up. Append `path[:]` to save a snapshot."
+drills:
+  - id: lists-d-last-three
+    method: lists-slicing
+    title: Last three items
+    task: Get a new list with the last three scores, in their original order.
+    setup: scores = [4, 8, 15, 16, 23, 42]
+    line: tail = ___
+    answer: scores[-3:]
+    accept:
+      - scores[3:]
+      - scores[len(scores) - 3:]
+    decoys:
+      - scores[-3]
+      - scores[:-3]
+      - scores[-3:-1]
+    show: tail
+    expected: "[16, 23, 42]"
+    hint: A negative start counts from the end. Leave the stop empty to run to the end.
+    explain: "`a[-k:]` is a new list of the last k items and never raises, even when k > len(a). `a[-3]` is one item, and `a[:-3]` is everything **except** the last three."
+  - id: lists-d-reverse-copy
+    method: lists-slicing
+    title: Reversed copy
+    task: Make a reversed copy of `nums`. `nums` itself must stay unchanged.
+    setup: nums = [1, 2, 3, 4]
+    line: rev = ___
+    answer: nums[::-1]
+    accept:
+      - list(reversed(nums))
+    decoys:
+      - nums.reverse()
+      - reversed(nums)
+      - nums[-1::]
+    show: rev
+    expected: "[4, 3, 2, 1]"
+    check: rev == [4, 3, 2, 1] and nums == [1, 2, 3, 4]
+    hint: A slice has a third part, the step. Which step walks backwards?
+    explain: "`a[::-1]` builds a reversed copy in O(n). `a.reverse()` reverses in place and returns None, and `reversed(a)` is a lazy iterator, not a list."
+  - id: lists-d-deque-popleft
+    method: lists-append-pop
+    title: O(1) pop from the front
+    task: "BFS step: take the front item off the queue in O(1)."
+    setup: |-
+      from collections import deque
+      q = deque([1, 2, 3])
+    line: first = ___
+    answer: q.popleft()
+    decoys:
+      - q.pop()
+      - q.pop(0)
+      - q[0]
+    show: (first, q)
+    expected: (1, deque([2, 3]))
+    hint: A deque has a pop method for each end; plain `pop()` takes from the right.
+    explain: "`deque.popleft()` removes the front item in O(1). On a list, `pop(0)` shifts every remaining item (O(n)), which makes BFS O(n^2). `deque.pop()` takes no index at all."
+  - id: lists-d-extend
+    method: lists-insert-extend
+    title: Add many items
+    task: Add every item of `b` to the end of `a`, changing `a` in place.
+    setup: |-
+      a = [1, 2]
+      b = [3, 4]
+    line: ___
+    answer: a.extend(b)
+    accept:
+      - a += b
+      - a[len(a):] = b
+    decoys:
+      - a.append(b)
+      - a + b
+      - a.insert(b)
+    show: a
+    expected: "[1, 2, 3, 4]"
+    hint: "`append` always adds exactly one item, whatever that item is."
+    explain: "`extend` adds each item of the iterable in O(k). `append(b)` adds the whole list as one nested item (`[1, 2, [3, 4]]`), and `a + b` builds a new list without touching `a`."
+  - id: lists-d-even-squares
+    method: lists-comprehension
+    title: Filter in a comprehension
+    task: Finish the comprehension so it squares only the even numbers.
+    setup: nums = [1, 2, 3, 4, 5, 6]
+    line: sq = [x * x for x in nums ___]
+    answer: if x % 2 == 0
+    accept:
+      - if not x % 2
+      - if x % 2 < 1
+    decoys:
+      - if x % 2
+      - if x / 2 == 0
+      - where x % 2 == 0
+    show: sq
+    expected: "[4, 16, 36]"
+    hint: A filter clause goes at the very end of a comprehension.
+    explain: A trailing `if` keeps only items that pass. `x % 2` alone is truthy for **odd** numbers. To pick between two values instead, put `a if c else b` at the front.
+  - id: lists-d-sorted-desc
+    method: lists-sort-sorted
+    title: New list, largest first
+    task: Get a new list sorted from largest to smallest, leaving `nums` unchanged.
+    setup: nums = [3, 1, 2]
+    line: desc = ___
+    answer: sorted(nums, reverse=True)
+    accept:
+      - sorted(nums)[::-1]
+    decoys:
+      - nums.sort(reverse=True)
+      - sorted(nums, reversed=True)
+      - reversed(sorted(nums))
+    show: desc
+    expected: "[3, 2, 1]"
+    check: desc == [3, 2, 1] and nums == [3, 1, 2]
+    hint: "`sorted` returns a new list; `list.sort` returns None."
+    explain: "`sorted(it, reverse=True)` returns a new descending list in O(n log n). `nums.sort()` sorts in place and returns None, so `desc` would be None. The keyword is `reverse`, not `reversed`."
+  - id: lists-d-sort-by-len
+    method: lists-sort-sorted
+    title: Sort in place by length
+    task: Sort `words` in place, shortest word first.
+    setup: words = ['kiwi', 'fig', 'banana']
+    line: ___
+    answer: words.sort(key=len)
+    accept:
+      - "words.sort(key=lambda w: len(w))"
+    decoys:
+      - sorted(words, key=len)
+      - words.sort(len)
+      - words = words.sort(key=len)
+    show: words
+    expected: "['fig', 'kiwi', 'banana']"
+    hint: "`key=` takes a function that is called on each item. Pass it, do not call it."
+    explain: "`key=len` sorts by each word's length. `sorted(...)` alone builds a new list that is thrown away here, and `words = words.sort(...)` replaces the list with None."
+  - id: lists-d-age-then-name
+    method: lists-sort-multikey
+    title: Two sort keys
+    task: Sort the `(name, age)` pairs oldest first, breaking ties by name A-Z.
+    setup: people = [('cy', 25), ('bo', 30), ('al', 25)]
+    line: people.sort(key=___)
+    answer: "lambda p: (-p[1], p[0])"
+    decoys:
+      - "lambda p: (p[1], p[0])"
+      - "lambda p: -p[1]"
+      - "lambda p: (-p[1], -p[0])"
+    show: people
+    expected: "[('bo', 30), ('al', 25), ('cy', 25)]"
+    hint: "Return a tuple: tuples compare field by field. How do you flip the order of a number?"
+    explain: The key sorts by `-age` (descending), then by name. A key of just `-p[1]` keeps tied people in their old order, and strings cannot be negated (`-p[0]` raises TypeError).
+  - id: lists-d-grid
+    method: lists-2d-grid
+    title: Grid with independent rows
+    task: Build an `m` x `n` grid of zeros where every row is its own list.
+    setup: m, n = 2, 3
+    line: grid = ___
+    answer: "[[0] * n for _ in range(m)]"
+    accept:
+      - "[[0 for _ in range(n)] for _ in range(m)]"
+      - "[[0] * n for i in range(m)]"
+    decoys:
+      - "[[0] * n] * m"
+      - "[[0] * m for _ in range(n)]"
+      - "[0] * n * m"
+    show: (grid, grid[0] is grid[1])
+    expected: ([[0, 0, 0], [0, 0, 0]], False)
+    hint: Multiplying the outer list copies references to one row. Build each row fresh.
+    explain: The comprehension runs `[0] * n` once per row, so rows are independent. `[[0] * n] * m` repeats the **same** row object, so writing `grid[0][0]` changes every row.
+  - id: lists-d-snapshot
+    method: lists-copy
+    title: Save a snapshot
+    task: "Backtracking: record the current `path` in `res` so later changes to `path` do not affect it."
+    setup: res, path = [], [1, 2]
+    line: res.append(___)
+    answer: path[:]
+    accept:
+      - list(path)
+      - path.copy()
+    decoys:
+      - path
+      - "[path]"
+      - "*path"
+    show: (res, res[0] is path)
+    expected: ([[1, 2]], False)
+    hint: Store a copy of the list, not the list object itself.
+    explain: "`path[:]` stores a shallow copy, so the later `path.pop()` calls in backtracking do not touch it. Appending `path` stores a reference, and every saved result ends up as the same (often empty) list."
+  - id: lists-d-enumerate-from-1
+    method: lists-enumerate
+    title: Number from 1
+    task: Pair each name with its position, counting from 1, as `(number, name)` tuples.
+    setup: names = ['ann', 'bob', 'cat']
+    line: ranked = list(___)
+    answer: enumerate(names, start=1)
+    accept:
+      - enumerate(names, 1)
+    decoys:
+      - enumerate(names)
+      - enumerate(1, names)
+      - zip(names, range(1, 4))
+    show: ranked
+    expected: "[(1, 'ann'), (2, 'bob'), (3, 'cat')]"
+    hint: "`enumerate` takes an optional second argument."
+    explain: "`enumerate(it, start=1)` yields `(1, item), (2, item), ...`; `start` only changes the numbers, not which items you visit. `zip(names, ...)` would put the name first."
+  - id: lists-d-stack-peek
+    method: lists-stack
+    title: Peek at the stack
+    task: "Valid Parentheses: read the most recent open bracket without removing it."
+    setup: stack = ['(', '[']
+    line: top = ___
+    answer: stack[-1]
+    decoys:
+      - stack[0]
+      - stack.pop()
+      - stack.peek()
+    show: (top, stack)
+    expected: ('[', ['(', '['])
+    hint: The top of a list-based stack is its last item.
+    explain: "`stack[-1]` peeks in O(1), while `pop()` also removes the item. Lists have no `peek`, and both `stack[-1]` and `pop()` raise IndexError on an empty stack, so check `if stack:` first."

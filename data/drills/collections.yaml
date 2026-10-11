@@ -1,0 +1,570 @@
+# Imported from CodeToGo (src/content/python/collections.ts + drills/collections.ts).
+# Re-run scripts/import-codetogo.ts to refresh; edits here will be overwritten.
+id: collections
+title: collections
+group: Python
+order: 1
+blurb: "deque, defaultdict, Counter and OrderedDict: the interview power tools."
+intro: The `collections` module turns many medium problems into a few lines. `deque` is your queue for BFS and sliding windows, `defaultdict` builds groups and graphs, `Counter` does frequency counting, and `OrderedDict` is the classic LRU cache tool.
+methods:
+  - id: collections-deque-ends
+    name: "deque: append / appendleft / pop / popleft"
+    summary: A double-ended queue with O(1) adds and removes at both ends.
+    details: Peeking with `d[0]` and `d[-1]` is O(1), but indexing toward the middle is O(n) and slicing is not supported. Use a list when you need random access.
+    example: |-
+      from collections import deque
+
+      d = deque([2, 3])
+      d.append(4)         # right end
+      d.appendleft(1)     # left end
+      print(d)
+      print(d.pop())      # from the right
+      print(d.popleft())  # from the left
+      print(d[0], d[-1])  # peek both ends
+    output: |-
+      deque([1, 2, 3, 4])
+      4
+      1
+      2 3
+    complexity: O(1) at either end, O(n) for d[i] in the middle
+    tip: "`list.pop(0)` and `list.insert(0, x)` are O(n) because every item shifts. Any time you remove from the front, reach for a deque."
+  - id: collections-deque-bfs
+    name: deque as a BFS queue
+    summary: "`append` to enqueue, `popleft` to dequeue: the standard BFS loop."
+    example: |-
+      from collections import deque
+      graph = {1: [2, 3], 2: [4], 3: [4], 4: []}
+      seen, q = {1}, deque([1])
+      while q:
+          node = q.popleft()        # FIFO
+          print(node, end=" ")
+          for nxt in graph[node]:
+              if nxt not in seen:   # mark when queued
+                  seen.add(nxt)
+                  q.append(nxt)
+    output: 1 2 3 4
+    complexity: O(V + E) for the whole BFS
+    tip: Mark a node as seen when you enqueue it, not when you pop it, or the same node can be queued many times. For level-by-level BFS, loop `for _ in range(len(q))` inside the while.
+  - id: collections-deque-rotate
+    name: deque.rotate(k)
+    summary: Rotate right by k steps (left if k is negative).
+    example: |-
+      from collections import deque
+
+      d = deque([1, 2, 3, 4, 5])
+      d.rotate(2)    # right by 2
+      print(d)
+      d.rotate(-3)   # left by 3
+      print(d)
+    output: |-
+      deque([4, 5, 1, 2, 3])
+      deque([2, 3, 4, 5, 1])
+    complexity: O(k)
+    tip: "Handy for round-robin and circular problems (e.g. Josephus: rotate, then popleft). For a list, `nums[-k:] + nums[:-k]` also rotates right but builds a copy."
+  - id: collections-deque-maxlen
+    name: deque(maxlen=k)
+    summary: "A bounded deque: appending to a full one drops an item from the other end."
+    example: |-
+      from collections import deque
+
+      last3 = deque(maxlen=3)
+      for x in [1, 2, 3, 4, 5]:
+          last3.append(x)   # oldest falls off the left
+          print(list(last3))
+    output: |-
+      [1]
+      [1, 2]
+      [1, 2, 3]
+      [2, 3, 4]
+      [3, 4, 5]
+    complexity: O(1) per append
+    tip: Great for "keep the last k items" (moving average, recent history). For sliding window max/min, use a plain deque of indices as a monotonic queue instead.
+  - id: collections-defaultdict-list
+    name: "defaultdict(list): grouping"
+    summary: Missing keys start as an empty list, so you can append right away.
+    example: |-
+      from collections import defaultdict
+
+      groups = defaultdict(list)
+      for w in ["eat", "tea", "tan", "ate", "nat"]:
+          groups["".join(sorted(w))].append(w)
+      print(dict(groups))
+    output: "{'aet': ['eat', 'tea', 'ate'], 'ant': ['tan', 'nat']}"
+    complexity: O(1) average per access
+    tip: This is Group Anagrams in four lines. Remember that reading a missing key also inserts it; use `key in d` or `d.get(key)` to check without creating an empty entry.
+  - id: collections-defaultdict-graph
+    name: "defaultdict(list): adjacency list"
+    summary: The quickest way to turn an edge list into a graph.
+    example: |-
+      from collections import defaultdict
+
+      edges = [(0, 1), (0, 2), (1, 2), (2, 3)]
+      graph = defaultdict(list)
+      for a, b in edges:
+          graph[a].append(b)
+          graph[b].append(a)   # undirected: both ways
+      print(graph[2])
+      print(graph[9])          # [] and 9 is now a key!
+    output: |-
+      [0, 1, 3]
+      []
+    complexity: O(V + E) to build
+    tip: Nodes with no edges never show up as keys. If you must visit every node, loop over `range(n)` instead of over `graph`.
+  - id: collections-defaultdict-int-set
+    name: defaultdict(int) / defaultdict(set)
+    summary: Missing keys start as 0 or as an empty set.
+    example: |-
+      from collections import defaultdict
+
+      count = defaultdict(int)     # missing -> 0
+      for ch in "banana":
+          count[ch] += 1
+      print(dict(count))
+      friends = defaultdict(set)   # missing -> set()
+      friends["ann"].add("bob")
+      friends["ann"].add("bob")
+      print(dict(friends))
+    output: |-
+      {'b': 1, 'a': 3, 'n': 2}
+      {'ann': {'bob'}}
+    complexity: O(1) average per access
+    tip: The factory is called with no arguments, so pass the type itself (`int`, `list`, `set`), not `list()`. Use `set` when duplicate edges or repeat visits must be ignored.
+  - id: collections-counter
+    name: Counter(iterable) / most_common(k)
+    summary: Counts hashable items in one pass; missing keys read as 0.
+    example: |-
+      from collections import Counter
+
+      c = Counter("mississippi")
+      print(c)
+      print(c["s"], c["z"])   # missing -> 0, not added
+      print(c.most_common(2))
+    output: |-
+      Counter({'i': 4, 's': 4, 'p': 2, 'm': 1})
+      4 0
+      [('i', 4), ('s', 4)]
+    complexity: O(n) to build, most_common(k) O(n log k)
+    tip: Ties in most_common keep first-seen order. For "top k frequent elements" `most_common(k)` is the one-liner; be ready to explain the heap or bucket-sort version too.
+  - id: collections-counter-math
+    name: Counter math and == (anagrams)
+    summary: Add, subtract, intersect and compare whole multisets.
+    details: "`a - b` drops zero and negative counts, while `a.subtract(b)` keeps them. `&` takes the min of each count and `|` the max."
+    example: |-
+      from collections import Counter
+
+      a, b = Counter("aabc"), Counter("abd")
+      print(a + b)   # add counts
+      print(a - b)   # drops counts <= 0
+      print(a & b)   # min of each
+      print(a | b)   # max of each
+      print(Counter("listen") == Counter("silent"))
+    output: |-
+      Counter({'a': 3, 'b': 2, 'c': 1, 'd': 1})
+      Counter({'a': 1, 'c': 1})
+      Counter({'a': 1, 'b': 1})
+      Counter({'a': 2, 'b': 1, 'c': 1, 'd': 1})
+      True
+    complexity: O(n + m)
+    tip: Two strings are anagrams exactly when their Counters are equal. Since Python 3.10, == treats missing and zero counts as equal. For lowercase-only input, a 26-slot array is the O(1)-space alternative.
+  - id: collections-counter-elements
+    name: Counter.elements() / total() / update()
+    summary: Expand counts back into items, sum all counts, or add more counts.
+    example: |-
+      from collections import Counter
+
+      c = Counter(a=2, b=1)
+      print(sorted(c.elements()))  # each key, count times
+      print(c.total())             # sum of counts (3.10+)
+      c.update("abz")              # add more counts
+      print(c)
+      c["a"] -= 3
+      print(+c)                    # unary + drops <= 0
+    output: |-
+      ['a', 'a', 'b']
+      3
+      Counter({'a': 3, 'b': 2, 'z': 1})
+      Counter({'b': 2, 'z': 1})
+    complexity: total() O(k) for k keys, elements() O(sum of counts)
+    tip: 'Decrementing never deletes a key: after `c[x] -= 1` hits 0, `len(c)` still counts it. In sliding-window problems that track "distinct items", `del c[x]` when it reaches 0.'
+  - id: collections-ordereddict
+    name: "OrderedDict: move_to_end / popitem(last=False)"
+    summary: A dict that can move a key to the end and pop from either end in O(1).
+    details: Plain dicts keep insertion order too, but only OrderedDict can move an existing key to the end or pop the oldest item in O(1).
+    example: |-
+      from collections import OrderedDict
+
+      cache = OrderedDict([("a", 1), ("b", 2), ("c", 3)])
+      cache.move_to_end("a")            # "a" was just used
+      print(list(cache))
+      print(cache.popitem(last=False))  # evict the oldest
+      print(dict(cache))
+    output: |-
+      ['b', 'c', 'a']
+      ('b', 2)
+      {'c': 3, 'a': 1}
+    complexity: O(1)
+    tip: "This is the LRU Cache tool: on every get/put call `move_to_end(key)`, and when over capacity call `popitem(last=False)`. Interviewers may then ask for the hash map + doubly linked list version."
+  - id: collections-namedtuple
+    name: namedtuple
+    summary: A lightweight, immutable record with named fields.
+    details: "It is still a tuple: it unpacks (`x, y = p`), compares and sorts field by field."
+    example: |-
+      from collections import namedtuple
+
+      Point = namedtuple("Point", ["x", "y"])
+      p = Point(3, 4)
+      print(p)
+      print(p.x + p.y, p[0])   # by name or by index
+      print(sorted([Point(2, 1), Point(1, 5)]))
+    output: |-
+      Point(x=3, y=4)
+      7 3
+      [Point(x=1, y=5), Point(x=2, y=1)]
+    complexity: O(1) field access
+    tip: Immutable and hashable, so it works as a dict key or set member. Use `p._replace(x=0)` to get a modified copy. Nice for readable heap entries or intervals.
+quiz:
+  - id: collections-q1
+    question: What does this print?
+    code: |-
+      from collections import deque
+      d = deque([1, 2, 3])
+      d.appendleft(0)
+      d.pop()
+      print(list(d))
+    options:
+      - "[0, 1, 2]"
+      - "[1, 2, 3]"
+      - "[0, 1, 2, 3]"
+      - "[1, 2]"
+    answer: 0
+    explanation: "`appendleft` adds 0 on the left and `pop` removes from the right (the 3)."
+  - id: collections-q2
+    question: Which call removes the first item of a sequence in O(1)?
+    options:
+      - list.pop(0)
+      - deque.popleft()
+      - del nums[0]
+      - nums = nums[1:]
+    answer: 1
+    explanation: All the list options shift or copy every remaining item, which is O(n). A deque removes from the left in O(1).
+  - id: collections-q3
+    question: What does this print?
+    code: |-
+      from collections import Counter
+      c = Counter("abca")
+      c["a"] -= 2
+      print(len(c), c["z"])
+    options:
+      - 2 0
+      - 3 0
+      - 2 KeyError
+      - 3 None
+    answer: 1
+    explanation: Counting down to 0 keeps the key, so len is still 3. Missing keys read as 0 without raising or being added.
+  - id: collections-q4
+    question: What does this print?
+    code: |-
+      from collections import defaultdict
+      d = defaultdict(list)
+      if d["x"]:
+          print("yes")
+      print(len(d))
+    options:
+      - "0"
+      - "1"
+      - KeyError
+      - yes, then 1
+    answer: 1
+    explanation: Just reading `d["x"]` calls the factory and inserts an empty list, so the dict now has one key.
+  - id: collections-q5
+    question: Which is the right tool for an LRU cache with O(1) get and put?
+    options:
+      - Counter
+      - OrderedDict
+      - heapq
+      - deque(maxlen=k)
+    answer: 1
+    explanation: "`move_to_end` marks a key as recently used and `popitem(last=False)` evicts the oldest, both O(1). A deque cannot move a key from the middle in O(1)."
+  - id: collections-q6
+    question: What does this print?
+    code: |-
+      from collections import Counter
+      a = Counter("aab")
+      b = Counter("abb")
+      print(a - b, a == b)
+    options:
+      - "Counter({'a': 1}) False"
+      - "Counter({'a': 1, 'b': -1}) False"
+      - Counter() True
+      - "Counter({'a': 1}) True"
+    answer: 0
+    explanation: Subtraction keeps only positive counts, so b (1 - 2 = -1) is dropped. The counts differ, so == is False.
+drills:
+  - id: collections-d-deque-both-ends
+    method: collections-deque-ends
+    title: Compare both ends
+    task: "Palindrome check with a deque: remove one letter from **each** end and test whether the two match."
+    setup: |-
+      from collections import deque
+      d = deque("racecar")
+    line: same = ___
+    answer: d.popleft() == d.pop()
+    accept:
+      - d.pop() == d.popleft()
+    decoys:
+      - d[0] == d[-1]
+      - d.popleft() == d.popleft()
+      - d.pop(0) == d.pop()
+    show: (same, "".join(d))
+    expected: (True, 'aceca')
+    hint: A deque has one O(1) method for each end.
+    explain: "`popleft()` and `pop()` each take an item off one end in O(1), so the deque shrinks toward the middle. `d[0] == d[-1]` only peeks and never shrinks, and `deque.pop` takes no index (that is the list habit)."
+  - id: collections-d-bfs-seed
+    method: collections-deque-bfs
+    title: Seed the BFS queue
+    task: "Start a grid BFS from `start`: create a deque that holds exactly one item, the cell `start`."
+    setup: |-
+      from collections import deque
+      start = (0, 0)  # (row, col)
+    line: q = ___
+    answer: deque([start])
+    accept:
+      - deque([(0, 0)])
+      - deque((start,))
+    decoys:
+      - deque(start)
+      - "[start]"
+      - deque().append(start)
+    show: q
+    expected: deque([(0, 0)])
+    hint: "`deque(iterable)` adds every item **of** the iterable. Is `start` the item or the iterable?"
+    explain: "`deque([start])` wraps the cell in a list, so the queue holds one `(0, 0)` item. `deque(start)` unpacks the tuple into two separate ints, and `.append()` returns None."
+  - id: collections-d-deque-rotate
+    method: collections-deque-rotate
+    title: Next player's turn
+    task: 'Round-robin: in one call, move the player at the front to the back so `"bob"` is up next.'
+    setup: |-
+      from collections import deque
+      turns = deque(["ann", "bob", "cy", "dan"])
+    line: ___
+    answer: turns.rotate(-1)
+    accept:
+      - turns.rotate(3)
+      - turns.append(turns.popleft())
+    decoys:
+      - turns.rotate(1)
+      - turns.rotate()
+      - turns.reverse()
+    show: turns
+    expected: deque(['bob', 'cy', 'dan', 'ann'])
+    hint: A positive k rotates to the right. Which way sends the front item to the back?
+    explain: "`rotate(k)` shifts right by k, so `rotate(-1)` shifts left and the front item wraps around to the back. `rotate()` with no argument means k = 1, a right shift."
+  - id: collections-d-deque-maxlen
+    method: collections-deque-maxlen
+    title: Keep the last 3 readings
+    task: Build a deque from `readings` that holds only the 3 most recent values, now **and** after any future `append`.
+    setup: |-
+      from collections import deque
+      readings = [5, 7, 2, 9, 4]
+    line: recent = ___
+    answer: deque(readings, maxlen=3)
+    accept:
+      - deque(readings, 3)
+    decoys:
+      - deque(readings[-3:])
+      - deque(readings[:3], maxlen=3)
+      - deque(maxlen=3)
+    show: recent
+    expected: deque([2, 9, 4], maxlen=3)
+    check: recent == deque([2, 9, 4]) and recent.maxlen == 3
+    hint: A bounded deque drops items from the opposite end once it is full.
+    explain: With `maxlen=3`, loading 5 items keeps only the last 3, and every later `append` drops the oldest in O(1). Slicing gets the right items today but leaves the deque unbounded.
+  - id: collections-d-group-anagrams
+    method: collections-defaultdict-list
+    title: Group anagrams
+    task: Fill in the key so that words made of the same letters land in the same group.
+    setup: |-
+      from collections import defaultdict
+      words = ["eat", "tea", "tan", "ate"]
+      groups = defaultdict(list)
+    line: "for w in words: groups[___].append(w)"
+    answer: '"".join(sorted(w))'
+    accept:
+      - tuple(sorted(w))
+    decoys:
+      - sorted(w)
+      - w
+      - set(w)
+    show: sorted(groups.values())
+    expected: "[['eat', 'tea', 'ate'], ['tan']]"
+    hint: Anagrams look identical once their letters are in order. The key must be hashable.
+    explain: Sorted letters give every anagram the same signature, and `defaultdict(list)` lets you append without checking for the key first. `sorted(w)` returns a list, which cannot be a dict key (TypeError).
+  - id: collections-d-graph-prereqs
+    method: collections-defaultdict-graph
+    title: Build a prerequisite graph
+    task: Each pair `[course, pre]` means `pre` must be taken first. Add a directed edge from `pre` to `course` for every pair.
+    setup: |-
+      from collections import defaultdict
+      prereqs = [[1, 0], [2, 0], [2, 1]]
+      graph = defaultdict(list)
+    line: "for course, pre in prereqs: ___"
+    answer: graph[pre].append(course)
+    accept:
+      - graph[pre] += [course]
+    decoys:
+      - graph[course].append(pre)
+      - graph[pre] = [course]
+      - graph.append((pre, course))
+    show: dict(graph)
+    expected: "{0: [1, 2], 1: [2]}"
+    hint: An edge points from the course you take first to the course it unlocks.
+    explain: A missing `graph[pre]` starts as `[]`, so `append` just works. Assigning `[course]` overwrites earlier edges, and swapping the pair flips every edge, so Course Schedule would explore the wrong direction.
+  - id: collections-d-defaultdict-set
+    method: collections-defaultdict-int-set
+    title: Missing keys start as a set
+    task: Create a mapping where every new key starts as an empty set, so `friends[x].add(y)` works right away and repeats are ignored.
+    setup: from collections import defaultdict
+    line: friends = ___
+    answer: defaultdict(set)
+    accept:
+      - "defaultdict(lambda: set())"
+    decoys:
+      - defaultdict(set())
+      - defaultdict({})
+      - defaultdict(list)
+    show: friends["ann"]
+    expected: set()
+    hint: The argument is a factory that gets **called** once for each missing key.
+    explain: "defaultdict calls the factory with no arguments whenever a key is missing, so pass the type itself: `set`. `set()` is already an instance, not something callable, so it raises TypeError."
+  - id: collections-d-counter-top
+    method: collections-counter
+    title: Most common letter
+    task: Use the Counter to get the single most common letter and its count as a `(letter, count)` tuple.
+    setup: |-
+      from collections import Counter
+      counts = Counter("banana")
+    line: top = ___
+    answer: counts.most_common(1)[0]
+    accept:
+      - "max(counts.items(), key=lambda kv: kv[1])"
+    decoys:
+      - counts.most_common(1)
+      - max(counts)
+      - counts.most_common()[-1]
+    show: top
+    expected: ('a', 3)
+    hint: "`most_common(k)` returns a **list** of the k most frequent `(item, count)` pairs."
+    explain: '`most_common(1)` gives `[("a", 3)]`, a list with one tuple, so index `[0]` to get the pair. `max(counts)` compares the keys alphabetically, not the counts.'
+  - id: collections-d-anagram-equal
+    method: collections-counter-math
+    title: Valid anagram
+    task: Complete the function so it returns True exactly when `a` and `b` use the same letters the same number of times.
+    setup: from collections import Counter
+    line: "is_anagram = lambda a, b: ___"
+    answer: Counter(a) == Counter(b)
+    accept:
+      - sorted(a) == sorted(b)
+    decoys:
+      - set(a) == set(b)
+      - len(a) == len(b)
+      - Counter(a) is Counter(b)
+    show: (is_anagram("listen", "silent"), is_anagram("aab", "abb"))
+    expected: (True, False)
+    hint: Compare how many times each letter appears, not just which letters appear.
+    explain: Two Counters are equal when every letter has the same count, which is exactly the definition of an anagram, in O(n). A set forgets repeats, so "aab" and "abb" would look equal.
+  - id: collections-d-counter-missing
+    method: collections-counter-math
+    title: Letters still missing
+    task: "Ransom Note: `need` counts the letters of the note and `have` the letters of the magazine. Get the letters you are still short of, with how many of each."
+    setup: |-
+      from collections import Counter
+      need = Counter("aabc")
+      have = Counter("abd")
+    line: missing = ___
+    answer: need - have
+    decoys:
+      - have - need
+      - need & have
+      - need.subtract(have)
+    show: missing
+    expected: "Counter({'a': 1, 'c': 1})"
+    hint: Take what you have away from what you need. Counts that drop to 0 or below should vanish.
+    explain: "`need - have` subtracts counts and keeps only the positive ones, so letters you have enough of disappear. `subtract()` works in place and returns None. The note can be built exactly when `not (need - have)`."
+  - id: collections-d-counter-elements
+    method: collections-counter-elements
+    title: Expand counts into items
+    task: "Intersection of Two Arrays II: `both` holds the shared counts. Turn it into a sorted list where each item appears as many times as its count."
+    setup: |-
+      from collections import Counter
+      a, b = [1, 2, 2, 1, 3], [2, 2, 3, 3]
+      both = Counter(a) & Counter(b)
+    line: common = sorted(___)
+    answer: both.elements()
+    accept:
+      - list(both.elements())
+    decoys:
+      - both
+      - both.values()
+      - both.items()
+    show: common
+    expected: "[2, 2, 3]"
+    hint: Looping over a Counter gives each key once. One method repeats each key by its count.
+    explain: "`elements()` yields every key `count` times, so sorting it gives `[2, 2, 3]`. The `&` in the setup keeps the smaller count of each key, which is exactly the overlap of the two arrays."
+  - id: collections-d-lru-touch
+    method: collections-ordereddict
+    title: Mark a key as recently used
+    task: 'LRU Cache: key `"a"` was just read. Make it the most recently used key, which lives at the end of the order.'
+    setup: |-
+      from collections import OrderedDict
+      cache = OrderedDict(a=1, b=2, c=3)
+    line: ___
+    answer: cache.move_to_end("a")
+    accept:
+      - cache["a"] = cache.pop("a")
+    decoys:
+      - cache["a"] = 1
+      - cache.move_to_end("a", last=False)
+      - cache.pop("a")
+    show: list(cache)
+    expected: "['b', 'c', 'a']"
+    hint: Assigning to a key that already exists does not change its position.
+    explain: '`move_to_end(key)` moves a key to the newest end in O(1). Setting `cache["a"] = 1` again keeps its old spot, so the cache would evict the wrong key next.'
+  - id: collections-d-lru-evict
+    method: collections-ordereddict
+    title: Evict the least recently used
+    task: The LRU cache is over capacity. Remove the **oldest** entry and get it back as a `(key, value)` pair.
+    setup: |-
+      from collections import OrderedDict
+      cache = OrderedDict(b=2, c=3, a=1)
+    line: old = ___
+    answer: cache.popitem(last=False)
+    accept:
+      - cache.popitem(False)
+    decoys:
+      - cache.popitem()
+      - cache.pop("b")
+      - next(iter(cache.items()))
+    show: (old, list(cache))
+    expected: (('b', 2), ['c', 'a'])
+    hint: "`popitem()` takes from the newest end unless you tell it otherwise."
+    explain: "`popitem(last=False)` pops from the front, where the least recently used key sits, in O(1). Plain `popitem()` removes the newest key, the opposite of what an LRU cache needs."
+  - id: collections-d-namedtuple
+    method: collections-namedtuple
+    title: Define a record type
+    task: Create a `Point` type with fields `x` and `y`, so that `Point(3, 4).y` reads 4.
+    setup: from collections import namedtuple
+    line: Point = ___
+    answer: namedtuple("Point", "x y")
+    accept:
+      - namedtuple("Point", ["x", "y"])
+      - namedtuple("Point", ("x", "y"))
+      - namedtuple("Point", "x, y")
+    decoys:
+      - namedtuple(["x", "y"])
+      - namedtuple("Point", "x", "y")
+      - namedtuple("x", "y")
+    show: Point(3, 4)
+    expected: Point(x=3, y=4)
+    check: Point(3, 4).y == 4 and Point._fields == ("x", "y")
+    hint: The first argument is the type name; the second lists all the field names.
+    explain: "`namedtuple(name, fields)` builds a tuple subclass with named fields: `p.x` and `p[0]` both work, and it stays immutable and hashable. The fields go in one argument, as a list or a space-separated string."

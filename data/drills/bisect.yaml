@@ -1,0 +1,394 @@
+# Imported from CodeToGo (src/content/python/bisect.ts + drills/bisect.ts).
+# Re-run scripts/import-codetogo.ts to refresh; edits here will be overwritten.
+id: bisect
+title: bisect (Binary Search)
+group: Python
+order: 3
+blurb: O(log n) search and insert positions in sorted lists, without off-by-one bugs.
+intro: '`bisect` gives you a correct binary search in one call. It assumes the list is already sorted and returns an insertion index, which also answers "first item >= x", "last item <= x" and "how many items are in a range".'
+methods:
+  - id: bisect-left-right
+    name: bisect_left(a, x) / bisect_right(a, x)
+    summary: "Where x would be inserted: before (left) or after (right) any equal items."
+    example: |-
+      from bisect import bisect_left, bisect_right
+
+      a = [1, 2, 2, 2, 5]
+      print(bisect_left(a, 2))    # first i with a[i] >= 2
+      print(bisect_right(a, 2))   # first i with a[i] > 2
+      print(bisect_left(a, 3))    # where 3 would go
+    output: |-
+      1
+      4
+      4
+    complexity: O(log n)
+    tip: 'Remember it as: bisect_left = "first >= x", bisect_right = "first > x". `bisect.bisect` is an alias for bisect_right.'
+  - id: bisect-contains
+    name: Is x in a sorted list?
+    summary: bisect_left, then check the index is in range and the item matches.
+    example: |-
+      from bisect import bisect_left
+
+      def contains(a, x):
+          i = bisect_left(a, x)
+          return i < len(a) and a[i] == x
+
+      a = [1, 3, 5, 7]
+      print(contains(a, 5), contains(a, 4), contains(a, 9))
+    output: True False False
+    complexity: O(log n)
+    tip: bisect can return len(a) when x is bigger than everything, so test `i < len(a)` before reading `a[i]`.
+  - id: bisect-insort
+    name: insort(a, x)
+    summary: Insert x and keep the list sorted (after any equal items).
+    example: |-
+      from bisect import insort
+
+      a = [1, 4, 9]
+      insort(a, 5)
+      insort(a, 4)   # goes after the existing 4
+      print(a)
+    output: "[1, 4, 4, 5, 9]"
+    complexity: O(log n) search + O(n) shift = O(n)
+    tip: "The shift makes each insert O(n): fine for small inputs. For many inserts plus order queries, mention a heap or `sortedcontainers.SortedList` (available on LeetCode, not in the stdlib)."
+  - id: bisect-range-count
+    name: Count items in a range
+    summary: bisect_right(hi) - bisect_left(lo) counts values in [lo, hi].
+    example: |-
+      from bisect import bisect_left, bisect_right
+
+      a = [1, 3, 3, 5, 8, 10]
+      lo, hi = 3, 8
+      print(bisect_right(a, hi) - bisect_left(a, lo))
+      print(bisect_right(a, 3) - bisect_left(a, 3))  # 3s
+    output: |-
+      4
+      2
+    complexity: O(log n) per query
+    tip: Sort once in O(n log n), then answer each range or frequency query in O(log n). The second line is "how many times does x occur?" in a sorted array.
+  - id: bisect-first-last
+    name: First >= x / last <= x
+    summary: Turn insertion points into the boundary indexes you actually want.
+    details: |-
+      - first >= x: `bisect_left(a, x)`
+      - first > x: `bisect_right(a, x)`
+      - last < x: `bisect_left(a, x) - 1`
+      - last <= x: `bisect_right(a, x) - 1`
+    example: |-
+      from bisect import bisect_left, bisect_right
+
+      a = [2, 4, 4, 7, 9]
+      i = bisect_left(a, 5)        # first a[i] >= 5
+      print(i, a[i])
+      j = bisect_right(a, 5) - 1   # last a[j] <= 5
+      print(j, a[j])
+      print(bisect_left(a, 4) - 1) # last a[j] < 4
+    output: |-
+      3 7
+      2 4
+      0
+    complexity: O(log n)
+    tip: "Always guard the edges: `i == len(a)` means nothing is >= x, and `j == -1` means nothing is <= x (a[-1] would silently read the last item)."
+  - id: bisect-key
+    name: bisect with key= (3.10+)
+    summary: Search a list of records sorted by one field.
+    details: The key is applied to the list items only, not to x, so pass the already-extracted value.
+    example: |-
+      from bisect import bisect_left
+
+      events = [(1, "a"), (4, "b"), (6, "c")]  # by time
+      i = bisect_left(events, 5, key=lambda e: e[0])
+      print(i, events[i])
+      print(bisect_left(events, (5,)))  # pre-3.10 way
+    output: |-
+      2 (6, 'c')
+      2
+    complexity: O(log n)
+    tip: Without key=, search tuples with a short sentinel like `(5,)`, or keep a parallel list of the sort keys. This is the core of Time Based Key-Value Store.
+  - id: bisect-lower-bound
+    name: Hand-written lower bound
+    summary: The loop behind bisect_left, for when you must write it yourself.
+    example: |-
+      def lower_bound(a, x):
+          lo, hi = 0, len(a)      # answer is in [0, len(a)]
+          while lo < hi:
+              mid = (lo + hi) // 2
+              if a[mid] < x:
+                  lo = mid + 1    # mid is too small
+              else:
+                  hi = mid        # mid might be the answer
+          return lo
+      print(lower_bound([1, 2, 2, 5], 2), lower_bound([1, 2], 9))
+    output: 1 2
+    complexity: O(log n)
+    tip: Change `<` to `<=` and you get bisect_right. Using `hi = len(a)` and `lo < hi` means no +1/-1 juggling and no infinite loops.
+  - id: bisect-answer
+    name: Binary search on the answer
+    summary: Find the first value where a yes/no check flips to True.
+    details: "Works whenever the check is monotonic: False, False, ..., True, True. `range` objects support indexing, so bisect can search them without building a list."
+    example: |-
+      from bisect import bisect_left
+
+      piles, h = [3, 6, 7, 11], 8
+      def ok(k):  # can we finish at speed k?
+          return sum((p + k - 1) // k for p in piles) <= h
+      speeds = range(1, max(piles) + 1)
+      i = bisect_left(speeds, True, key=ok)  # first True
+      print(speeds[i])
+    output: "4"
+    complexity: O(n log m) for m candidate answers
+    tip: 'Koko Eating Bananas, Capacity to Ship Packages and similar "minimum X such that..." problems all follow this shape. In an interview, the hand-written loop with `if ok(mid): hi = mid` is just as good.'
+quiz:
+  - id: bisect-q1
+    question: What does this print?
+    code: |-
+      from bisect import bisect_left, bisect_right
+      a = [1, 3, 3, 3, 6]
+      print(bisect_left(a, 3), bisect_right(a, 3))
+    options:
+      - 1 4
+      - 1 3
+      - 2 4
+      - 0 3
+    answer: 0
+    explanation: bisect_left returns the first 3 (index 1); bisect_right returns the index just past the last 3 (index 4).
+  - id: bisect-q2
+    question: What does this print?
+    code: |-
+      from bisect import bisect_left
+      a = [10, 20, 30]
+      print(bisect_left(a, 35))
+    options:
+      - "2"
+      - "3"
+      - "-1"
+      - IndexError
+    answer: 1
+    explanation: A value bigger than everything goes at len(a), so check `i < len(a)` before reading `a[i]`.
+  - id: bisect-q3
+    question: Which expression counts values in sorted `a` with lo <= v <= hi?
+    options:
+      - bisect_right(a, hi) - bisect_left(a, lo)
+      - bisect_left(a, hi) - bisect_left(a, lo)
+      - bisect_right(a, hi) - bisect_right(a, lo)
+      - bisect_left(a, hi) - bisect_right(a, lo)
+    answer: 0
+    explanation: bisect_right(a, hi) is one past the last value <= hi, and bisect_left(a, lo) is the first value >= lo.
+  - id: bisect-q4
+    question: What does this print?
+    code: |-
+      from bisect import insort
+      a = [5, 1, 3]
+      insort(a, 2)
+      print(a)
+    options:
+      - "[1, 2, 3, 5]"
+      - "[5, 1, 2, 3]"
+      - "[2, 5, 1, 3]"
+      - ValueError
+    answer: 1
+    explanation: bisect never checks that the list is sorted. On unsorted input it still binary-searches and inserts at a meaningless spot.
+  - id: bisect-q5
+    question: What does this print?
+    code: |-
+      from bisect import bisect_right
+      a = [2, 4, 6, 8]
+      i = bisect_right(a, 5) - 1
+      print(a[i])
+    options:
+      - "4"
+      - "6"
+      - "5"
+      - "2"
+    answer: 0
+    explanation: bisect_right(a, 5) - 1 is the last index with a value <= 5, which holds 4.
+  - id: bisect-q6
+    question: What is the time cost of insort on a list of n items?
+    options:
+      - O(log n)
+      - O(n)
+      - O(n log n)
+      - O(1)
+    answer: 1
+    explanation: Finding the spot is O(log n), but inserting into a Python list shifts the later items, which is O(n).
+drills:
+  - id: bisect-d-first-index
+    method: bisect-left-right
+    title: First position of a value
+    task: Find the index of the **first** `2` in the sorted list in O(log n).
+    setup: |-
+      from bisect import bisect_left, bisect_right
+      a = [1, 2, 2, 2, 5]
+    line: i = ___
+    answer: bisect_left(a, 2)
+    decoys:
+      - bisect_right(a, 2)
+      - bisect_left(2, a)
+      - bisect_right(a, 2) - 1
+    show: i
+    expected: "1"
+    hint: Of the two insertion points, one lands **before** all the equal items.
+    explain: "`bisect_left` returns the first index whose value is >= x, which is the first copy of x when x is present. `bisect_right` lands just past the last copy."
+  - id: bisect-d-count-le
+    method: bisect-left-right
+    title: How many scores are <= 60
+    task: Count the scores that are less than or equal to 60 with a single binary search.
+    setup: |-
+      from bisect import bisect_left, bisect_right
+      scores = [50, 60, 60, 70, 90]
+    line: n = ___
+    answer: bisect_right(scores, 60)
+    decoys:
+      - bisect_left(scores, 60)
+      - bisect_right(scores, 60) - 1
+      - scores.count(60)
+    show: n
+    expected: "3"
+    hint: The insertion point after every 60 is also the number of items <= 60.
+    explain: In a sorted list, the index where x would go after its equal items equals how many items are <= x. `bisect_left` would count only the items < 60.
+  - id: bisect-d-contains
+    method: bisect-contains
+    title: Is it in the sorted list?
+    task: For each query `x` with insertion point `i`, decide whether `x` is really in `a`, without reading past the end of the list.
+    setup: |-
+      from bisect import bisect_left
+      a, qs = [1, 3, 5, 7], [5, 4, 9]
+      idx = [bisect_left(a, x) for x in qs]
+    line: found = [___ for x, i in zip(qs, idx)]
+    answer: i < len(a) and a[i] == x
+    accept:
+      - i != len(a) and a[i] == x
+      - a[i:i + 1] == [x]
+    decoys:
+      - a[i] == x
+      - i < len(a)
+      - a[i - 1] == x
+    show: found
+    expected: "[True, False, False]"
+    hint: "`bisect_left` returns `len(a)` when `x` is bigger than everything."
+    explain: The insertion point only says where `x` would go; you still have to check the item there. Test `i < len(a)` first so the short-circuit `and` never reads `a[i]` out of range.
+  - id: bisect-d-insort
+    method: bisect-insort
+    title: Insert and stay sorted
+    task: Add the new score `30` to the sorted list `scores` so it stays sorted, without re-sorting.
+    setup: |-
+      from bisect import insort
+      scores = [10, 20, 40, 50]
+    line: ___
+    answer: insort(scores, 30)
+    decoys:
+      - scores.append(30)
+      - insort(30, scores)
+      - scores = insort(scores, 30)
+    show: scores
+    expected: "[10, 20, 30, 40, 50]"
+    hint: It takes the list first, then the value, and changes the list in place.
+    explain: "`insort` finds the spot with a binary search (O(log n)), but shifting the later items makes it O(n) overall. Like `list.sort`, it returns None, so never assign its result."
+  - id: bisect-d-range-count
+    method: bisect-range-count
+    title: Count values in [lo, hi]
+    task: Count how many values in the sorted list `a` fall in the inclusive range `[lo, hi]`.
+    setup: |-
+      from bisect import bisect_left, bisect_right
+      a = [1, 3, 3, 5, 8, 8, 10]
+      lo, hi = 3, 8
+    line: n = ___ - bisect_left(a, lo)
+    answer: bisect_right(a, hi)
+    decoys:
+      - bisect_left(a, hi)
+      - bisect_right(a, lo)
+      - bisect_right(a, hi) - 1
+    show: n
+    expected: "5"
+    hint: "`hi` is included, so you need the position just past its **last** copy."
+    explain: "`bisect_right(a, hi)` is one past the last value <= hi, and `bisect_left(a, lo)` is the first value >= lo, so the difference counts everything in between, in O(log n)."
+  - id: bisect-d-last-le
+    method: bisect-first-last
+    title: Last value <= x
+    task: Find the index of the **last** value that is <= `x` (the "floor" lookup behind Time Based Key-Value Store).
+    setup: |-
+      from bisect import bisect_left, bisect_right
+      a, x = [2, 4, 4, 7, 9], 4
+    line: j = ___
+    answer: bisect_right(a, x) - 1
+    decoys:
+      - bisect_right(a, x)
+      - bisect_left(a, x) - 1
+      - bisect_left(a, x)
+    show: (j, a[j])
+    expected: (2, 4)
+    hint: Find the first index with a value > x, then step back one.
+    explain: "`bisect_right` lands just past the last copy of x, so one step left is the last value <= x. A result of -1 means nothing is <= x: guard it, because `a[-1]` would silently read the last item."
+  - id: bisect-d-key
+    method: bisect-key
+    title: Search records by time
+    task: "`ev` is sorted by time, its first field. Find the index of the first event at time >= 5 by passing a `key` function."
+    setup: |-
+      from bisect import bisect_left
+      ev = [(1, "a"), (4, "b"), (6, "c")]
+    line: i = bisect_left(ev, 5, key=___)
+    answer: "lambda e: e[0]"
+    accept:
+      - operator.itemgetter(0)
+    decoys:
+      - "lambda e: e[1]"
+      - "lambda e: e"
+      - "0"
+    show: (i, ev[i])
+    expected: (2, (6, 'c'))
+    hint: The key is applied to each list item, not to the `5` you search for.
+    explain: With `key=` (Python 3.10+), bisect compares `key(item)` with x, so x must already be a time. Before 3.10 you would search for a short tuple like `(5,)` or keep a separate list of times.
+  - id: bisect-d-mid
+    method: bisect-lower-bound
+    title: The middle index
+    task: In a hand-written binary search, compute the middle index between `lo` and `hi` as an int.
+    setup: lo, hi = 3, 8
+    line: mid = ___
+    answer: (lo + hi) // 2
+    accept:
+      - lo + (hi - lo) // 2
+    decoys:
+      - (lo + hi) / 2
+      - lo + hi // 2
+      - (hi - lo) // 2
+    show: mid
+    expected: "5"
+    hint: Python has two division operators, and only one of them gives an int.
+    explain: "`//` floors to an int, so `a[mid]` works; `/` gives 5.5 and indexing with it raises TypeError. Mind precedence too: `lo + hi // 2` divides only `hi`. Python ints never overflow, so `(lo + hi) // 2` is safe."
+  - id: bisect-d-shrink-hi
+    method: bisect-lower-bound
+    title: Keep mid as a candidate
+    task: "Hand-written lower bound for `x = 4`: `a[mid]` is 5, which is >= x, so `mid` itself might be the answer. Move `hi` without losing it."
+    setup: |-
+      a, x = [1, 3, 5, 7, 9], 4
+      lo, hi = 0, len(a)
+      mid = (lo + hi) // 2  # a[mid] == 5
+    line: hi = ___
+    answer: mid
+    decoys:
+      - mid - 1
+      - mid + 1
+      - lo
+    show: (lo, hi)
+    expected: (0, 2)
+    hint: The answer is `mid` or something to its left.
+    explain: The loop keeps the answer within `lo..hi`. Since `a[mid] >= x`, the answer is `mid` or to its left, so `hi = mid`; `mid - 1` could skip it. The other branch (`a[mid] < x`) sets `lo = mid + 1`.
+  - id: bisect-d-on-answer
+    method: bisect-answer
+    title: Slowest speed that works
+    task: "Koko Eating Bananas: `ok(k)` is False for slow speeds and True from some speed on. Find the index of the first speed in `ks` where `ok` is True."
+    setup: |-
+      from bisect import bisect_left
+      piles, h = [3, 6, 7, 11], 8
+      ok = lambda k: sum((p + k - 1) // k for p in piles) <= h
+      ks = range(1, 12)  # candidate speeds
+    line: k = ks[___]
+    answer: bisect_left(ks, True, key=ok)
+    decoys:
+      - bisect_left(ks, True)
+      - bisect_right(ks, True, key=ok)
+      - bisect_left(ks, False, key=ok)
+    show: k
+    expected: "4"
+    hint: Mapped through `ok`, the speeds look like `False, ..., False, True, ...`. Search that for `True`.
+    explain: With `key=ok`, bisect treats the speeds as a sorted run of booleans and finds the first True with O(log m) checks. A `range` supports indexing, so no list is built.

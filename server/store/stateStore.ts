@@ -1,6 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { AppSettings, AppState, ProblemProgress, ProgressPatch, RunResponse } from "../../shared/api.ts";
+import type { AppSettings, AppState, DrillDay, DrillReviewRequest, DrillReviewResponse, ProblemProgress, ProgressPatch, RunResponse } from "../../shared/api.ts";
+import { dayKey, review, type CardState } from "../../shared/srs.ts";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "dark",
@@ -22,6 +23,18 @@ export function emptyProgress(): ProblemProgress {
 }
 
 const MAX_HISTORY = 50;
+
+function normalizeState(raw: Partial<AppState>): AppState {
+  const problems: Record<string, ProblemProgress> = {};
+  for (const [slug, p] of Object.entries(raw.problems ?? {})) problems[slug] = { ...emptyProgress(), ...p };
+  return {
+    version: 1,
+    problems,
+    settings: { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) },
+    drills: { ...(raw.drills ?? {}) },
+    drillDays: { ...(raw.drillDays ?? {}) },
+  };
+}
 const MAX_CUSTOM_TESTS = 10;
 const BACKUPS_TO_KEEP = 7;
 
@@ -43,17 +56,14 @@ export class StateStore {
   }
 
   private load(): AppState {
-    if (!existsSync(this.file)) return { version: 1, problems: {}, settings: { ...DEFAULT_SETTINGS } };
+    if (!existsSync(this.file)) return normalizeState({});
     try {
-      const raw = JSON.parse(readFileSync(this.file, "utf8")) as Partial<AppState>;
-      const problems: Record<string, ProblemProgress> = {};
-      for (const [slug, p] of Object.entries(raw.problems ?? {})) problems[slug] = { ...emptyProgress(), ...p };
-      return { version: 1, problems, settings: { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) } };
+      return normalizeState(JSON.parse(readFileSync(this.file, "utf8")) as Partial<AppState>);
     } catch (e) {
       const corrupt = `${this.file}.corrupt-${Date.now()}`;
       copyFileSync(this.file, corrupt);
       console.error(`[state] Could not parse ${this.file} (${(e as Error).message}). A copy was saved to ${corrupt}; starting fresh.`);
-      return { version: 1, problems: {}, settings: { ...DEFAULT_SETTINGS } };
+      return normalizeState({});
     }
   }
 
@@ -171,6 +181,40 @@ export class StateStore {
     return emptyProgress();
   }
 
+  /** Record one drill answer: updates the card's spaced-repetition state and today's tally. */
+  recordDrill(req: DrillReviewRequest, now = new Date()): DrillReviewResponse {
+    const fastSeconds = req.kind === "drill" ? 10 : 6;
+    const card: CardState = review(this.state.drills[req.cardId], { correct: req.correct, ms: req.ms, assisted: req.assisted, fastSeconds }, now);
+    this.state.drills[req.cardId] = card;
+    const key = dayKey(now);
+    const prev: DrillDay = this.state.drillDays[key] ?? { reviewed: 0, correct: 0, ms: 0 };
+    const day: DrillDay = {
+      ...prev,
+      reviewed: prev.reviewed + 1,
+      correct: prev.correct + (req.correct ? 1 : 0),
+      ms: prev.ms + Math.max(0, Math.min(req.ms, 120_000)),
+    };
+    this.state.drillDays[key] = day;
+    this.scheduleSave();
+    return { card, day };
+  }
+
+  /** Store a speed-round score if it beats today's best. */
+  recordSprint(score: number, now = new Date()): DrillDay {
+    const key = dayKey(now);
+    const prev: DrillDay = this.state.drillDays[key] ?? { reviewed: 0, correct: 0, ms: 0 };
+    const day = { ...prev, bestSprint: Math.max(prev.bestSprint ?? 0, score) };
+    this.state.drillDays[key] = day;
+    this.scheduleSave();
+    return day;
+  }
+
+  resetDrills() {
+    this.state.drills = {};
+    this.state.drillDays = {};
+    this.scheduleSave();
+  }
+
   patchSettings(patch: Partial<AppSettings>): AppSettings {
     this.state.settings = { ...this.state.settings, ...patch };
     this.scheduleSave();
@@ -180,9 +224,7 @@ export class StateStore {
   /** Replace everything (import). The previous state is backed up first. */
   replace(next: AppState) {
     if (existsSync(this.file)) copyFileSync(this.file, path.join(this.dir, `state.before-import-${Date.now()}.json`));
-    const problems: Record<string, ProblemProgress> = {};
-    for (const [slug, p] of Object.entries(next.problems ?? {})) problems[slug] = { ...emptyProgress(), ...p };
-    this.state = { version: 1, problems, settings: { ...DEFAULT_SETTINGS, ...(next.settings ?? {}) } };
+    this.state = normalizeState(next);
     this.flush();
   }
 }

@@ -72,13 +72,20 @@ def make_namespace():
     exec(
         "from typing import *\n"
         "import collections, heapq, math, bisect, itertools, functools, string, re, random, operator\n"
-        "from collections import deque, defaultdict, Counter, OrderedDict\n"
-        "from functools import lru_cache, reduce\n"
-        "from heapq import heappush, heappop, heapify\n"
-        "from math import inf\n"
-        "try:\n    from functools import cache\nexcept ImportError:\n    pass\n",
+        "from collections import deque, defaultdict, Counter, OrderedDict, namedtuple\n"
+        "from heapq import heappush, heappop, heapify, heappushpop, heapreplace, nlargest, nsmallest\n"
+        "from functools import lru_cache, reduce, cmp_to_key\n"
+        "from itertools import accumulate, permutations, combinations, combinations_with_replacement, product, groupby, chain, zip_longest\n"
+        "from bisect import bisect_left, bisect_right, insort\n"
+        "from math import inf, gcd, sqrt, ceil, floor, log2, comb, factorial, isqrt\n",
         ns,
     )
+    # Newer names, imported only when this Python has them (3.9+: cache, 3.10+: pairwise).
+    for module, name in (("functools", "cache"), ("itertools", "pairwise")):
+        try:
+            ns[name] = getattr(__import__(module), name)
+        except AttributeError:
+            pass
     ns["ListNode"] = structures.ListNode
     ns["TreeNode"] = structures.TreeNode
     ns["Node"] = structures.Node

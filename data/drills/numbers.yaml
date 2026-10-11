@@ -1,0 +1,453 @@
+# Imported from CodeToGo (src/content/python/numbers.ts + drills/numbers.ts).
+# Re-run scripts/import-codetogo.ts to refresh; edits here will be overwritten.
+id: numbers
+title: Math & Bits
+group: Python
+order: 11
+blurb: Floor division, modulo, big ints and bit tricks.
+intro: "Python ints never overflow, and `//` rounds toward negative infinity: two differences from Java and C++ that show up in interviews. Bit operators work as usual, except negative numbers act like they have infinitely many leading 1 bits."
+methods:
+  - id: numbers-floordiv-mod
+    name: a // b and a % b
+    summary: Floor division and modulo (they round toward -infinity).
+    example: |-
+      print(7 // 2, 7 % 2)
+      print(-7 // 2, -7 % 2)    # floors toward -inf
+      print(int(-7 / 2))        # truncates toward 0
+      print(7 / 2, 6 / 2)       # / always gives a float
+      print(-1 % 5)             # wraps: handy for cycles
+    output: |-
+      3 1
+      -4 1
+      -3
+      3.5 3.0
+      4
+    complexity: O(1)
+    tip: "`-7 // 2` is -4 in Python but -3 in Java/C++. For C-style truncation (e.g. Evaluate Reverse Polish Notation) use `int(a / b)`. The result of `%` takes the sign of the divisor."
+  - id: numbers-inf
+    name: math.inf / float('inf')
+    summary: A float larger than every number, for initial minimums and distances.
+    example: |-
+      import math
+      print(math.inf > 10**18, -math.inf < -10**18)
+      print(math.inf == float('inf'))
+      print(math.inf + 1, math.inf - math.inf)
+      dist = [math.inf] * 3     # Dijkstra start
+      dist[0] = 0
+      print(dist)
+    output: |-
+      True True
+      True
+      inf nan
+      [0, inf, inf]
+    complexity: O(1)
+    tip: "`inf` is a float, so convert unreachable results before returning: `return -1 if d == math.inf else d`."
+  - id: numbers-gcd-isqrt
+    name: math.gcd / math.lcm / math.isqrt
+    summary: Greatest common divisor, least common multiple and exact integer square root.
+    example: |-
+      import math
+      print(math.gcd(12, 18), math.lcm(4, 6))
+      print(math.isqrt(17), math.isqrt(16))  # floor
+      print(math.sqrt(16))                   # a float
+      n = 49
+      print(math.isqrt(n) ** 2 == n)         # square?
+    output: |-
+      6 12
+      4 4
+      4.0
+      True
+    complexity: gcd O(log min(a, b))
+    tip: "`math.isqrt` is exact for huge ints, while `int(math.sqrt(n))` can be off by one from float rounding. For divisor loops, use `while i * i <= n`."
+  - id: numbers-pow-mod
+    name: pow(a, b, mod)
+    summary: Fast modular exponentiation.
+    example: |-
+      MOD = 10**9 + 7
+      print(pow(2, 10))
+      print(pow(2, 100, MOD))    # fast, stays small
+      print(pow(3, -1, 7))       # modular inverse
+      print(2 ** 100 % MOD == pow(2, 100, MOD))
+    output: |-
+      1024
+      976371285
+      5
+      True
+    complexity: O(log b) multiplications
+    tip: Three-argument `pow` squares and reduces at each step instead of building a huge number first. In DP problems that say "modulo 10^9 + 7", apply `% MOD` after every addition.
+  - id: numbers-round
+    name: round() and banker's rounding
+    summary: "`round` sends halves to the nearest EVEN number."
+    example: |-
+      import math
+      print(round(0.5), round(1.5), round(2.5))
+      print(round(2.675, 2))       # float error
+      print(math.floor(2.5), math.ceil(2.1))
+      print(math.floor(-2.5), int(-2.5))
+      print(-(-7 // 2))            # ceil division
+    output: |-
+      0 2 2
+      2.67
+      2 3
+      -3 -2
+      4
+    complexity: O(1)
+    tip: Do not use `round` for ceiling division. With ints, use `-(-a // b)` or `(a + b - 1) // b` for positive values - no floats needed.
+  - id: numbers-bigint
+    name: arbitrary-precision ints
+    summary: Python ints grow as needed and never overflow.
+    example: |-
+      import math
+      print(2 ** 100)
+      x = 10**18 * 10**18       # no overflow
+      print(len(str(x)))
+      print(2**63 - 1)          # Java's Long.MAX_VALUE
+      print(math.factorial(20))
+    output: |-
+      1267650600228229401496703205376
+      37
+      9223372036854775807
+      2432902008176640000
+    complexity: O(1) for small ints, grows with digit count
+    tip: No overflow means no long/BigInteger juggling. But problems that say "fits in a 32-bit int" (like Reverse Integer) still expect you to check the range `-2**31 <= x < 2**31` yourself.
+  - id: numbers-bitwise
+    name: "& | ^ ~ << >>"
+    summary: AND, OR, XOR, NOT and shifts on integers.
+    example: |-
+      a, b = 0b1100, 0b1010      # 12, 10
+      print(a & b, a | b, a ^ b)
+      print(~5)                    # -(5 + 1)
+      print(1 << 4, 40 >> 2)       # *16, //4
+      print(f'{a & b:04b}')
+    output: |-
+      8 14 6
+      -6
+      16 10
+      1000
+    complexity: O(1) for machine-size ints
+    tip: "`~x` equals `-x - 1`. `x << k` multiplies by 2^k and `x >> k` floor-divides by 2^k, even for negatives. `1 << k` builds a mask with only bit k set."
+  - id: numbers-bit-tricks
+    name: n & 1, n & (n - 1), bit_count()
+    summary: Test parity, drop the lowest set bit and count 1 bits.
+    example: |-
+      n = 12                     # 0b1100
+      print(n & 1)               # 0 means even
+      print(bin(n & (n - 1)))    # lowest 1 bit dropped
+      print(n & -n)              # lowest 1 bit alone
+      print(n.bit_count(), bin(n).count('1'))
+      x = 16
+      print(x > 0 and x & (x - 1) == 0)   # power of 2
+    output: |-
+      0
+      0b1000
+      4
+      2 2
+      True
+    complexity: O(1)
+    tip: A loop of `n &= n - 1` runs once per set bit (Number of 1 Bits). `int.bit_count()` (Python 3.10+) is the one-liner, and `(x >> i) & 1` reads bit i.
+  - id: numbers-xor
+    name: "XOR tricks: x ^ x == 0"
+    summary: XOR cancels pairs, so it finds the odd one out.
+    example: |-
+      print(7 ^ 7, 7 ^ 0)      # x^x = 0, x^0 = x
+      res = 0
+      for x in [4, 1, 2, 1, 2]:
+          res ^= x             # pairs cancel out
+      print(res)               # Single Number
+      arr = [0, 1, 3]          # 0..3, one missing
+      miss = len(arr)
+      for i, x in enumerate(arr):
+          miss ^= i ^ x        # i and x pair up
+      print(miss)              # Missing Number
+    output: |-
+      0 7
+      4
+      2
+    complexity: O(n) time, O(1) space
+    tip: "XOR is its own inverse and order does not matter, so XOR-ing everything leaves only the unpaired value. Classic uses: Single Number and Missing Number."
+  - id: numbers-mask32
+    name: 32-bit masking with 0xFFFFFFFF
+    summary: Simulate fixed-width 32-bit integers.
+    example: |-
+      MASK = 0xFFFFFFFF
+      print(-1 & MASK)            # as unsigned 32-bit
+      print(hex(-2 & MASK))
+      u = 0xFFFFFFFE              # back to signed:
+      print(u if u <= 0x7FFFFFFF else ~(u ^ MASK))
+      print(-5 >> 1, -1 >> 10)    # sign-extends
+    output: |-
+      4294967295
+      0xfffffffe
+      -2
+      -3 -1
+    complexity: O(1)
+    tip: Python ints are unbounded, so a negative number has endless leading 1s. In Sum of Two Integers, mask with `0xFFFFFFFF` every step and convert back with `~(x ^ MASK)` when bit 31 is set.
+quiz:
+  - id: numbers-q1
+    question: What does this print?
+    code: print(-7 // 2, -7 % 2)
+    options:
+      - -3 -1
+      - -4 1
+      - -3 1
+      - -4 -1
+    answer: 1
+    explanation: "`//` floors toward negative infinity, giving -4, and `%` then makes `-4 * 2 + r == -7`, so r is 1."
+  - id: numbers-q2
+    question: What does this print?
+    code: print(round(2.5), round(3.5))
+    options:
+      - 3 4
+      - 2 4
+      - 2 3
+      - 3 3
+    answer: 1
+    explanation: "Python uses banker's rounding: an exact half goes to the nearest even number."
+  - id: numbers-q3
+    question: You need C-style division that truncates toward zero (e.g. Evaluate Reverse Polish Notation). Which expression?
+    options:
+      - a // b
+      - int(a / b)
+      - round(a / b)
+      - math.floor(a / b)
+    answer: 1
+    explanation: "`//` and `math.floor` round toward negative infinity (`-7 // 2` is -4), while `int(a / b)` drops the fraction, giving -3."
+  - id: numbers-q4
+    question: What does this print?
+    code: |-
+      n = 40
+      print(n & (n - 1), n & 1)
+    options:
+      - 32 0
+      - 39 0
+      - 8 1
+      - 32 1
+    answer: 0
+    explanation: 40 is 101000; `n & (n - 1)` clears the lowest set bit, leaving 100000 = 32. The last bit is 0, so 40 is even.
+  - id: numbers-q5
+    question: What does this print?
+    code: print(~0, 5 ^ 5 ^ 9)
+    options:
+      - -1 9
+      - 1 9
+      - 0 9
+      - -1 0
+    answer: 0
+    explanation: "`~x` is `-x - 1`, so `~0` is -1. `5 ^ 5` cancels to 0, leaving 9."
+  - id: numbers-q6
+    question: What does this print?
+    code: print(2 ** 64 > 10 ** 19)
+    options:
+      - "True"
+      - "False"
+      - OverflowError
+    answer: 0
+    explanation: Python ints have arbitrary precision; 2^64 is about 1.8 * 10^19 and never overflows.
+drills:
+  - id: numbers-d-truncate-div
+    method: numbers-floordiv-mod
+    title: Divide like Java
+    task: Evaluate Reverse Polish Notation divides by truncating toward zero. Compute `a / b` that way, as an int.
+    setup: a, b = -7, 2
+    line: q = ___
+    answer: int(a / b)
+    accept:
+      - math.trunc(a / b)
+    decoys:
+      - a // b
+      - round(a / b)
+      - math.floor(a / b)
+    show: q
+    expected: "-3"
+    hint: Python's `//` rounds toward negative infinity, which is not the same for negative results.
+    explain: "`-7 // 2` is -4 because `//` floors. `a / b` gives -3.5 and `int()` drops the fraction toward zero, giving -3. `round(-3.5)` is -4 because halves go to the even number."
+  - id: numbers-d-mod-wrap
+    method: numbers-floordiv-mod
+    title: Step back around a circle
+    task: In a circular array of size `n`, find the index just before `i`. Index 0 should wrap to the last index.
+    setup: |-
+      n = 5
+      i = 0
+    line: prev = ___
+    answer: (i - 1) % n
+    accept:
+      - (i + n - 1) % n
+      - (i - 1 + n) % n
+    decoys:
+      - i - 1 % n
+      - abs(i - 1) % n
+      - (i - 1) // n
+    show: prev
+    expected: "4"
+    hint: In Python the result of `%` takes the sign of the divisor, so it is never negative here.
+    explain: "`-1 % 5` is 4 in Python, so `(i - 1) % n` wraps automatically (in Java it would be -1). Without parentheses `%` binds tighter than `-`, so `i - 1 % n` is just `i - 1`."
+  - id: numbers-d-inf-default
+    method: numbers-inf
+    title: Unvisited means infinitely far
+    task: Look up the distance to node `"C"`. Nodes missing from `dist` should count as infinitely far away.
+    setup: |-
+      import math
+      dist = {"A": 0, "B": 4}
+    line: d = dist.get("C", ___)
+    answer: math.inf
+    accept:
+      - float("inf")
+      - inf
+    decoys:
+      - '"inf"'
+      - 10**9
+      - float("-inf")
+    show: d
+    expected: inf
+    hint: You need a number that is larger than every real distance, not a string.
+    explain: '`math.inf` (same as `float("inf")`) compares greater than every int, so `min(d, new_d)` always prefers a real path. `"inf"` is a string, and a large constant like `10**9` breaks if real distances can exceed it.'
+  - id: numbers-d-isqrt
+    method: numbers-gcd-isqrt
+    title: Exact square root of a huge int
+    task: Get the floor of the square root of `n` exactly. Floats keep only about 16 significant digits.
+    setup: |-
+      import math
+      n = 10**30 - 1
+    line: r = ___
+    answer: math.isqrt(n)
+    decoys:
+      - int(math.sqrt(n))
+      - int(n ** 0.5)
+      - math.sqrt(n)
+    show: r
+    expected: "999999999999999"
+    hint: "Avoid floats entirely: `math` has an integer-only square root."
+    explain: '`math.isqrt` works on ints and is exact at any size. `math.sqrt` first converts `n` to a float, which rounds 10^30 - 1 up to 10^30, so the "floor" comes out as 10^15, one too high.'
+  - id: numbers-d-pow-inverse
+    method: numbers-pow-mod
+    title: Divide by 2 under a modulus
+    task: Under the prime `MOD`, dividing by 2 means multiplying by the modular inverse of 2. Compute that inverse.
+    setup: MOD = 10**9 + 7
+    line: inv = ___
+    answer: pow(2, -1, MOD)
+    accept:
+      - pow(2, MOD - 2, MOD)
+      - (MOD + 1) // 2
+    decoys:
+      - MOD // 2
+      - 1 / 2 % MOD
+      - pow(2, MOD, -1)
+    show: inv
+    expected: "500000004"
+    check: inv == 500000004 and 2 * inv % MOD == 1
+    hint: Three-argument `pow` accepts an exponent of -1 (Python 3.8+).
+    explain: "`pow(a, -1, m)` returns x with `a * x % m == 1`; for a prime m, `pow(a, m - 2, m)` gives the same by Fermat. Both run in O(log m) because three-argument `pow` reduces after every multiplication."
+  - id: numbers-d-ceil-div
+    method: numbers-round
+    title: Pages needed, no floats
+    task: Each page holds `k` items. For every count `n`, compute how many pages are needed (round up) using only ints.
+    setup: |-
+      k = 2
+      items = [5, 4, 9]
+    line: pages = [___ for n in items]
+    answer: -(-n // k)
+    accept:
+      - (n + k - 1) // k
+      - math.ceil(n / k)
+    decoys:
+      - round(n / k)
+      - n // k + 1
+      - -n // k
+    show: pages
+    expected: "[3, 2, 5]"
+    hint: Floor-dividing a negated number and negating back rounds the other way.
+    explain: "`-(-n // k)` is ceiling division with exact int math. `round` sends halves to the even number, so `round(4.5)` is 4, and `n // k + 1` overshoots when `k` divides `n` evenly."
+  - id: numbers-d-int32-range
+    method: numbers-bigint
+    title: Does it fit in 32 bits?
+    task: "Python never overflows, so check it yourself: is each value inside the signed 32-bit range?"
+    setup: vals = [2**31 - 1, 2**31, -2**31]
+    line: ok = [___ for x in vals]
+    answer: -2**31 <= x < 2**31
+    accept:
+      - -2**31 <= x <= 2**31 - 1
+      - -(2**31) <= x < 2**31
+    decoys:
+      - -2**31 < x < 2**31
+      - -2**31 <= x <= 2**31
+      - abs(x) < 2**31
+    show: ok
+    expected: "[True, False, True]"
+    hint: "The range is asymmetric: one more negative value than positive."
+    explain: A signed 32-bit int spans -2^31 through 2^31 - 1. Problems like Reverse Integer expect you to return 0 outside that range, since Python itself would happily keep the bigger number. `abs(x)` wrongly rejects -2^31.
+  - id: numbers-d-read-bits
+    method: numbers-bitwise
+    title: Read each bit
+    task: List the lowest 5 bits of `n` as 0/1 ints, starting from bit 0.
+    setup: n = 0b10110
+    line: bits = [___ for i in range(5)]
+    answer: (n >> i) & 1
+    accept:
+      - n >> i & 1
+      - 1 if n & (1 << i) else 0
+    decoys:
+      - n & (1 << i)
+      - (n << i) & 1
+      - n & i
+    show: bits
+    expected: "[0, 1, 1, 0, 1]"
+    hint: Move bit `i` down to position 0, then keep only that position.
+    explain: "`n >> i` shifts bit `i` into the lowest place and `& 1` masks off everything else. `n & (1 << i)` tests the bit but returns its value (2, 4, 16...), not 0 or 1."
+  - id: numbers-d-power-of-two
+    method: numbers-bit-tricks
+    title: Power of two test
+    task: For each `n`, decide if it is a power of two using bit operations. Remember 0 is not.
+    setup: nums = [16, 12, 1, 0]
+    line: res = [___ for n in nums]
+    answer: n > 0 and n & (n - 1) == 0
+    accept:
+      - n > 0 and not n & (n - 1)
+      - n.bit_count() == 1
+      - bin(n).count("1") == 1
+    decoys:
+      - n & (n - 1) == 0
+      - n & (n - 1)
+      - n % 2 == 0
+    show: res
+    expected: "[True, False, True, False]"
+    hint: "`n & (n - 1)` clears the lowest set bit. A power of two has exactly one."
+    explain: If clearing the lowest 1 bit leaves 0, there was exactly one set bit. But `0 & -1` is also 0, so the `n > 0` guard is needed. Unlike C, Python's `&` binds tighter than `==`, so no extra parentheses are needed.
+  - id: numbers-d-xor-single
+    method: numbers-xor
+    title: Single Number
+    task: Every value appears twice except one. Fold the list with the operator that cancels pairs.
+    setup: |-
+      from functools import reduce
+      nums = [4, 1, 2, 1, 2]
+    line: "single = reduce(lambda a, b: ___, nums)"
+    answer: a ^ b
+    accept:
+      - b ^ a
+    decoys:
+      - a | b
+      - a & b
+      - a - b
+    show: single
+    expected: "4"
+    hint: Which bitwise operator turns `x op x` into 0 and `x op 0` into x?
+    explain: XOR is its own inverse and order does not matter, so the pairs cancel and only 4 survives, in O(n) time and O(1) space. OR keeps every bit ever seen, giving 7.
+  - id: numbers-d-mask32
+    method: numbers-mask32
+    title: View as unsigned 32-bit
+    task: Get the unsigned 32-bit value of the negative number `x`, the way Java or C would store it.
+    setup: |-
+      MASK = 0xFFFFFFFF
+      x = -2
+    line: u = ___
+    answer: x & MASK
+    accept:
+      - x % 2**32
+      - x % (1 << 32)
+    decoys:
+      - x % MASK
+      - x | MASK
+      - abs(x)
+    show: u
+    expected: "4294967294"
+    hint: Keep only the lowest 32 bits of the (infinitely sign-extended) Python int.
+    explain: ANDing with 32 one-bits drops the endless leading 1s of a negative Python int. `x % MASK` is off by one because MASK is 2^32 - 1, not 2^32. Sum of Two Integers masks like this after every step.

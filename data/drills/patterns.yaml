@@ -1,0 +1,106 @@
+# Pattern recognition: read a problem (title hidden) and pick the technique.
+# `answer` is the technique the reference solution uses; `also` lists other
+# techniques that work too — they are never offered as wrong options.
+labels:
+  - Hash map / set
+  - Two pointers
+  - Sliding window
+  - Stack
+  - Binary search
+  - Prefix sums / products
+  - Fast & slow pointers
+  - Linked list manipulation
+  - Tree DFS (recursion)
+  - Tree BFS (level order)
+  - BST property
+  - Trie
+  - Heap / priority queue
+  - Backtracking
+  - Graph DFS / BFS
+  - Topological sort
+  - Union-find
+  - 1-D dynamic programming
+  - 2-D dynamic programming
+  - Greedy
+  - Intervals (sort + sweep)
+  - Matrix simulation
+  - Bit manipulation
+  - Sorting
+  - String encoding / parsing
+
+problems:
+  - { slug: contains-duplicate, answer: Hash map / set, also: [Sorting] }
+  - { slug: valid-anagram, answer: Hash map / set, also: [Sorting] }
+  - { slug: two-sum, answer: Hash map / set, also: [Sorting, Two pointers] }
+  - { slug: group-anagrams, answer: Hash map / set, also: [Sorting] }
+  - { slug: top-k-frequent-elements, answer: Heap / priority queue, also: [Hash map / set, Sorting] }
+  - { slug: encode-and-decode-strings, answer: String encoding / parsing, also: [] }
+  - { slug: product-of-array-except-self, answer: Prefix sums / products, also: [] }
+  - { slug: longest-consecutive-sequence, answer: Hash map / set, also: [Sorting, Union-find] }
+  - { slug: valid-palindrome, answer: Two pointers, also: [] }
+  - { slug: 3sum, answer: Two pointers, also: [Sorting, Hash map / set] }
+  - { slug: container-with-most-water, answer: Two pointers, also: [Greedy] }
+  - { slug: best-time-to-buy-and-sell-stock, answer: Sliding window, also: [Greedy, 1-D dynamic programming, Two pointers] }
+  - { slug: longest-substring-without-repeating-characters, answer: Sliding window, also: [Hash map / set, Two pointers] }
+  - { slug: longest-repeating-character-replacement, answer: Sliding window, also: [Hash map / set, Two pointers] }
+  - { slug: minimum-window-substring, answer: Sliding window, also: [Hash map / set, Two pointers] }
+  - { slug: valid-parentheses, answer: Stack, also: [] }
+  - { slug: find-minimum-in-rotated-sorted-array, answer: Binary search, also: [] }
+  - { slug: search-in-rotated-sorted-array, answer: Binary search, also: [] }
+  - { slug: reverse-linked-list, answer: Linked list manipulation, also: [] }
+  - { slug: merge-two-sorted-lists, answer: Linked list manipulation, also: [Two pointers] }
+  - { slug: linked-list-cycle, answer: Fast & slow pointers, also: [Hash map / set, Linked list manipulation, Two pointers] }
+  - { slug: reorder-list, answer: Fast & slow pointers, also: [Linked list manipulation, Two pointers, Stack] }
+  - { slug: remove-nth-node-from-end-of-list, answer: Two pointers, also: [Linked list manipulation, Fast & slow pointers] }
+  - { slug: merge-k-sorted-lists, answer: Heap / priority queue, also: [Linked list manipulation, Sorting] }
+  - { slug: invert-binary-tree, answer: Tree DFS (recursion), also: [Tree BFS (level order)] }
+  - { slug: maximum-depth-of-binary-tree, answer: Tree DFS (recursion), also: [Tree BFS (level order)] }
+  - { slug: same-tree, answer: Tree DFS (recursion), also: [Tree BFS (level order)] }
+  - { slug: subtree-of-another-tree, answer: Tree DFS (recursion), also: [String encoding / parsing] }
+  - { slug: lowest-common-ancestor-of-a-binary-search-tree, answer: BST property, also: [Tree DFS (recursion), Binary search] }
+  - { slug: binary-tree-level-order-traversal, answer: Tree BFS (level order), also: [Tree DFS (recursion)] }
+  - { slug: validate-binary-search-tree, answer: BST property, also: [Tree DFS (recursion)] }
+  - { slug: kth-smallest-element-in-a-bst, answer: BST property, also: [Tree DFS (recursion), Stack] }
+  - { slug: construct-binary-tree-from-preorder-and-inorder-traversal, answer: Tree DFS (recursion), also: [Hash map / set] }
+  - { slug: binary-tree-maximum-path-sum, answer: Tree DFS (recursion), also: [] }
+  - { slug: serialize-and-deserialize-binary-tree, answer: Tree DFS (recursion), also: [Tree BFS (level order), String encoding / parsing] }
+  - { slug: implement-trie-prefix-tree, answer: Trie, also: [] }
+  - { slug: design-add-and-search-words-data-structure, answer: Trie, also: [Backtracking, Tree DFS (recursion)] }
+  - { slug: word-search-ii, answer: Trie, also: [Backtracking, Graph DFS / BFS] }
+  - { slug: find-median-from-data-stream, answer: Heap / priority queue, also: [Binary search, Sorting] }
+  - { slug: combination-sum, answer: Backtracking, also: [1-D dynamic programming] }
+  - { slug: word-search, answer: Backtracking, also: [Graph DFS / BFS] }
+  - { slug: number-of-islands, answer: Graph DFS / BFS, also: [Union-find] }
+  - { slug: clone-graph, answer: Graph DFS / BFS, also: [Hash map / set] }
+  - { slug: pacific-atlantic-water-flow, answer: Graph DFS / BFS, also: [] }
+  - { slug: course-schedule, answer: Topological sort, also: [Graph DFS / BFS] }
+  - { slug: number-of-connected-components-in-an-undirected-graph, answer: Union-find, also: [Graph DFS / BFS] }
+  - { slug: graph-valid-tree, answer: Union-find, also: [Graph DFS / BFS] }
+  - { slug: alien-dictionary, answer: Topological sort, also: [Graph DFS / BFS] }
+  - { slug: climbing-stairs, answer: 1-D dynamic programming, also: [] }
+  - { slug: house-robber, answer: 1-D dynamic programming, also: [] }
+  - { slug: house-robber-ii, answer: 1-D dynamic programming, also: [] }
+  - { slug: longest-palindromic-substring, answer: Two pointers, also: [2-D dynamic programming, 1-D dynamic programming] }
+  - { slug: palindromic-substrings, answer: Two pointers, also: [2-D dynamic programming, 1-D dynamic programming] }
+  - { slug: decode-ways, answer: 1-D dynamic programming, also: [] }
+  - { slug: coin-change, answer: 1-D dynamic programming, also: [Graph DFS / BFS] }
+  - { slug: maximum-product-subarray, answer: 1-D dynamic programming, also: [Greedy, Prefix sums / products] }
+  - { slug: word-break, answer: 1-D dynamic programming, also: [Trie, Backtracking, Graph DFS / BFS] }
+  - { slug: longest-increasing-subsequence, answer: 1-D dynamic programming, also: [Binary search] }
+  - { slug: unique-paths, answer: 2-D dynamic programming, also: [] }
+  - { slug: longest-common-subsequence, answer: 2-D dynamic programming, also: [] }
+  - { slug: maximum-subarray, answer: Greedy, also: [1-D dynamic programming, Prefix sums / products] }
+  - { slug: jump-game, answer: Greedy, also: [1-D dynamic programming] }
+  - { slug: insert-interval, answer: Intervals (sort + sweep), also: [] }
+  - { slug: merge-intervals, answer: Intervals (sort + sweep), also: [Sorting] }
+  - { slug: non-overlapping-intervals, answer: Intervals (sort + sweep), also: [Greedy, Sorting] }
+  - { slug: meeting-rooms, answer: Intervals (sort + sweep), also: [Sorting] }
+  - { slug: meeting-rooms-ii, answer: Intervals (sort + sweep), also: [Heap / priority queue, Sorting] }
+  - { slug: rotate-image, answer: Matrix simulation, also: [] }
+  - { slug: spiral-matrix, answer: Matrix simulation, also: [] }
+  - { slug: set-matrix-zeroes, answer: Matrix simulation, also: [Hash map / set] }
+  - { slug: number-of-1-bits, answer: Bit manipulation, also: [] }
+  - { slug: counting-bits, answer: Bit manipulation, also: [1-D dynamic programming] }
+  - { slug: reverse-bits, answer: Bit manipulation, also: [] }
+  - { slug: missing-number, answer: Bit manipulation, also: [Hash map / set, Sorting] }
+  - { slug: sum-of-two-integers, answer: Bit manipulation, also: [] }

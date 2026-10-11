@@ -1,0 +1,444 @@
+# Imported from CodeToGo (src/content/python/functools.ts + drills/functools.ts).
+# Re-run scripts/import-codetogo.ts to refresh; edits here will be overwritten.
+id: functools
+title: functools & Memoization
+group: Python
+order: 10
+blurb: One decorator turns a recursive solution into top-down DP.
+intro: "Top-down DP in Python is: write the plain recursion, then add `@cache`. Each distinct set of arguments is computed once, so the cost becomes (number of states) x (work per state). The rest of `functools` adds custom sort orders (`cmp_to_key`), folding (`reduce`) and pre-filled arguments (`partial`)."
+methods:
+  - id: functools-cache
+    name: "@cache"
+    summary: "Memoizes a function: repeat calls with the same arguments return the stored result."
+    example: |-
+      from functools import cache
+
+      @cache
+      def fib(n):
+          if n < 2:
+              return n
+          return fib(n - 1) + fib(n - 2)
+
+      print(fib(50))
+      print(fib.cache_info().currsize)  # states stored
+    output: |-
+      12586269025
+      51
+    complexity: "O(states x work per state): fib goes from O(2^n) to O(n)"
+    tip: "@cache (3.9+) is an unbounded cache, the same as `@lru_cache(maxsize=None)`. When you explain it, name the state (n) and the transition (fib(n-1) + fib(n-2))."
+  - id: functools-lru-cache
+    name: "@lru_cache(maxsize=None): grid paths"
+    summary: The pre-3.9 spelling of @cache; works for multi-argument states too.
+    details: With a number instead of None, it keeps only the most recent maxsize results, which is rarely what you want for DP.
+    example: |-
+      from functools import lru_cache
+
+      @lru_cache(maxsize=None)
+      def paths(r, c):  # ways to reach (r, c), right/down
+          if r == 0 or c == 0:
+              return 1
+          return paths(r - 1, c) + paths(r, c - 1)
+
+      print(paths(2, 2), paths(10, 10))
+    output: 6 184756
+    complexity: O(m * n) for an m x n grid
+    tip: The default maxsize is 128, so plain `@lru_cache()` silently evicts states and can turn O(m * n) back into exponential time. Always pass None.
+  - id: functools-cache-inner
+    name: Cached helper inside a method
+    summary: Define the memoized function inside your solution so it can read the inputs.
+    example: |-
+      from functools import cache
+
+      def count_ways(n, steps):
+          @cache
+          def dp(i):          # ways to climb i stairs
+              if i == 0:
+                  return 1
+              return sum(dp(i - s) for s in steps if s <= i)
+          return dp(n)
+      print(count_ways(4, (1, 2)), count_ways(4, (1, 3)))
+    output: 5 3
+    complexity: O(n * len(steps))
+    tip: "In `class Solution`, put the cached helper inside the method: the cache starts fresh for every call and the helper only takes the changing state (indexes), not the big inputs."
+  - id: functools-cache-clear
+    name: cache_clear() / cache_info()
+    summary: Inspect hits and misses, or empty a cache between runs.
+    example: |-
+      from functools import cache
+
+      @cache
+      def square(x):
+          print("computing", x)
+          return x * x
+
+      print(square(4), square(4))  # 2nd call is a hit
+      square.cache_clear()         # forget everything
+      print(square(4))
+    output: |-
+      computing 4
+      16 16
+      computing 4
+      16
+    complexity: cache_clear O(cache size)
+    tip: A module-level cached function keeps its results across calls. If it reads global inputs that change between test cases, call cache_clear() first or you get stale answers.
+  - id: functools-hashable
+    name: Cached arguments must be hashable
+    summary: Lists, dicts and sets cannot be cache keys; pass tuples or indexes.
+    example: |-
+      from functools import cache
+
+      @cache
+      def total(nums):
+          return sum(nums)
+      print(total((1, 2, 3)))  # tuple: OK
+      try:
+          total([1, 2, 3])     # list: not hashable
+      except TypeError as e:
+          print(e)
+    output: |-
+      6
+      unhashable type: 'list'
+    complexity: Hashing a tuple costs O(len)
+    tip: "Better than passing tuples: cache on indexes like dp(i, j) and read the list from the enclosing scope. No copying, no hashing of big tuples."
+  - id: functools-manual-memo
+    name: Memo dict by hand
+    summary: What @cache does for you, written out with a dictionary.
+    example: |-
+      def climb(n):
+          memo = {0: 1, 1: 1}
+          def dp(i):
+              if i not in memo:
+                  memo[i] = dp(i - 1) + dp(i - 2)
+              return memo[i]
+          return dp(n)
+
+      print(climb(5), climb(30))
+    output: 8 1346269
+    complexity: O(n) time and space
+    tip: "Some interviewers ask you to memoize without decorators: this is the shape. Deep recursion (around 1000+ levels) raises RecursionError, so be ready to convert it to a bottom-up loop."
+  - id: functools-reduce
+    name: reduce(func, it, initial)
+    summary: Folds a sequence into one value, left to right.
+    example: |-
+      from functools import reduce
+      import operator
+
+      print(reduce(operator.mul, [2, 3, 4]))       # 2*3*4
+      print(reduce(lambda a, b: a ^ b, [4, 1, 4]))  # XOR all
+      print(reduce(lambda acc, d: acc * 10 + d, [1, 2, 3], 0))
+    output: |-
+      24
+      1
+      123
+    complexity: O(n)
+    tip: XOR of everything finds the one number without a pair (Single Number). Prefer `sum`, `math.prod`, `max` when they exist, and pass an initial value so empty input does not raise TypeError.
+  - id: functools-cmp-to-key
+    name: cmp_to_key(cmp)
+    summary: "Sort with a pairwise compare function: negative means a goes first."
+    example: |-
+      from functools import cmp_to_key
+
+      def cmp(a, b):           # negative -> a first
+          return int(b + a) - int(a + b)
+
+      nums = [3, 30, 34, 5, 9]
+      s = sorted(map(str, nums), key=cmp_to_key(cmp))
+      print("".join(s))
+    output: "9534330"
+    complexity: O(n log n) comparisons
+    tip: 'This is Largest Number. Edge case: [0, 0] must give "0", so return "0" if the first string is "0". Only use cmp_to_key when no simple key exists.'
+  - id: functools-partial
+    name: partial(func, *args, **kwargs)
+    summary: Pre-fills some arguments and returns a new function.
+    example: |-
+      from functools import partial
+
+      def power(base, exp):
+          return base ** exp
+
+      square = partial(power, exp=2)
+      print(square(5), partial(power, exp=3)(2))
+      to_int = partial(int, base=2)
+      print(list(map(to_int, ["101", "11"])))
+    output: |-
+      25 8
+      [5, 3]
+    complexity: O(1) to create
+    tip: "Mostly a readability tool for map, sort keys and callbacks. A lambda (`lambda b: power(b, 2)`) does the same job."
+quiz:
+  - id: functools-q1
+    question: How many times does the body of f run?
+    code: |-
+      from functools import cache
+      calls = 0
+      @cache
+      def f(n):
+          global calls
+          calls += 1
+          return n if n < 2 else f(n - 1) + f(n - 2)
+      f(10)
+      print(calls)
+    options:
+      - "11"
+      - "177"
+      - "10"
+      - "55"
+    answer: 0
+    explanation: "With @cache each n from 0 to 10 is computed once: 11 calls. Without it, fib(10) would make 177 calls."
+  - id: functools-q2
+    question: What happens?
+    code: |-
+      from functools import lru_cache
+      @lru_cache(None)
+      def f(grid):
+          return len(grid)
+      print(f([[1, 2], [3]]))
+    options:
+      - It prints 2
+      - It prints 3
+      - "TypeError: unhashable list"
+      - It prints None
+    answer: 2
+    explanation: The cache stores arguments as dict keys, so they must be hashable. Pass a tuple (e.g. `tuple(map(tuple, grid))`) or cache on indexes instead.
+  - id: functools-q3
+    question: What does this print?
+    code: |-
+      from functools import reduce
+      print(reduce(lambda a, b: a * 2 + b, [1, 0, 1]))
+    options:
+      - "5"
+      - "2"
+      - "3"
+      - "6"
+    answer: 0
+    explanation: (1 * 2 + 0) = 2, then (2 * 2 + 1) = 5. It converts the bits 101 to an integer.
+  - id: functools-q4
+    question: Which tool sorts number strings so their concatenation is as large as possible?
+    options:
+      - sorted(strs, key=cmp_to_key(cmp))
+      - sorted(strs, reverse=True)
+      - sorted(strs, key=len)
+      - heapq.nlargest(len(strs), strs)
+    answer: 0
+    explanation: The order depends on comparing a + b with b + a, a pairwise rule, so you need cmp_to_key. A plain reverse sort puts "30" before "3" and loses.
+  - id: functools-q5
+    question: What does this print?
+    code: |-
+      from functools import partial
+      add = lambda a, b, c: a + 10 * b + 100 * c
+      f = partial(add, 1, c=3)
+      print(f(2))
+    options:
+      - "321"
+      - "123"
+      - "312"
+      - TypeError
+    answer: 0
+    explanation: "partial fixes a=1 and c=3, so f(2) sets b=2: 1 + 20 + 300 = 321."
+  - id: functools-q6
+    question: Your @cache DFS crashes with RecursionError when n = 100000. Best fix?
+    options:
+      - Rewrite it as bottom-up iterative DP
+      - Use @lru_cache(maxsize=128) instead
+      - Pass lists instead of tuples
+      - Wrap the call in reduce
+    answer: 0
+    explanation: Python's default recursion limit is about 1000 frames. Raising it with sys.setrecursionlimit is risky; a bottom-up loop over the same states avoids recursion entirely.
+drills:
+  - id: functools-d-cache-wrap
+    method: functools-cache
+    title: Memoize fib
+    task: Make the recursive `fib` remember its results by rebinding the name, which is exactly what `@cache` does for you.
+    setup: |-
+      from functools import cache
+      def fib(n):
+          return n if n < 2 else fib(n - 1) + fib(n - 2)
+    line: fib = ___
+    answer: cache(fib)
+    accept:
+      - lru_cache(maxsize=None)(fib)
+      - lru_cache(None)(fib)
+    decoys:
+      - cache(fib())
+      - fib.cache()
+      - cache
+    show: (fib(25), fib.cache_info().misses)
+    expected: (75025, 26)
+    hint: A decorator is just a function that takes your function and returns a new one.
+    explain: "`@cache` above a def is shorthand for `fib = cache(fib)`. The recursive calls look up the name `fib`, so they hit the cached wrapper too: 26 states computed once each instead of about 250,000 calls."
+  - id: functools-d-lru-none
+    method: functools-lru-cache
+    title: Unbounded lru_cache
+    task: Memoize the grid-path counter with `lru_cache` so that it **never** evicts a state.
+    setup: |-
+      from functools import lru_cache
+      def paths(r, c):
+          if r == 0 or c == 0: return 1
+          return paths(r - 1, c) + paths(r, c - 1)
+    line: paths = ___(paths)
+    answer: lru_cache(maxsize=None)
+    accept:
+      - lru_cache(None)
+      - cache
+    decoys:
+      - lru_cache()
+      - lru_cache
+      - lru_cache(128)
+    show: (paths(10, 10), paths.cache_info().maxsize)
+    expected: (184756, None)
+    hint: The default size is 128. Which value means "no limit"?
+    explain: "`maxsize=None` makes the cache unbounded, the same as `@cache`. The default `lru_cache()` keeps only 128 results, so a DP with more states silently starts recomputing them."
+  - id: functools-d-inner-helper
+    method: functools-cache-inner
+    title: Call the inner helper
+    task: The cached helper `dp(i)` lives inside `ways` and reads `steps` from the enclosing scope. Return the number of ways to climb `n` stairs.
+    setup: |-
+      from functools import cache
+      def ways(n, steps):
+          @cache
+          def dp(i):  # ways to climb i stairs
+              if i == 0: return 1
+              return sum(dp(i - s) for s in steps if s <= i)
+    line: "    return ___"
+    answer: dp(n)
+    decoys:
+      - dp(n, steps)
+      - dp
+      - dp(n - 1)
+    show: (ways(4, (1, 2)), ways(4, (1, 3)))
+    expected: (5, 3)
+    hint: The helper takes only the state that changes between calls.
+    explain: Because `dp` is defined inside `ways`, it sees `steps` without taking it as an argument, and every call to `ways` starts a fresh cache. Only the changing index is passed, so the cache keys stay small and hashable.
+  - id: functools-d-cache-clear
+    method: functools-cache-clear
+    title: Clear a stale cache
+    task: "`price` reads the global `rate`, which just changed, but `price(5)` would still return the cached 10. Empty the cache so it returns 15."
+    setup: |-
+      from functools import cache
+      @cache
+      def price(x): return x * rate
+      rate = 2; price(5)  # 10 is now cached
+      rate = 3            # the input changed
+    line: ___
+    answer: price.cache_clear()
+    decoys:
+      - price.cache_clear
+      - cache_clear()
+      - price.clear()
+    show: price(5)
+    expected: "15"
+    hint: The cached function itself has a method that forgets everything.
+    explain: The cache keys only on the arguments, so after `rate` changes it keeps serving the stale 10. `cache_clear()` empties it; without the parentheses nothing is called.
+  - id: functools-d-hashable-arg
+    method: functools-hashable
+    title: Make the argument hashable
+    task: "`total` is cached, so its argument becomes a dict key. Pass the row in a form the cache can store."
+    setup: |-
+      from functools import cache
+      @cache
+      def total(nums): return sum(nums)
+      row = [1, 2, 3]
+    line: s = total(___)
+    answer: tuple(row)
+    decoys:
+      - row
+      - set(row)
+      - "*row"
+    show: s
+    expected: "6"
+    hint: Lists and sets are mutable, so they cannot be hashed. Which immutable sequence holds the same items?
+    explain: "Cached arguments must be hashable, so a list raises `TypeError: unhashable type`. Convert to a tuple, or better, cache on indexes and read the list from the enclosing scope."
+  - id: functools-d-memo-base
+    method: functools-manual-memo
+    title: Seed the memo
+    task: "`climb(n)` counts the ways to climb n stairs taking 1 or 2 steps. Create the memo dict with the base cases so that `climb(5)` returns 8."
+    setup: |-
+      def climb(n):
+          if n not in memo:
+              memo[n] = climb(n - 1) + climb(n - 2)
+          return memo[n]
+    line: memo = ___
+    answer: "{0: 1, 1: 1}"
+    accept:
+      - "{1: 1, 2: 2}"
+      - "{0: 1, 1: 1, 2: 2}"
+    decoys:
+      - "{0: 0, 1: 1}"
+      - "{1: 1, 2: 1}"
+      - "{0: 1, 1: 2}"
+    show: climb(5)
+    expected: "8"
+    hint: There is exactly 1 way to climb 0 stairs, and 1 way to climb 1 stair.
+    explain: "The memo doubles as the base cases: lookups stop the recursion at n = 0 and n = 1, and every other n is computed once, so it is O(n). `{0: 0, 1: 1}` gives Fibonacci numbers, which are off by one here."
+  - id: functools-d-reduce-xor
+    method: functools-reduce
+    title: Find the single number
+    task: Every number appears twice except one. Fold the list with XOR to find it.
+    setup: |-
+      from functools import reduce
+      nums = [4, 1, 2, 1, 2]
+    line: single = reduce(___, nums)
+    answer: "lambda a, b: a ^ b"
+    accept:
+      - operator.xor
+    decoys:
+      - "lambda a, b: a + b"
+      - "lambda a, b: a | b"
+      - "lambda a: a ^ a"
+    show: single
+    expected: "4"
+    hint: "`reduce` calls a **two-argument** function: the running result and the next item."
+    explain: "`x ^ x == 0` and `x ^ 0 == x`, so the pairs cancel out and the lone number survives: O(n) time, O(1) space. `|` is OR, which keeps every bit that was ever set."
+  - id: functools-d-cmp-sort
+    method: functools-cmp-to-key
+    title: Sort with a compare function
+    task: "Largest Number: `cmp(a, b)` is negative when `a` should come first. Sort `strs` with it."
+    setup: |-
+      from functools import cmp_to_key
+      cmp = lambda a, b: int(b + a) - int(a + b)
+      strs = ["3", "30", "34", "5", "9"]
+    line: strs.sort(key=___)
+    answer: cmp_to_key(cmp)
+    decoys:
+      - cmp
+      - cmp_to_key
+      - cmp_to_key(cmp())
+    show: '"".join(strs)'
+    expected: "'9534330'"
+    hint: "`key=` wants a function of **one** item, but `cmp` takes two."
+    explain: "`cmp_to_key` wraps a two-argument compare function into key objects that `sort` can order, using O(n log n) comparisons. Passing `cmp` directly fails because `key` calls it with a single item."
+  - id: functools-d-cmp-write
+    method: functools-cmp-to-key
+    title: Write the compare rule
+    task: "Largest Number: `a` goes before `b` when `a + b` forms a bigger number than `b + a`. Return a negative number in that case."
+    setup: |-
+      from functools import cmp_to_key
+      strs = ["3", "30", "34", "5", "9"]
+    line: "cmp = lambda a, b: ___"
+    answer: int(b + a) - int(a + b)
+    decoys:
+      - int(a + b) - int(b + a)
+      - int(b) - int(a)
+      - (b + a) - (a + b)
+    show: '"".join(sorted(strs, key=cmp_to_key(cmp)))'
+    expected: "'9534330'"
+    hint: Negative means "a first". Compare the two concatenations as numbers.
+    explain: 'If `a + b` is the bigger number, `int(b + a) - int(a + b)` is negative, so `a` goes first. Comparing the plain numbers fails: 34 > 9, yet "9" must lead.'
+  - id: functools-d-partial
+    method: functools-partial
+    title: Pre-fill a keyword argument
+    task: Build a one-argument function that parses binary strings by pre-filling `int`'s `base` argument.
+    setup: from functools import partial
+    line: to_int = ___
+    answer: partial(int, base=2)
+    accept:
+      - "lambda s: int(s, 2)"
+      - "lambda s: int(s, base=2)"
+    decoys:
+      - partial(int, 2)
+      - int(base=2)
+      - partial(int(base=2))
+    show: list(map(to_int, ["101", "11"]))
+    expected: "[5, 3]"
+    hint: Pre-filled positional arguments go **first**, so pass this one by name.
+    explain: '`partial(func, **kw)` returns a new function with those arguments already set. `partial(int, 2)` would call `int(2, "101")`, because pre-filled positional arguments come before the new ones.'

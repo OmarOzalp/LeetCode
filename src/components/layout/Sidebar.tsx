@@ -1,19 +1,24 @@
 import { NavLink } from "react-router";
 import clsx from "clsx";
-import { BarChart3, BookOpen, ListChecks, Moon, PanelLeftClose, PanelLeftOpen, RotateCcw, Sun, Terminal } from "lucide-react";
+import { BarChart3, BookOpen, Dumbbell, ListChecks, Moon, PanelLeftClose, PanelLeftOpen, RotateCcw, Sun, Terminal } from "lucide-react";
+import { dayKey } from "@shared/srs";
 import { useAppStore } from "@/lib/store";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { SettingsMenu } from "./SettingsMenu";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 const NAV = [
   { to: "/", label: "Blind 75", icon: ListChecks, end: true },
+  { to: "/drills", label: "Drills", icon: Dumbbell },
   { to: "/review", label: "Review", icon: RotateCcw },
   { to: "/docs", label: "Docs", icon: BookOpen },
   { to: "/progress", label: "Progress", icon: BarChart3 },
 ];
 
 export function Sidebar() {
-  const collapsed = useAppStore((s) => s.settings.sidebarCollapsed);
+  // Phones get the icon-only sidebar automatically.
+  const narrow = useMediaQuery("(max-width: 767px)");
+  const collapsed = useAppStore((s) => s.settings.sidebarCollapsed) || narrow;
   const theme = useAppStore((s) => s.settings.theme);
   const update = useAppStore((s) => s.updateSettings);
   const problems = useAppStore((s) => s.problems);
@@ -21,6 +26,9 @@ export function Sidebar() {
   const health = useAppStore((s) => s.health);
   const solved = problems.filter((p) => progress[p.slug]?.status === "solved").length;
   const reviewCount = problems.filter((p) => progress[p.slug]?.status === "review").length;
+  const drillStates = useAppStore((s) => s.drills);
+  const today = dayKey(new Date());
+  const drillsDue = Object.values(drillStates).filter((c) => c.due <= today).length;
 
   return (
     <aside
@@ -60,6 +68,11 @@ export function Sidebar() {
             {!collapsed && <span className="flex-1">{label}</span>}
             {!collapsed && label === "Review" && reviewCount > 0 && (
               <span className="rounded-full bg-review/15 px-1.5 text-[11px] text-review tabular-nums">{reviewCount}</span>
+            )}
+            {!collapsed && label === "Drills" && drillsDue > 0 && (
+              <span className="rounded-full bg-accent-soft px-1.5 text-[11px] text-accent tabular-nums" title={`${drillsDue} drill cards due`}>
+                {drillsDue}
+              </span>
             )}
           </NavLink>
         ))}

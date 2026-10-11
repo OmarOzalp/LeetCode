@@ -1,4 +1,9 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
+import { Dumbbell } from "lucide-react";
+import type { DrillsResponse } from "@shared/api";
+import { useAppStore } from "@/lib/store";
+import { detectPythonUsage } from "@/lib/pyUsage";
 import { ChevronDown, Eye, Lightbulb, Sparkles, Star } from "lucide-react";
 import clsx from "clsx";
 import type { ProblemDetail } from "@shared/api";
@@ -95,6 +100,8 @@ export function SolutionPanel({ problem }: { problem: ProblemDetail }) {
         </div>
       )}
 
+      <PythonUsed code={problem.optimal_solution} />
+
       {problem.alternatives.length > 0 && (
         <>
           <h3 className="mt-7 mb-2 text-[13px] font-semibold">Other approaches</h3>
@@ -138,6 +145,43 @@ function AlternativeCard({ alt }: { alt: Alternative }) {
           <CodeBlock code={alt.code} title={`Python · ${alt.name}`} className="mt-3" />
         </div>
       )}
+    </div>
+  );
+}
+
+/** "Python used in this solution", each linked to its drill cards. */
+function PythonUsed({ code }: { code: string }) {
+  const loadDrills = useAppStore((s) => s.loadDrills);
+  const cached = useAppStore((s) => s.drillContent);
+  const [content, setContent] = useState<DrillsResponse | null>(cached);
+  useEffect(() => {
+    if (!content) void loadDrills().then(setContent).catch(() => undefined);
+  }, [content, loadDrills]);
+  const usage = useMemo(() => {
+    if (!content) return [];
+    const topicOf = new Map<string, string>();
+    for (const t of content.topics) for (const m of t.methods) topicOf.set(m.id, t.id);
+    return detectPythonUsage(code, new Set(topicOf.keys())).map((u) => ({ ...u, topic: topicOf.get(u.method)! }));
+  }, [content, code]);
+  if (!usage.length) return null;
+  return (
+    <div className="mt-6 rounded-lg border border-border bg-surface-2/40 px-3.5 py-3">
+      <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold">
+        <Dumbbell className="size-4 text-muted" /> Python used in this solution
+      </div>
+      <p className="mb-2.5 text-xs text-muted">Not fluent with one of these yet? Drill it until it's automatic.</p>
+      <div className="flex flex-wrap gap-1.5">
+        {usage.map((u) => (
+          <Link
+            key={u.method}
+            to={`/drills/session?mode=method&method=${u.method}`}
+            title={`Drill ${u.label}`}
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 font-mono text-[12px] text-muted hover:border-accent/50 hover:text-fg"
+          >
+            {u.label}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

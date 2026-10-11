@@ -1,0 +1,435 @@
+# Imported from CodeToGo (src/content/python/itertools.ts + drills/itertools.ts).
+# Re-run scripts/import-codetogo.ts to refresh; edits here will be overwritten.
+id: itertools
+title: itertools
+group: Python
+order: 9
+blurb: Permutations, combinations, prefix sums, run-length grouping and more, lazily.
+intro: "itertools functions return lazy iterators: wrap them in `list()` to see the values. They are great for brute-force baselines, prefix sums and grouping, but know the backtracking versions too, since interviewers often ask you to write them by hand."
+methods:
+  - id: itertools-permutations
+    name: permutations(it, r=None)
+    summary: Every ordering of the items (or of r of them).
+    example: |-
+      from itertools import permutations
+
+      print(["".join(p) for p in permutations("abc")])
+      print(list(permutations([1, 2, 3], 2)))
+    output: |-
+      ['abc', 'acb', 'bac', 'bca', 'cab', 'cba']
+      [(1, 2), (1, 3), (2, 1), (2, 3), (3, 1), (3, 2)]
+    complexity: n! tuples, O(n! * n) to list them all
+    tip: Items are treated by position, so duplicate values give duplicate permutations; wrap in `set()` to dedupe. Only feasible for n up to about 10.
+  - id: itertools-combinations
+    name: combinations(it, r)
+    summary: Every r-item selection where order does not matter.
+    example: |-
+      from itertools import combinations
+
+      print(list(combinations([1, 2, 3, 4], 2)))
+      items = "ab"
+      for r in range(len(items) + 1):   # all subsets
+          print(list(combinations(items, r)))
+    output: |-
+      [(1, 2), (1, 3), (1, 4), (2, 3), (2, 4), (3, 4)]
+      [()]
+      [('a',), ('b',)]
+      [('a', 'b')]
+    complexity: C(n, r) tuples; all subsets O(2^n * n)
+    tip: Each tuple keeps input order, so (1, 2) appears but (2, 1) does not. Checking all pairs with combinations(nums, 2) is the O(n^2) brute force to state before optimizing.
+  - id: itertools-cwr
+    name: combinations_with_replacement(it, r)
+    summary: Like combinations, but an item may be picked more than once.
+    example: |-
+      from itertools import combinations_with_replacement as cwr
+
+      print(list(cwr("ab", 2)))
+      coins = [1, 5, 10]
+      sums = {sum(c) for c in cwr(coins, 2)}  # reuse allowed
+      print(sorted(sums))
+    output: |-
+      [('a', 'a'), ('a', 'b'), ('b', 'b')]
+      [2, 6, 10, 11, 15, 20]
+    complexity: C(n + r - 1, r) tuples
+    tip: Matches "pick r items with repetition, order does not matter" (multisets). Problems like Combination Sum still need backtracking because r is not fixed.
+  - id: itertools-product
+    name: product(*its, repeat=1)
+    summary: "The cartesian product: nested for loops in one call."
+    example: |-
+      from itertools import product
+
+      print(list(product("ab", [0, 1])))
+      print(["".join(p) for p in product("01", repeat=3)])
+      dirs = list(product([-1, 0, 1], repeat=2))
+      print(len(dirs))  # 9, including (0, 0)
+    output: |-
+      [('a', 0), ('a', 1), ('b', 0), ('b', 1)]
+      ['000', '001', '010', '011', '100', '101', '110', '111']
+      9
+    complexity: O(m^k) tuples for k iterables of size m
+    tip: "`repeat=n` replaces n nested loops: all bit strings, all dice rolls, or the 8 grid neighbors (skip (0, 0)). Letter Combinations of a Phone Number is one product call."
+  - id: itertools-accumulate
+    name: accumulate(it, func=add, initial=None)
+    summary: "Running totals: prefix sums, running max/min, running product."
+    example: |-
+      from itertools import accumulate
+
+      nums = [3, 1, 4, 1, 5]
+      print(list(accumulate(nums)))             # prefix sums
+      print(list(accumulate(nums, initial=0)))  # leading 0
+      print(list(accumulate(nums, max)))        # running max
+    output: |-
+      [3, 4, 8, 9, 14]
+      [0, 3, 4, 8, 9, 14]
+      [3, 3, 4, 4, 5]
+    complexity: O(n)
+    tip: With initial=0, the sum of `nums[i:j]` is `pre[j] - pre[i]`, with no off-by-one special cases. Pass `operator.mul` for a running product.
+  - id: itertools-groupby
+    name: groupby(it, key=None)
+    summary: "Groups runs of ADJACENT equal items: run-length encoding."
+    details: Each group `g` is a lazy iterator that expires when you move to the next group, so turn it into a list (or count it) right away.
+    example: |-
+      from itertools import groupby
+
+      s = "aaabccaa"
+      runs = [(k, len(list(g))) for k, g in groupby(s)]
+      print(runs)                      # runs, not totals!
+      print([k for k, _ in groupby(sorted(s))])
+    output: |-
+      [('a', 3), ('b', 1), ('c', 2), ('a', 2)]
+      ['a', 'b', 'c']
+    complexity: O(n)
+    tip: To group ALL equal items, sort by the same key first (O(n log n)), or skip groupby and use a defaultdict(list) or Counter in O(n). Great for String Compression and Count and Say.
+  - id: itertools-chain
+    name: chain(*its) / chain.from_iterable(its)
+    summary: Iterate several iterables back to back, or flatten one level.
+    example: |-
+      from itertools import chain
+
+      a, b = [1, 2], (3, 4)
+      print(list(chain(a, b, "xy")))
+      grid = [[1, 2], [3], [4, 5]]
+      print(list(chain.from_iterable(grid)))  # flatten
+    output: |-
+      [1, 2, 3, 4, 'x', 'y']
+      [1, 2, 3, 4, 5]
+    complexity: O(total items), no copying
+    tip: from_iterable flattens exactly one level, lazily. The comprehension `[x for row in grid for x in row]` does the same and is just as acceptable.
+  - id: itertools-zip-longest
+    name: zip_longest(*its, fillvalue=None)
+    summary: Like zip, but runs until the LONGEST input ends.
+    example: |-
+      from itertools import zip_longest
+
+      a, b = "abc", "pq"
+      print(list(zip(a, b)))  # stops at the shortest
+      pairs = zip_longest(a, b, fillvalue="")
+      print("".join(x + y for x, y in pairs))  # alternate
+    output: |-
+      [('a', 'p'), ('b', 'q')]
+      apbqc
+    complexity: O(longest input)
+    tip: Use it to merge strings alternately or to add numbers digit by digit (`fillvalue=0`). Without fillvalue, missing values are None.
+  - id: itertools-pairwise
+    name: pairwise(it) (3.10+)
+    summary: "Overlapping neighbor pairs: (a0, a1), (a1, a2), ..."
+    example: |-
+      from itertools import pairwise
+
+      nums = [1, 4, 6, 9]
+      print(list(pairwise(nums)))
+      print([b - a for a, b in pairwise(nums)])  # gaps
+      print(all(a < b for a, b in pairwise(nums)))
+    output: |-
+      [(1, 4), (4, 6), (6, 9)]
+      [3, 2, 3]
+      True
+    complexity: O(n)
+    tip: Before 3.10 write `zip(nums, nums[1:])`. Handy for "is it strictly increasing?", differences between neighbors, and checking sorted intervals for overlaps.
+  - id: itertools-islice
+    name: islice(it, stop) / islice(it, start, stop, step)
+    summary: Slice any iterator or generator without building a list.
+    example: |-
+      from itertools import count, islice
+
+      gen = (x * x for x in count(1))   # infinite
+      print(list(islice(gen, 5)))       # first 5
+      print(list(islice("abcdefg", 1, 6, 2)))
+    output: |-
+      [1, 4, 9, 16, 25]
+      ['b', 'd', 'f']
+    complexity: O(stop)
+    tip: Generators do not support `gen[a:b]`; islice does. Negative indexes are not allowed, and it consumes the items it skips.
+quiz:
+  - id: itertools-q1
+    question: What does this print?
+    code: |-
+      from itertools import combinations
+      print(len(list(combinations(range(5), 2))))
+    options:
+      - "10"
+      - "20"
+      - "25"
+      - "5"
+    answer: 0
+    explanation: C(5, 2) = 10. Order does not matter, so (0, 1) and (1, 0) count once; permutations would give 20.
+  - id: itertools-q2
+    question: What does this print?
+    code: |-
+      from itertools import groupby
+      print([k for k, g in groupby("aabbaa")])
+    options:
+      - "['a', 'b']"
+      - "['a', 'b', 'a']"
+      - "['a', 'a', 'b', 'b', 'a', 'a']"
+    answer: 1
+    explanation: groupby only merges adjacent equal items, so the two runs of "a" stay separate. Sort first to group all of them.
+  - id: itertools-q3
+    question: What does this print?
+    code: |-
+      from itertools import accumulate
+      print(list(accumulate([2, 5, 1, 7], max)))
+    options:
+      - "[2, 5, 5, 7]"
+      - "[2, 7, 8, 15]"
+      - "[7]"
+      - "[7, 7, 7, 7]"
+    answer: 0
+    explanation: "With max as the function, each output is the largest value seen so far: a running max."
+  - id: itertools-q4
+    question: Which call yields every 3-character string over "01" (000, 001, ..., 111)?
+    options:
+      - product("01", repeat=3)
+      - permutations("01", 3)
+      - combinations("01", 3)
+      - combinations_with_replacement("01", 3)
+    answer: 0
+    explanation: product with repeat=3 acts like three nested loops (8 results). permutations and combinations of 2 items with r=3 yield nothing, and combinations_with_replacement skips orderings like "010".
+  - id: itertools-q5
+    question: What does this print?
+    code: |-
+      from itertools import zip_longest
+      print(list(zip_longest([1, 2, 3], [9])))
+    options:
+      - "[(1, 9)]"
+      - "[(1, 9), (2, None), (3, None)]"
+      - "[(1, 9), (2, 9), (3, 9)]"
+      - ValueError
+    answer: 1
+    explanation: zip_longest keeps going until the longest input ends and fills the gaps with None (the default fillvalue).
+  - id: itertools-q6
+    question: What does this print?
+    code: |-
+      from itertools import permutations
+      print(len(set(permutations("aab"))))
+    options:
+      - "6"
+      - "3"
+      - "2"
+      - "1"
+    answer: 1
+    explanation: "permutations treats positions as distinct and yields 6 tuples, but only 3 are different: aab, aba and baa."
+drills:
+  - id: itertools-d-permutations-distinct
+    method: itertools-permutations
+    title: Count distinct arrangements
+    task: How many **different** strings can you make by rearranging all the letters of `s`?
+    setup: |-
+      from itertools import permutations
+      s = "aab"
+    line: n = len(___)
+    answer: set(permutations(s))
+    accept:
+      - set(permutations(s, 3))
+      - set(permutations(s, len(s)))
+    decoys:
+      - list(permutations(s))
+      - permutations(s)
+      - set(combinations(s, 3))
+    show: n
+    expected: "3"
+    hint: Generate every ordering, then remove the repeats.
+    explain: "`permutations` treats items by position, so the two `a`s produce 6 tuples with only 3 distinct ones; a `set` removes the duplicates. A permutations iterator has no `len`, so it must be collected first."
+  - id: itertools-d-combinations-pairs
+    method: itertools-combinations
+    title: All pairs that sum to 5
+    task: "Brute force: check every unordered pair of numbers and keep those that add up to 5."
+    setup: |-
+      from itertools import combinations
+      nums = [1, 2, 3, 4]
+    line: pairs = [p for p in ___ if sum(p) == 5]
+    answer: combinations(nums, 2)
+    decoys:
+      - permutations(nums, 2)
+      - product(nums, repeat=2)
+      - combinations(nums)
+    show: pairs
+    expected: "[(1, 4), (2, 3)]"
+    hint: Order does not matter, and a number cannot pair with itself.
+    explain: "`combinations(nums, 2)` yields each pair once in input order: the O(n^2) baseline to state before optimizing. `permutations` also yields `(4, 1)` and `(3, 2)`, and `product` pairs items with themselves."
+  - id: itertools-d-cwr-coins
+    method: itertools-cwr
+    title: Two coins, repeats allowed
+    task: List every way to pick 2 coins when the same coin may be picked twice and order does not matter.
+    setup: |-
+      from itertools import combinations_with_replacement as cwr
+      coins = [1, 5]
+    line: picks = list(___)
+    answer: cwr(coins, 2)
+    accept:
+      - combinations_with_replacement(coins, 2)
+    decoys:
+      - combinations(coins, 2)
+      - product(coins, repeat=2)
+      - cwr(coins)
+    show: picks
+    expected: "[(1, 1), (1, 5), (5, 5)]"
+    hint: You need combinations that may reuse an item.
+    explain: "`combinations_with_replacement` allows `(1, 1)` and `(5, 5)` but still yields `(1, 5)` only once. Plain combinations never repeats an item, and `product` counts `(5, 1)` as a separate pick."
+  - id: itertools-d-product-bits
+    method: itertools-product
+    title: All 3-bit strings
+    task: Generate every string of length 3 made of `0` and `1`, in order.
+    setup: from itertools import product
+    line: codes = ["".join(p) for p in ___]
+    answer: product("01", repeat=3)
+    accept:
+      - product("01", "01", "01")
+    decoys:
+      - product("01", 3)
+      - permutations("01", 3)
+      - product("01", "01")
+    show: codes
+    expected: "['000', '001', '010', '011', '100', '101', '110', '111']"
+    hint: This is three nested loops over `"01"`. One argument says how many times to repeat the input.
+    explain: '`product("01", repeat=3)` is the cartesian product of three copies of `"01"`: 2^3 = 8 strings. A bare `3` is treated as another iterable and raises TypeError, and permutations of 2 items taken 3 at a time is empty.'
+  - id: itertools-d-accumulate-prefix
+    method: itertools-accumulate
+    title: Prefix sums with a leading 0
+    task: Build prefix sums so that `pre[j] - pre[i]` is the sum of `nums[i:j]`.
+    setup: |-
+      from itertools import accumulate
+      nums = [3, 1, 4, 1]
+    line: pre = list(___)
+    answer: accumulate(nums, initial=0)
+    accept:
+      - accumulate([0] + nums)
+    decoys:
+      - accumulate(nums)
+      - accumulate(nums, 0)
+      - accumulate(nums, initial=1)
+    show: pre
+    expected: "[0, 3, 4, 8, 9]"
+    hint: The running totals need an extra 0 at the front, passed by keyword.
+    explain: "`initial=0` prepends 0, so the list has `len(nums) + 1` entries and range sums need no special case for `i == 0`. A positional second argument is the combining function, so `accumulate(nums, 0)` raises TypeError."
+  - id: itertools-d-accumulate-max
+    method: itertools-accumulate
+    title: Running maximum
+    task: For each day, get the highest price seen so far.
+    setup: |-
+      from itertools import accumulate
+      prices = [2, 5, 1, 7, 3]
+    line: best = list(accumulate(prices, ___))
+    answer: max
+    accept:
+      - "lambda a, b: max(a, b)"
+    decoys:
+      - max()
+      - min
+      - sorted
+    show: best
+    expected: "[2, 5, 5, 7, 7]"
+    hint: The second argument is a two-argument function that combines the total so far with the next item.
+    explain: Passing the function `max` (not calling it) makes each output the larger of the previous output and the next price. The same trick with `min` gives a running minimum, as in Best Time to Buy and Sell Stock.
+  - id: itertools-d-groupby-rle
+    method: itertools-groupby
+    title: Run-length encoding
+    task: Turn `s` into `(char, run length)` pairs for each run of repeated characters.
+    setup: |-
+      from itertools import groupby
+      s = "aaabccaa"
+    line: rl = [(k, len(list(g))) for k, g in ___]
+    answer: groupby(s)
+    decoys:
+      - groupby(sorted(s))
+      - Counter(s).items()
+      - enumerate(s)
+    show: rl
+    expected: "[('a', 3), ('b', 1), ('c', 2), ('a', 2)]"
+    hint: You want consecutive runs, not total counts.
+    explain: "`groupby` only merges **adjacent** equal items, which is exactly run-length encoding (String Compression). Sorting first, or using a Counter, merges both runs of `a` into one total. Each group is an iterator, hence `len(list(g))`."
+  - id: itertools-d-chain-flatten
+    method: itertools-chain
+    title: Flatten a jagged grid
+    task: Flatten the rows of `grid` into one list, one level deep.
+    setup: |-
+      from itertools import chain
+      grid = [[1, 2], [3], [4, 5]]
+    line: flat = list(___)
+    answer: chain.from_iterable(grid)
+    accept:
+      - chain(*grid)
+      - (x for row in grid for x in row)
+    decoys:
+      - chain(grid)
+      - chain.from_iterable(*grid)
+      - sum(grid)
+    show: flat
+    expected: "[1, 2, 3, 4, 5]"
+    hint: "`chain` takes several iterables. You have one iterable that **contains** them."
+    explain: "`chain.from_iterable(grid)` walks each row in turn without copying (same as `chain(*grid)`). `chain(grid)` only iterates the outer list, giving the rows back unchanged."
+  - id: itertools-d-zip-longest-merge
+    method: itertools-zip-longest
+    title: Merge strings alternately
+    task: Alternate characters from `a` and `b`; when one runs out, append the rest of the other.
+    setup: |-
+      from itertools import zip_longest
+      a, b = "abc", "pqrs"
+    line: merged = "".join(x + y for x, y in ___)
+    answer: zip_longest(a, b, fillvalue="")
+    decoys:
+      - zip(a, b)
+      - zip_longest(a, b)
+      - zip_longest(a, b, "")
+    show: merged
+    expected: "'apbqcrs'"
+    hint: Plain `zip` stops at the shorter string. Pad the missing side with something you can add to a string.
+    explain: '`zip_longest` runs to the end of the longer input, and `fillvalue=""` makes `x + y` safe. Without it the padding is None and `"s" + None` raises TypeError; a positional `""` is just a third iterable.'
+  - id: itertools-d-pairwise-gaps
+    method: itertools-pairwise
+    title: Gaps between neighbors
+    task: Compute the difference between each number and the one before it.
+    setup: |-
+      from itertools import pairwise
+      nums = [1, 4, 6, 10]
+    line: gaps = [b - a for a, b in ___]
+    answer: pairwise(nums)
+    accept:
+      - zip(nums, nums[1:])
+    decoys:
+      - enumerate(nums)
+      - zip(nums[1:], nums)
+      - pairwise(nums[1:])
+    show: gaps
+    expected: "[3, 2, 4]"
+    hint: You need overlapping neighbor pairs `(nums[i], nums[i + 1])`.
+    explain: "`pairwise` (Python 3.10+) yields `(1, 4), (4, 6), (6, 10)`; before 3.10 write `zip(nums, nums[1:])`. Swapping the zip arguments flips every sign, and `enumerate` pairs indexes with values."
+  - id: itertools-d-islice-first
+    method: itertools-islice
+    title: First five from a generator
+    task: Take the first 5 values from the infinite generator `sq`.
+    setup: |-
+      from itertools import count, islice
+      sq = (x * x for x in count(1))
+    line: first5 = list(___)
+    answer: islice(sq, 5)
+    accept:
+      - islice(sq, 0, 5)
+    decoys:
+      - sq[:5]
+      - islice(sq, 1, 5)
+      - islice(5, sq)
+    show: first5
+    expected: "[1, 4, 9, 16, 25]"
+    hint: Generators cannot be sliced with `[]`, but itertools has a function for it.
+    explain: "`islice(it, stop)` lazily takes items until `stop`, so it is safe even on an infinite generator. `sq[:5]` raises TypeError, and `islice(sq, 1, 5)` skips the first item, just like a list slice would."

@@ -68,6 +68,17 @@ tradeoff. **Benchmark** times both on increasingly large generated inputs,
 shows a table and a log-log chart, and estimates the growth rate. These timings
 are labelled as measurements; the Big-O figures come from the algorithm.
 
+**Drills** — fast, spaced-repetition reps for the things you need at your fingertips, sharing CodeToGo's Python content:
+
+- *Complete the line*: a tiny task, a few lines of setup and one blank. Type the missing piece (or press `Shift+Tab` for multiple choice). Real Python checks it, so any correct answer counts. A wrong answer shows what Python actually produced, the right answer and why.
+- *Python topics* (imported from your CodeToGo app): collections, heapq, bisect, lists, dicts, sets, strings, built-ins, itertools, functools, math & bits, gotchas. Each topic has method cards with runnable examples.
+- *Interview templates*: binary search, sliding window, BFS/DFS, backtracking, DP, topological sort, union-find, Dijkstra and more. You fill in the line people get wrong under pressure.
+- *Big-O*: quick-fire questions on the cost of operations and code.
+- *Pattern recognition*: read a Blind 75 problem with the title hidden and name the technique.
+- *Spaced repetition*: unaided correct answers come back after 1, 3, 7, 14, 30 and then 60 days, and misses come back the same day. Using a hint or the choices counts as help, so the card returns sooner. Each day's **Daily review** mixes due cards with a few new ones.
+- *Other modes*: **Speed round** (60 seconds), **Weak spots** (cards you miss or answer slowly), and per-topic or per-method drills.
+- *Links to problems*: a solution's *Solution* tab lists the Python it uses (e.g. `Counter`, `heappush`, `bisect_left`), and each item opens drills for it. Docs sections link to the matching drills.
+
 **Review** — today's review set, weakest topics, and lists for needs review,
 longest time since solved, most failed attempts, lowest confidence, solution
 revealed, and recently failed.
@@ -92,6 +103,10 @@ cheat sheet. 254 examples can be edited and run in place.
 | `Cmd/Ctrl + '` | Run examples only |
 | `Cmd/Ctrl + S` | Save now (code also autosaves) |
 | `/` | Focus docs search |
+| `Enter` | Drills: check the answer / next card (on the Drills page: start the daily review) |
+| `Tab` / `Shift+Tab` | Drills: show a hint / show multiple choice |
+| `Esc` | Drills: show the answer |
+| `1`–`4` | Drills: pick a choice |
 
 Settings (gear icon, bottom left) let you turn off the reveal confirmation or
 automatic marking of problems as solved.
@@ -157,11 +172,25 @@ npm run check          # typecheck + unit tests + dataset validation + docs vali
 npm run validate       # every problem: optimal + alternatives pass all tests,
                        # starter code fails, benchmarks run (add -- --no-bench to skip)
 npm run validate:docs  # runs every runnable docs example
+npm run validate:drills # every drill answer passes, every decoy fails, card examples print what they claim
 npm run e2e            # Playwright end-to-end suite (first: npx playwright install chromium)
 ```
 
 The dataset validator, the harness tests and the end-to-end suite all use the
 real Python runner. The full dataset passes on Python 3.8 and 3.11.
+
+## Drill content
+
+Drill topics live in `data/drills/<topic>.yaml` in the same format as CodeToGo's Python content
+(method cards, quiz questions and "complete the line" drills). Refresh the 12 Python topics from a
+local CodeToGo checkout with:
+
+```bash
+npx tsx scripts/import-codetogo.ts ../codetogo
+```
+
+That rewrites only the imported topics; `templates.yaml`, `complexity.yaml` and `patterns.yaml`
+are authored here. Run `npm run validate:drills` after editing.
 
 ## Adding or editing problems
 

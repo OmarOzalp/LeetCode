@@ -1,0 +1,391 @@
+# Imported from CodeToGo (src/content/python/sets.ts + drills/sets.ts).
+# Re-run scripts/import-codetogo.ts to refresh; edits here will be overwritten.
+id: sets
+title: Sets
+group: Python
+order: 6
+blurb: O(1) membership, dedupe and set algebra.
+intro: 'A set is a hash table of keys with no values: unordered, no duplicates, and O(1) average add, remove and `in`. Reach for one whenever you ask "have I seen this before?"'
+methods:
+  - id: sets-create
+    name: set(), {a, b}, set(iterable)
+    summary: Build a set; duplicates are dropped automatically.
+    example: |-
+      s = {3, 1, 3, 2}
+      print(len(s))         # duplicates dropped
+      print(sorted(s))      # sets are unordered
+      print(set('hello') == {'h', 'e', 'l', 'o'})
+      print(type({}), type(set()))
+    output: |-
+      3
+      [1, 2, 3]
+      True
+      <class 'dict'> <class 'set'>
+    complexity: O(n) to build
+    tip: "`{}` is an empty DICT; write `set()` for an empty set. Never rely on set iteration order - sort it when order matters."
+  - id: sets-add-remove
+    name: add(x) / remove(x) / discard(x)
+    summary: Insert or delete one item; only `remove` complains if it is missing.
+    example: |-
+      s = {1, 2}
+      s.add(3)
+      s.add(2)             # already there: no-op
+      s.discard(9)         # missing: silently ok
+      s.remove(1)
+      print(s)
+      try:
+          s.remove(9)      # missing: KeyError
+      except KeyError as e:
+          print('KeyError', e)
+    output: |-
+      {2, 3}
+      KeyError 9
+    complexity: O(1) average
+    tip: Use `discard` when the item may be absent and `remove` when its absence would be a bug. `s.pop()` removes an arbitrary item.
+  - id: sets-membership
+    name: x in s
+    summary: Constant-time membership test.
+    example: |-
+      nums = [3, 1, 4, 1, 5]
+      print(len(set(nums)) < len(nums))   # has a dup?
+      seen = set()
+      for x in nums:
+          if x in seen:        # O(1) check
+              print('dup:', x)
+          seen.add(x)
+    output: |-
+      True
+      dup: 1
+    complexity: O(1) average (vs O(n) for x in list)
+    tip: "`x in some_list` scans the whole list. Converting to a set once turns an O(n^2) loop into O(n) - the most common easy speedup in interviews."
+  - id: sets-algebra
+    name: a | b, a & b, a - b, a ^ b
+    summary: Union, intersection, difference and symmetric difference.
+    example: |-
+      a = {1, 2, 3}
+      b = {2, 3, 4}
+      print(a | b)    # union
+      print(a & b)    # intersection
+      print(a - b)    # in a, not in b
+      print(a ^ b)    # in exactly one
+      print(a <= {1, 2, 3, 9})   # subset?
+    output: |-
+      {1, 2, 3, 4}
+      {2, 3}
+      {1}
+      {1, 4}
+      True
+    complexity: O(len(a) + len(b))
+    tip: The methods (`a.union(lst)`, `a.intersection(lst)`) accept any iterable, while the operators need sets on both sides. `a |= b` updates `a` in place.
+  - id: sets-comprehension
+    name: "{expr for x in it}"
+    summary: Build a set in one expression.
+    example: |-
+      words = ['Hi', 'hi', 'HEY', 'hey', 'yo']
+      lower = {w.lower() for w in words}
+      print(sorted(lower))
+      print({len(w) for w in words})
+    output: |-
+      ['hey', 'hi', 'yo']
+      {2, 3}
+    complexity: O(n)
+    tip: "Braces around a single expression make a set; braces around `k: v` make a dict."
+  - id: sets-frozenset
+    name: frozenset(it)
+    summary: An immutable, hashable set you can use as a dict key or set item.
+    example: |-
+      d = {frozenset([1, 2]): 'pair'}
+      print(d[frozenset([2, 1])])   # order ignored
+      seen = {frozenset('ab'), frozenset('ba')}
+      print(len(seen))
+      try:
+          bad = {{1, 2}: 'x'}
+      except TypeError:
+          print('a set is unhashable')
+    output: |-
+      pair
+      1
+      a set is unhashable
+    complexity: O(k) to hash k items
+    tip: Use a frozenset key when the group of items matters but not their order. If order matters, use a tuple instead.
+  - id: sets-visited
+    name: visited set in BFS / DFS
+    summary: Track seen nodes so each one is processed once.
+    details: For grids, store cells as `(r, c)` tuples in the set.
+    example: |-
+      from collections import deque
+      graph = {0: [1, 2], 1: [2], 2: [0, 3], 3: []}
+      seen, q = {0}, deque([0])
+      while q:
+          node = q.popleft()
+          print('visit', node)
+          for nb in graph[node]:
+              if nb not in seen:
+                  seen.add(nb)     # mark when queued
+                  q.append(nb)
+    output: |-
+      visit 0
+      visit 1
+      visit 2
+      visit 3
+    complexity: O(V + E)
+    tip: Mark a node as seen when you ENQUEUE it, not when you pop it; otherwise the same node can be queued many times. Without a visited set, a cycle loops forever.
+  - id: sets-dedupe-order
+    name: "dedupe keeping order: dict.fromkeys"
+    summary: Remove duplicates while keeping first-seen order.
+    example: |-
+      nums = [3, 1, 3, 2, 1]
+      print(list(set(nums)))            # order lost
+      print(list(dict.fromkeys(nums)))  # order kept
+      seen, out = set(), []
+      for x in nums:
+          if x not in seen:
+              seen.add(x)
+              out.append(x)
+      print(out)                        # same, by hand
+    output: |-
+      [1, 2, 3]
+      [3, 1, 2]
+      [3, 1, 2]
+    complexity: O(n)
+    tip: "`set()` throws away the original order. `dict.fromkeys(items)` keeps the first occurrence of each item, in order, because dicts preserve insertion order."
+quiz:
+  - id: sets-q1
+    question: What does this print?
+    code: |-
+      s = {}
+      print(type(s).__name__)
+    options:
+      - set
+      - dict
+      - NoneType
+    answer: 1
+    explanation: Empty braces create an empty dict. Use `set()` for an empty set.
+  - id: sets-q2
+    question: What does this print?
+    code: |-
+      a = {1, 2, 3}
+      b = {3, 4}
+      print(sorted(a ^ b))
+    options:
+      - "[3]"
+      - "[1, 2, 4]"
+      - "[1, 2, 3, 4]"
+      - "[1, 2]"
+    answer: 1
+    explanation: "`^` is symmetric difference: items in exactly one of the two sets."
+  - id: sets-q3
+    question: You need to delete `x` from set `s`, and `x` might not be there. Which call never raises?
+    options:
+      - s.remove(x)
+      - s.discard(x)
+      - s.pop(x)
+      - del s[x]
+    answer: 1
+    explanation: "`discard` ignores missing items. `remove` raises KeyError, `pop` takes no argument, and sets do not support `del s[x]`."
+  - id: sets-q4
+    question: What does this print?
+    code: |-
+      seen = set()
+      seen.add([0, 1])
+      print(seen)
+    options:
+      - "{[0, 1]}"
+      - "{(0, 1)}"
+      - TypeError
+      - "{0, 1}"
+    answer: 2
+    explanation: "Lists are unhashable, so they cannot go in a set. Store grid cells as tuples: `seen.add((0, 1))`."
+  - id: sets-q5
+    question: Which dict key groups words by their letters, ignoring order and repeats?
+    options:
+      - list(w)
+      - set(w)
+      - frozenset(w)
+    answer: 2
+    explanation: Dict keys must be hashable. Lists and sets are not; a frozenset is, and it ignores order and duplicates.
+  - id: sets-q6
+    question: What does this print?
+    code: print(list(dict.fromkeys('banana')))
+    options:
+      - "['b', 'a', 'n']"
+      - "['a', 'b', 'n']"
+      - "['b', 'a', 'n', 'a', 'n', 'a']"
+    answer: 0
+    explanation: "`dict.fromkeys` keeps one key per letter in first-seen order, which dedupes while preserving order."
+drills:
+  - id: sets-d-empty
+    method: sets-create
+    title: Empty set
+    task: Start an empty set to hold the visited nodes.
+    setup: ""
+    line: seen = ___
+    answer: set()
+    decoys:
+      - "{}"
+      - "[]"
+      - set
+    show: seen
+    expected: set()
+    hint: Empty braces already mean something else in Python.
+    explain: "`{}` is an empty **dict**; only `set()` makes an empty set. Braces with items, like `{1, 2}`, do make a set."
+  - id: sets-d-has-dup
+    method: sets-create
+    title: Contains duplicate
+    task: Return True if any value appears more than once in `nums`.
+    setup: nums = [3, 1, 4, 1, 5]
+    line: has_dup = ___
+    answer: len(set(nums)) < len(nums)
+    accept:
+      - len(set(nums)) != len(nums)
+    decoys:
+      - len(set(nums)) == len(nums)
+      - len(nums) < len(set(nums))
+      - set(nums) < nums
+    show: has_dup
+    expected: "True"
+    hint: A set drops duplicates, so compare sizes.
+    explain: Building the set is O(n); if it is smaller than the list, some value repeated. An early-exit loop with a `seen` set also works and can stop sooner.
+  - id: sets-d-discard
+    method: sets-add-remove
+    title: Remove if present
+    task: Remove each listed value from `seen`. Some may be missing, and that must not raise.
+    setup: seen = {1, 2, 3}
+    line: "for x in [2, 4]: ___"
+    answer: seen.discard(x)
+    decoys:
+      - seen.remove(x)
+      - seen.pop(x)
+      - del seen[x]
+    show: seen
+    expected: "{1, 3}"
+    hint: One of the two delete methods stays quiet when the item is missing.
+    explain: "`discard` ignores a missing item, while `remove` raises KeyError for 4. `set.pop()` takes no argument (it removes an arbitrary item), and sets do not support `del s[x]`."
+  - id: sets-d-not-banned
+    method: sets-membership
+    title: Filter with a set
+    task: Keep only the words that are not banned. `banned` is a set, so each check is O(1).
+    setup: |-
+      banned = {'spam', 'junk'}
+      words = ['hi', 'spam', 'yo']
+    line: clean = [w for w in words ___]
+    answer: if w not in banned
+    accept:
+      - if not w in banned
+    decoys:
+      - if w in banned
+      - if banned not in w
+      - if w != banned
+    show: clean
+    expected: "['hi', 'yo']"
+    hint: Python has a two-word operator for "is not a member of".
+    explain: "`x not in s` is an O(1) average lookup on a set but an O(n) scan on a list. Swapping a list for a set here is what turns many O(n^2) loops into O(n)."
+  - id: sets-d-common
+    method: sets-algebra
+    title: Items in both
+    task: Get the distinct values that appear in both lists, as a set.
+    setup: |-
+      a = [1, 2, 2, 3]
+      b = [2, 3, 4]
+    line: common = ___
+    answer: set(a) & set(b)
+    accept:
+      - set(a).intersection(b)
+      - set(b) & set(a)
+    decoys:
+      - set(a) | set(b)
+      - a & b
+      - set(a) - set(b)
+    show: common
+    expected: "{2, 3}"
+    hint: "Convert first: the set operators do not work on lists."
+    explain: "`&` is intersection; with both sides as sets the whole thing is O(n + m). The operators need sets on both sides (`a & b` on lists raises TypeError), while `set(a).intersection(b)` accepts any iterable."
+  - id: sets-d-missing
+    method: sets-algebra
+    title: What is missing?
+    task: List the skills in `need` that are not in `have`, sorted A-Z.
+    setup: |-
+      need = {'py', 'sql', 'go'}
+      have = {'py', 'js'}
+    line: missing = sorted(___)
+    answer: need - have
+    accept:
+      - need.difference(have)
+    decoys:
+      - have - need
+      - need & have
+      - need ^ have
+    show: missing
+    expected: "['go', 'sql']"
+    hint: "Difference is not symmetric: the order of the two sets matters."
+    explain: "`a - b` keeps what is in `a` but not in `b`. `a ^ b` also keeps `js`, which is only in `have`. Sets of strings have no fixed order, so sort them before comparing or printing."
+  - id: sets-d-lower-unique
+    method: sets-comprehension
+    title: Distinct, ignoring case
+    task: Build the set of distinct words after lowercasing each one.
+    setup: words = ['Hi', 'hi', 'HEY', 'hey', 'yo']
+    line: uniq = ___
+    answer: "{w.lower() for w in words}"
+    accept:
+      - set(w.lower() for w in words)
+      - set(map(str.lower, words))
+    decoys:
+      - "[w.lower() for w in words]"
+      - "{w for w in words}"
+      - set(words).lower()
+    show: sorted(uniq)
+    expected: "['hey', 'hi', 'yo']"
+    hint: Put braces around a single expression.
+    explain: "A set comprehension `{expr for x in it}` dedupes as it builds. Braces with `k: v` would make a dict instead, and a list comprehension keeps the duplicates."
+  - id: sets-d-edge-key
+    method: sets-frozenset
+    title: Unordered pair in a set
+    task: Add each undirected edge to `seen` as an immutable set, so `(1, 2)` and `(2, 1)` count once.
+    setup: |-
+      edges = [(1, 2), (2, 1), (2, 3)]
+      seen = set()
+    line: "for u, v in edges: seen.add(___)"
+    answer: frozenset((u, v))
+    accept:
+      - frozenset([u, v])
+      - frozenset({u, v})
+    decoys:
+      - (u, v)
+      - "{u, v}"
+      - set((u, v))
+    show: seen
+    expected: "{frozenset({1, 2}), frozenset({2, 3})}"
+    hint: A regular set cannot go inside another set, because it is unhashable.
+    explain: "`frozenset` is an immutable, hashable set, so it can be a set item or dict key, and it ignores order. A tuple keeps `(1, 2)` and `(2, 1)` apart, and `{u, v}` raises TypeError."
+  - id: sets-d-visit-cell
+    method: sets-visited
+    title: Mark a grid cell
+    task: "Grid BFS: mark cell `(r, c)` as visited."
+    setup: |-
+      seen = {(0, 0)}
+      r, c = 1, 2
+    line: ___
+    answer: seen.add((r, c))
+    decoys:
+      - seen.add([r, c])
+      - seen.add(r, c)
+      - seen.append((r, c))
+    show: seen
+    expected: "{(0, 0), (1, 2)}"
+    hint: A cell goes into the set as one hashable item.
+    explain: "Store cells as `(r, c)` tuples: lists are unhashable and `add` takes exactly one item. In BFS, mark a cell when you **enqueue** it so it is never queued twice."
+  - id: sets-d-dedupe-order
+    method: sets-dedupe-order
+    title: Dedupe, keep order
+    task: Remove duplicates but keep each value in first-seen order.
+    setup: nums = [3, 1, 3, 2, 1]
+    line: uniq = ___
+    answer: list(dict.fromkeys(nums))
+    decoys:
+      - list(set(nums))
+      - sorted(set(nums))
+      - dict.fromkeys(nums)
+    show: uniq
+    expected: "[3, 1, 2]"
+    hint: Dict keys are unique and remember insertion order.
+    explain: "`dict.fromkeys(nums)` keeps the first occurrence of each value, in order, in O(n); `list(...)` turns its keys into a list. A plain `set` throws the order away."

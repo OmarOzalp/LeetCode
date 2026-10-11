@@ -7,10 +7,13 @@ import type {
   HealthResponse,
   ProblemsResponse,
   ProgressPatch,
+  DrillReviewRequest,
   RunRequest,
 } from "../shared/api.ts";
 import { STATUSES } from "../shared/api.ts";
 import { loadDocs } from "./docs/loader.ts";
+import { findDrill, getDrills } from "./drills/loader.ts";
+import { checkDrill } from "./drills/check.ts";
 import { getDataset, toDetail, toSummary } from "./problems/loader.ts";
 import { analyzeSolutions, runBenchmark, runSnippet, runTests } from "./runner/judge.ts";
 import { detectPython, PythonUnavailableError } from "./runner/python.ts";
@@ -157,6 +160,37 @@ export function createApp(opts: { dataDir: string; staticDir?: string }) {
   app.post("/api/snippet", async (req, res) => {
     const code = requireCode(req.body);
     res.json(await pool.run(() => runSnippet(code)));
+  });
+
+  // ---------------------------------------------------------------- drills
+  app.get("/api/drills", (_req, res) => {
+    res.json(getDrills().value);
+  });
+
+  app.post("/api/drills/check", async (req, res) => {
+    const { drillId, fill } = (req.body ?? {}) as { drillId?: string; fill?: string };
+    const found = typeof drillId === "string" ? findDrill(drillId) : null;
+    if (!found) throw new HttpError(404, `Unknown drill: ${drillId}`);
+    if (typeof fill !== "string" || fill.length > 2000) throw new HttpError(400, "`fill` must be a short string");
+    res.json(await pool.run(() => checkDrill(found.drill, fill)));
+  });
+
+  app.post("/api/drills/review", (req, res) => {
+    const body = (req.body ?? {}) as DrillReviewRequest;
+    if (typeof body.cardId !== "string" || !body.cardId) throw new HttpError(400, "cardId is required");
+    if (!["drill", "quiz", "pattern"].includes(body.kind)) throw new HttpError(400, "invalid kind");
+    res.json(store.recordDrill({ ...body, correct: !!body.correct, assisted: !!body.assisted, ms: Number(body.ms) || 0 }));
+  });
+
+  app.post("/api/drills/sprint", (req, res) => {
+    const score = Number((req.body ?? {}).score);
+    if (!Number.isFinite(score) || score < 0) throw new HttpError(400, "invalid score");
+    res.json(store.recordSprint(Math.floor(score)));
+  });
+
+  app.post("/api/drills/reset", (_req, res) => {
+    store.resetDrills();
+    res.json({ ok: true });
   });
 
   // ---------------------------------------------------------------- docs

@@ -3,6 +3,8 @@
  */
 import type { CategoryId, Difficulty } from "./categories";
 import type { Alternative, Example, RunnerSpec } from "./problemSchema";
+import type { DrillTopic } from "./drillSchema";
+import type { CardState } from "./srs";
 
 // ------------------------------------------------------------------ problems
 
@@ -216,6 +218,18 @@ export interface AppState {
   version: 1;
   problems: Record<string, ProblemProgress>;
   settings: AppSettings;
+  /** Spaced-repetition state per drill card id. */
+  drills: Record<string, CardState>;
+  /** Drill activity per local day (YYYY-MM-DD). */
+  drillDays: Record<string, DrillDay>;
+}
+
+export interface DrillDay {
+  reviewed: number;
+  correct: number;
+  ms: number;
+  /** Best number of correct answers in a speed round that day. */
+  bestSprint?: number;
 }
 
 export interface AppSettings {
@@ -262,4 +276,49 @@ export interface DocSection {
   intro: string;
   order: number;
   entries: DocEntry[];
+}
+
+// ------------------------------------------------------------------ drills
+
+export interface PatternCard {
+  id: string;
+  slug: string;
+  title: string;
+  difficulty: string;
+  category: string;
+  /** The problem description (the title is hidden while answering). */
+  prompt: string;
+  options: string[];
+  answer: number;
+  also: string[];
+  explanation: string;
+  approach: string;
+}
+
+export interface DrillsResponse {
+  topics: DrillTopic[];
+  patterns: PatternCard[];
+}
+
+export interface DrillCheckResponse {
+  ok: boolean;
+  /** repr() of the drill's `show` expression after running the filled line. */
+  got: string | null;
+  error?: RuntimeErrorInfo | null;
+  stdout?: string;
+}
+
+export interface DrillReviewRequest {
+  cardId: string;
+  correct: boolean;
+  ms: number;
+  assisted: boolean;
+  kind: "drill" | "quiz" | "pattern";
+  /** Set when the answer was given during a speed round. */
+  sprint?: boolean;
+}
+
+export interface DrillReviewResponse {
+  card: CardState;
+  day: DrillDay;
 }

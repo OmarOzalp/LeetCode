@@ -2,11 +2,16 @@ import { create } from "zustand";
 import type {
   AppSettings,
   CategoryInfo,
+  DrillDay,
+  DrillReviewRequest,
+  DrillsResponse,
   HealthResponse,
   ProblemProgress,
   ProblemSummary,
   ProgressPatch,
 } from "@shared/api";
+import type { CardState } from "@shared/srs";
+import { dayKey } from "@shared/srs";
 import { api } from "./api";
 
 export const EMPTY_PROGRESS: ProblemProgress = {
@@ -35,6 +40,15 @@ interface AppStore {
   progress: Record<string, ProblemProgress>;
   settings: AppSettings;
   health: HealthResponse | null;
+  /** Spaced-repetition state per drill card. */
+  drills: Record<string, CardState>;
+  drillDays: Record<string, DrillDay>;
+  /** Drill content, loaded the first time a drills page opens. */
+  drillContent: DrillsResponse | null;
+  loadDrills: () => Promise<DrillsResponse>;
+  recordDrill: (req: DrillReviewRequest) => Promise<void>;
+  recordSprint: (score: number) => Promise<void>;
+  resetDrills: () => Promise<void>;
   init: () => Promise<void>;
   /** Replace a problem's progress with the server's authoritative copy. */
   setProgress: (slug: string, p: ProblemProgress) => void;
@@ -63,6 +77,40 @@ export const useAppStore = create<AppStore>((set, get) => ({
   progress: {},
   settings: DEFAULT_SETTINGS,
   health: null,
+  drills: {},
+  drillDays: {},
+  drillContent: null,
+
+  loadDrills: async () => {
+    const existing = get().drillContent;
+    if (existing) return existing;
+    const content = await api.drills();
+    set({ drillContent: content });
+    return content;
+  },
+
+  recordDrill: async (req) => {
+    try {
+      const res = await api.reviewDrill(req);
+      set((s) => ({ drills: { ...s.drills, [req.cardId]: res.card }, drillDays: { ...s.drillDays, [dayKey(new Date())]: res.day } }));
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  recordSprint: async (score) => {
+    try {
+      const day = await api.recordSprint(score);
+      set((s) => ({ drillDays: { ...s.drillDays, [dayKey(new Date())]: day } }));
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  resetDrills: async () => {
+    await api.resetDrills();
+    set({ drills: {}, drillDays: {} });
+  },
 
   init: async () => {
     try {
@@ -76,6 +124,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
         bySlug: Object.fromEntries(list.problems.map((p) => [p.slug, p])),
         progress: state.problems,
         settings: state.settings,
+        drills: state.drills ?? {},
+        drillDays: state.drillDays ?? {},
         health,
       });
     } catch (e) {
@@ -86,7 +136,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   reloadState: async () => {
     const state = await api.state();
     applyTheme(state.settings.theme);
-    set({ progress: state.problems, settings: state.settings });
+    set({ progress: state.problems, settings: state.settings, drills: state.drills ?? {}, drillDays: state.drillDays ?? {} });
   },
 
   setProgress: (slug, p) => set((s) => ({ progress: { ...s.progress, [slug]: p } })),

@@ -1,0 +1,423 @@
+# Imported from CodeToGo (src/content/python/heapq.ts + drills/heapq.ts).
+# Re-run scripts/import-codetogo.ts to refresh; edits here will be overwritten.
+id: heapq
+title: heapq (Heaps)
+group: Python
+order: 2
+blurb: "Min-heaps on plain lists: top-k, merging, scheduling and Dijkstra."
+intro: '`heapq` keeps a plain list arranged as a binary min-heap: the smallest item is always at index 0. Reach for it when a problem says "k largest", "k closest", "merge sorted", "next smallest" or needs a priority queue (Dijkstra, task scheduling).'
+methods:
+  - id: heapq-heapify
+    name: heapify(list) and heap[0]
+    summary: Rearranges a list into a min-heap in place; heap[0] is the smallest item.
+    details: Only index 0 has a guarantee. The rest of the list is a valid heap, not a sorted list, and the last item is not the max.
+    example: |-
+      import heapq
+
+      nums = [5, 1, 8, 3, 2]
+      heapq.heapify(nums)   # in place, returns None
+      print(nums)           # a heap, not sorted
+      print(nums[0])        # min: O(1) peek
+      print(nums[-1])       # NOT the max (8)!
+    output: |-
+      [1, 2, 8, 3, 5]
+      1
+      5
+    complexity: heapify O(n), peek O(1)
+    tip: heapify is O(n), faster than n pushes (O(n log n)). Always check the heap is non-empty before reading `heap[0]`.
+  - id: heapq-push-pop
+    name: heappush(heap, x) / heappop(heap)
+    summary: Add an item, or remove and return the smallest one.
+    example: |-
+      import heapq
+
+      heap = []
+      for x in [4, 1, 7, 3]:
+          heapq.heappush(heap, x)
+      print(heap[0])              # peek min
+      print(heapq.heappop(heap))  # remove min
+      print(heapq.heappop(heap))
+      print(len(heap))
+    output: |-
+      1
+      1
+      3
+      2
+    complexity: O(log n)
+    tip: "heappop on an empty heap raises IndexError, so loop with `while heap:`. Popping everything gives sorted order: that is heapsort, O(n log n)."
+  - id: heapq-max-heap
+    name: Max-heap by negation
+    summary: heapq is min-only, so store -x to pop the largest first.
+    example: |-
+      import heapq
+
+      nums = [3, 1, 4, 1, 5]
+      heap = [-x for x in nums]    # negate going in
+      heapq.heapify(heap)
+      print(-heap[0])              # peek max
+      print(-heapq.heappop(heap))  # negate coming out
+      print(-heapq.heappop(heap))
+    output: |-
+      5
+      5
+      4
+    complexity: O(log n) per push/pop
+    tip: Negate on the way in AND on the way out. With tuples, negate only the numeric priority, e.g. `(-count, word)` gives the highest count first and ties alphabetically.
+  - id: heapq-tuples
+    name: (priority, tiebreak, item) entries
+    summary: Push tuples so the heap orders by priority; add a tiebreaker before any item that cannot be compared.
+    details: Tuples compare element by element. On a priority tie Python compares the next field, and dicts, ListNodes or custom objects raise TypeError.
+    example: |-
+      import heapq
+
+      heap = [(1, {"id": "a"})]
+      try:
+          heapq.heappush(heap, (1, {"id": "b"}))
+      except TypeError:
+          print("tie -> compares dicts -> TypeError")
+      heap = [(1, 0, {"id": "a"})]
+      heapq.heappush(heap, (1, 1, {"id": "b"}))
+      print(heapq.heappop(heap)[2])
+    output: |-
+      tie -> compares dicts -> TypeError
+      {'id': 'a'}
+    complexity: O(log n)
+    tip: Use a running counter (`i` from enumerate or `itertools.count()`) as the tiebreaker. It also makes equal priorities pop in insertion order.
+  - id: heapq-pushpop-replace
+    name: heappushpop / heapreplace
+    summary: Push and pop in one O(log n) step; they differ in which happens first.
+    example: |-
+      import heapq
+
+      h = [2, 5, 9]
+      print(heapq.heappushpop(h, 1), h)  # push, then pop
+      h = [2, 5, 9]
+      print(heapq.heapreplace(h, 1), h)  # pop, then push
+    output: |-
+      1 [2, 5, 9]
+      2 [1, 5, 9]
+    complexity: O(log n)
+    tip: "heappushpop can return the item you just pushed (if it is the smallest). It is the one-call step for a size-k heap: `heappushpop(heap, x)` once the heap is full."
+  - id: heapq-nlargest
+    name: nlargest(k, it) / nsmallest(k, it)
+    summary: The k largest or smallest items, sorted, with an optional key.
+    example: |-
+      import heapq
+
+      nums = [5, 1, 8, 3, 9, 2]
+      print(heapq.nlargest(3, nums))
+      print(heapq.nsmallest(2, nums))
+      words = ["kiwi", "fig", "banana", "apple"]
+      print(heapq.nlargest(2, words, key=len))
+    output: |-
+      [9, 8, 5]
+      [1, 2]
+      ['banana', 'apple']
+    complexity: O(n log k)
+    tip: 'Perfect for "k closest points": `nsmallest(k, points, key=lambda p: p[0]**2 + p[1]**2)`. If the interviewer wants to see the heap, write the size-k loop yourself.'
+  - id: heapq-top-k
+    name: Top k with a size-k heap
+    summary: Keep only the k best items seen so far; the root is the weakest survivor.
+    example: |-
+      import heapq
+
+      nums, k = [7, 2, 9, 4, 8, 1], 3
+      heap = []
+      for x in nums:
+          heapq.heappush(heap, x)
+          if len(heap) > k:
+              heapq.heappop(heap)   # drop the smallest
+      print(heap[0])                # kth largest
+      print(sorted(heap))           # the top k
+    output: |-
+      7
+      [7, 8, 9]
+    complexity: O(n log k) time, O(k) space
+    tip: Top k LARGEST uses a MIN-heap of size k (so you can evict the smallest); top k smallest uses a max-heap. This also works on a stream (Kth Largest Element in a Stream).
+  - id: heapq-merge-k
+    name: Merge k sorted lists
+    summary: Seed the heap with each list's head, then pop the min and push its successor.
+    example: |-
+      import heapq
+
+      lists = [[1, 4, 7], [2, 5], [3, 6, 9]]
+      heap = [(a[0], i, 0) for i, a in enumerate(lists) if a]
+      heapq.heapify(heap)
+      while heap:
+          val, i, j = heapq.heappop(heap)
+          print(val, end=" ")
+          if j + 1 < len(lists[i]):
+              heapq.heappush(heap, (lists[i][j + 1], i, j + 1))
+    output: 1 2 3 4 5 6 7 9
+    complexity: O(N log k) for N items across k lists
+    tip: The list index i doubles as the tiebreaker. For linked lists push `(node.val, i, node)` so ties never compare ListNodes. For plain iterables, `heapq.merge(*lists)` does it lazily.
+quiz:
+  - id: heapq-q1
+    question: What does this print?
+    code: |-
+      import heapq
+      h = [5, 3, 8, 1]
+      heapq.heapify(h)
+      print(h[0], heapq.heappop(h), h[0])
+    options:
+      - 1 1 3
+      - 5 5 3
+      - 1 1 1
+      - 8 8 5
+    answer: 0
+    explanation: heap[0] is the min (1). heappop removes it, and the next smallest (3) moves to index 0.
+  - id: heapq-q2
+    question: You need the k largest of n streaming numbers using O(k) memory. Which heap?
+    options:
+      - A min-heap of size k
+      - A max-heap of size k
+      - A max-heap of all n items
+      - A min-heap of all n items
+    answer: 0
+    explanation: The root of a size-k min-heap is the smallest of the k best so far, so each new number only has to beat heap[0]. Total O(n log k).
+  - id: heapq-q3
+    question: What does this print?
+    code: |-
+      import heapq
+      h = []
+      for x in [3, 1, 2]:
+          heapq.heappush(h, -x)
+      print(-heapq.heappop(h))
+    options:
+      - "1"
+      - "3"
+      - "-3"
+      - "-1"
+    answer: 1
+    explanation: Negated values make the largest number the smallest entry (-3); negating again on the way out gives 3.
+  - id: heapq-q4
+    question: What does this print?
+    code: |-
+      import heapq
+      h = [1, 5, 2, 9, 7]
+      heapq.heapify(h)
+      print(h[-1])
+    options:
+      - "9"
+      - "7"
+      - "1"
+      - "2"
+    answer: 1
+    explanation: The list is already a valid heap, so heapify leaves it alone. A heap only guarantees the min at index 0; the last item is not the max.
+  - id: heapq-q5
+    question: What does this print?
+    code: |-
+      import heapq
+      h = [(1, [2])]
+      heapq.heappush(h, (1, [1]))
+      print(h[0])
+    options:
+      - (1, [2])
+      - (1, [1])
+      - TypeError
+    answer: 1
+    explanation: On a priority tie, tuples compare the next field. Lists are comparable, so [1] < [2] wins. With dicts or ListNodes this would raise TypeError, which is why we add a tiebreaker.
+  - id: heapq-q6
+    question: Which operation is O(n)?
+    options:
+      - heapq.heapify(nums)
+      - heapq.heappush(h, x)
+      - heapq.heappop(h)
+      - h[0]
+    answer: 0
+    explanation: heapify builds the whole heap in linear time. push and pop are O(log n), and peeking at h[0] is O(1).
+drills:
+  - id: heapq-d-heapify
+    method: heapq-heapify
+    title: Heapify in place
+    task: Rearrange `nums` into a min-heap in place, in O(n).
+    setup: |-
+      import heapq
+      nums = [5, 1, 8, 3, 2]
+    line: ___
+    answer: heapq.heapify(nums)
+    decoys:
+      - nums = heapq.heapify(nums)
+      - nums.heapify()
+      - heapq.heappush(nums)
+    show: nums
+    expected: "[1, 2, 8, 3, 5]"
+    hint: It changes the list where it is and returns nothing.
+    explain: "`heapq.heapify` works in place in O(n) and returns None, so `nums = heapq.heapify(nums)` throws your list away. Afterwards only `nums[0]` is guaranteed to be the minimum; the list is not sorted."
+  - id: heapq-d-push
+    method: heapq-push-pop
+    title: Push onto a heap
+    task: Add the new deadline `2` to the min-heap `heap` so it stays a valid heap.
+    setup: |-
+      import heapq
+      heap = [1, 4, 7]
+    line: ___
+    answer: heapq.heappush(heap, 2)
+    decoys:
+      - heap.append(2)
+      - heapq.heappush(2, heap)
+      - heap.push(2)
+    show: heap
+    expected: "[1, 2, 7, 4]"
+    hint: "Adding to the end of the list is not enough: the new item has to bubble up."
+    explain: "`heappush(heap, x)` appends and sifts the item up in O(log n). A plain `append` can break the heap order, so later pops return the wrong item. The heap comes first, the item second."
+  - id: heapq-d-pop-smallest
+    method: heapq-push-pop
+    title: Pop the cheapest task
+    task: The heap holds `(priority, task)` tuples. Remove and return the tuple with the smallest priority.
+    setup: |-
+      import heapq
+      heap = [(3, "write"), (1, "plan"), (2, "test")]
+      heapq.heapify(heap)
+    line: first = ___
+    answer: heapq.heappop(heap)
+    decoys:
+      - heap.pop()
+      - heap[-1]
+      - heapq.heappop(heap)[1]
+    show: first
+    expected: (1, 'plan')
+    check: first == (1, 'plan') and len(heap) == 2
+    hint: A heap keeps its smallest item at index 0, but removing it must keep the heap valid.
+    explain: "`heapq.heappop` removes the smallest item in O(log n) and restores the heap. `heap.pop()` removes the *last* list element, which is not the minimum."
+  - id: heapq-d-max-pop
+    method: heapq-max-heap
+    title: Pop the largest
+    task: "`heap` is a max-heap stored as negated numbers. Remove the largest number and get it back as a positive value."
+    setup: |-
+      import heapq
+      heap = [-x for x in [3, 1, 4, 1, 5]]
+      heapq.heapify(heap)
+    line: biggest = ___
+    answer: -heapq.heappop(heap)
+    decoys:
+      - heapq.heappop(heap)
+      - -heap[0]
+      - -heap.pop()
+    show: (biggest, len(heap))
+    expected: (5, 4)
+    hint: Negate going in, and negate again coming out.
+    explain: With negated values the largest number is the smallest entry, so `heappop` returns -5 and negating gives 5. `-heap[0]` only peeks, and `heap.pop()` takes the last slot, not the root.
+  - id: heapq-d-count-word
+    method: heapq-max-heap
+    title: Highest count first, ties A-Z
+    task: "Top K Frequent Words: build entries so the smallest one is the word with the **highest** count, with ties broken alphabetically."
+    setup: |-
+      import heapq
+      counts = {"b": 2, "a": 2, "c": 5}
+    line: heap = [___ for w, c in counts.items()]
+    answer: (-c, w)
+    decoys:
+      - (c, w)
+      - (w, -c)
+      - (-c, -w)
+    show: "[w for _, w in heapq.nsmallest(3, heap)]"
+    expected: "['c', 'a', 'b']"
+    hint: heapq is a min-heap, and tuples compare field by field.
+    explain: "`(-c, w)` makes the biggest count the smallest tuple, and equal counts fall back to comparing the words alphabetically. Strings cannot be negated, so negate only the number."
+  - id: heapq-d-tiebreak
+    method: heapq-tuples
+    title: Add a tiebreaker
+    task: Push `job` with priority 2. Priorities can tie and dicts cannot be compared, so use the counter `i` as a tiebreaker.
+    setup: |-
+      import heapq
+      heap = [(2, 0, {"job": "b"})]
+      i, job = 1, {"job": "a"}
+    line: heapq.heappush(heap, ___)
+    answer: (2, i, job)
+    decoys:
+      - (2, job)
+      - (2, job, i)
+      - (i, 2, job)
+    show: heap
+    expected: "[(2, 0, {'job': 'b'}), (2, 1, {'job': 'a'})]"
+    hint: On a priority tie, Python compares the **next** field of each tuple.
+    explain: In `(priority, counter, item)` a tie on priority is settled by the unique counter, so the dicts are never compared. With the dict in second place, the first tie raises TypeError.
+  - id: heapq-d-pushpop
+    method: heapq-pushpop-replace
+    title: Offer a number to a full heap
+    task: "`heap` holds the 3 largest numbers so far. Offer `x` in one O(log n) call: whichever is smallest, `x` or the root, must come out."
+    setup: |-
+      import heapq
+      heap, x = [5, 8, 9], 3  # top 3 so far
+    line: out = ___
+    answer: heapq.heappushpop(heap, x)
+    decoys:
+      - heapq.heapreplace(heap, x)
+      - heapq.heappush(heap, x)
+      - heapq.heappop(heap)
+    show: (out, heap)
+    expected: (3, [5, 8, 9])
+    hint: There are two combined calls. One pushes first, the other pops first.
+    explain: "`heappushpop` pushes first, so a small `x` comes straight back out and the top 3 stay intact. `heapreplace` pops first: it would evict 5 and keep 3, which is not in the top 3."
+  - id: heapq-d-k-closest
+    method: heapq-nlargest
+    title: K closest points
+    task: Get the 2 points closest to the origin, nearest first, using the squared distance `dist`.
+    setup: |-
+      import heapq
+      pts = [(3, 3), (5, -1), (-2, 4), (1, 1)]
+      dist = lambda p: p[0] ** 2 + p[1] ** 2
+    line: best = heapq.___
+    answer: nsmallest(2, pts, key=dist)
+    decoys:
+      - nlargest(2, pts, key=dist)
+      - nsmallest(pts, 2, key=dist)
+      - nsmallest(2, pts)
+    show: best
+    expected: "[(1, 1), (3, 3)]"
+    hint: Closest means smallest distance. The count comes first, then the items, then `key=`.
+    explain: "`nsmallest(k, items, key=...)` returns the k items with the smallest key, already sorted, in O(n log k). Without `key` the points are compared as tuples, x first."
+  - id: heapq-d-topk-evict
+    method: heapq-top-k
+    title: Trim back to k
+    task: "Kth Largest in a Stream: after pushing 8, the min-heap holds k + 1 numbers. Remove the right one so it keeps the top k."
+    setup: |-
+      import heapq
+      heap, k = [4, 7, 9], 3
+      heapq.heappush(heap, 8)
+    line: "if len(heap) > k: ___"
+    answer: heapq.heappop(heap)
+    decoys:
+      - heap.pop()
+      - heap.remove(max(heap))
+      - heapq.nlargest(k, heap)
+    show: heap
+    expected: "[7, 8, 9]"
+    hint: "To keep the k **largest**, throw away the smallest one: the root."
+    explain: A size-k min-heap evicts its smallest item, so the survivors are the top k and `heap[0]` is the kth largest. `heap.pop()` removes the last list slot (just some leaf), and `nlargest` builds a new list instead of changing the heap.
+  - id: heapq-d-kth-largest
+    method: heapq-top-k
+    title: Read the kth largest
+    task: "`heap` is a min-heap of the 3 largest numbers seen so far. Read the 3rd largest number in O(1), without changing the heap."
+    setup: |-
+      import heapq
+      heap = [7, 9, 8]  # top 3, as a min-heap
+    line: kth = ___
+    answer: heap[0]
+    decoys:
+      - heap[-1]
+      - max(heap)
+      - heapq.heappop(heap)
+    show: (kth, len(heap))
+    expected: (7, 3)
+    hint: Of the top 3, the 3rd largest is the smallest one.
+    explain: The root of a size-k min-heap is the weakest of the k best, which is exactly the kth largest. `max(heap)` is the 1st largest, and the last slot is just a leaf.
+  - id: heapq-d-merge-next
+    method: heapq-merge-k
+    title: Push the next item
+    task: "Merge k sorted lists: you just popped `L[i][j]`. Push its successor from the same list as a `(value, list index, item index)` entry."
+    setup: |-
+      import heapq
+      L = [[1, 4, 7], [2, 5]]
+      heap, i, j = [(2, 1, 0)], 0, 0  # popped L[0][0]
+    line: heapq.heappush(heap, ___)
+    answer: (L[i][j + 1], i, j + 1)
+    decoys:
+      - (L[i][j + 1], i, j)
+      - L[i][j + 1]
+      - (L[i + 1][j], i + 1, j)
+    show: heap
+    expected: "[(2, 1, 0), (4, 0, 1)]"
+    hint: Same list `i`, next position `j + 1`, and the value goes first so it decides the order.
+    explain: Each list keeps at most one entry in the heap, so the heap stays size k and each step costs O(log k). The list index breaks ties, and the item index says where to continue.

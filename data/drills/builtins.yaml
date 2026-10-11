@@ -1,0 +1,454 @@
+# Imported from CodeToGo (src/content/python/builtins.ts + drills/builtins.ts).
+# Re-run scripts/import-codetogo.ts to refresh; edits here will be overwritten.
+id: builtins
+title: Built-in Functions
+group: Python
+order: 8
+blurb: enumerate, zip, min/max with key and other one-liners.
+intro: Built-ins need no import and run in fast C code. Knowing them turns ten-line loops into one readable line, which interviewers notice.
+methods:
+  - id: builtins-enumerate
+    name: enumerate(it, start=0)
+    summary: Pairs each item with its index.
+    example: |-
+      nums = [7, 2, 9]
+      for i, x in enumerate(nums):
+          print(i, x)
+      pos = {x: i for i, x in enumerate(nums)}
+      print(pos[9])          # value -> index
+    output: |-
+      0 7
+      1 2
+      2 9
+      2
+    complexity: O(1) per step
+    tip: Use `enumerate` instead of `range(len(a))` when you need both index and value. Two Sum stores `value -> index` exactly like this.
+  - id: builtins-zip
+    name: zip(a, b) / zip(*matrix)
+    summary: Walk several iterables in lockstep.
+    example: |-
+      names = ['a', 'b', 'c']
+      scores = [90, 80]
+      print(list(zip(names, scores)))  # shortest wins
+      m = [[1, 2, 3], [4, 5, 6]]
+      print([list(r) for r in zip(*m)])  # transpose
+      nums = [1, 4, 6]
+      print([b - a for a, b in zip(nums, nums[1:])])
+    output: |-
+      [('a', 90), ('b', 80)]
+      [[1, 4], [2, 5], [3, 6]]
+      [3, 2]
+    complexity: O(1) per step
+    tip: "`zip` stops at the shortest input without warning. `zip(*m)` transposes a matrix (`zip(*m[::-1])` rotates it clockwise), and `zip(a, a[1:])` gives adjacent pairs."
+  - id: builtins-map-filter-lambda
+    name: map(f, it) / filter(f, it) / lambda
+    summary: Apply or test a function across an iterable.
+    example: |-
+      square = lambda x: x * x      # tiny function
+      print(square(4))
+      nums = list(map(int, '3 1 2'.split()))
+      print(nums)
+      print(list(map(square, nums)))
+      print(list(filter(lambda x: x % 2, nums)))
+    output: |-
+      16
+      [3, 1, 2]
+      [9, 1, 4]
+      [3, 1]
+    complexity: O(n)
+    tip: "`map` and `filter` return lazy, one-shot iterators - wrap them in `list()` to print or reuse. Keep lambdas for short `key=` functions; use `def` for anything longer."
+  - id: builtins-any-all
+    name: any(it) / all(it)
+    summary: Is at least one / every item truthy?
+    example: |-
+      nums = [2, 4, 7]
+      print(any(x > 5 for x in nums))
+      print(all(x % 2 == 0 for x in nums))
+      print(any([]), all([]))      # empty input
+      grid = [[1, 1], [1, 0]]
+      print(all(all(row) for row in grid))
+    output: |-
+      True
+      False
+      False True
+      False
+    complexity: O(n), stops early
+    tip: Both short-circuit as soon as the answer is known. `all([])` is True (nothing failed), a common edge case.
+  - id: builtins-min-max
+    name: min / max with key= and default=
+    summary: Smallest or largest item, optionally by a computed key.
+    example: |-
+      words = ['pear', 'fig', 'banana']
+      print(max(words, key=len), min(words, key=len))
+      print(max([], default=0))     # no ValueError
+      print(max(3, 7, 5), min(4, -1))
+      pts = [(1, 5), (2, 1)]
+      print(min(pts, key=lambda p: p[1]))
+    output: |-
+      banana fig
+      0
+      7 -1
+      (2, 1)
+    complexity: O(n)
+    tip: "`max([])` raises ValueError, so pass `default=` when the input can be empty. On ties, the first item found wins."
+  - id: builtins-sum
+    name: sum(it)
+    summary: Add up numbers, often from a generator expression.
+    example: |-
+      nums = [3, 1, 4]
+      print(sum(nums))
+      print(sum(x * x for x in nums))       # no [] needed
+      print(sum(1 for x in nums if x > 2))  # count
+      print(sum(c.isdigit() for c in 'a1b22'))
+    output: |-
+      8
+      26
+      2
+      3
+    complexity: O(n)
+    tip: A generator inside `sum(...)` needs no extra list and O(1) memory. Summing booleans counts the True values.
+  - id: builtins-sorted-reversed
+    name: sorted(it, key=) / reversed(seq)
+    summary: Get a sorted list or a reverse iterator from any sequence.
+    example: |-
+      words = ['Bob', 'alice', 'Cara']
+      print(sorted(words))               # 'B' < 'C' < 'a'
+      print(sorted(words, key=str.lower))
+      print(sorted('cab'))               # any iterable
+      print(list(reversed([1, 2, 3])))
+      print(''.join(reversed('abc')))
+    output: |-
+      ['Bob', 'Cara', 'alice']
+      ['alice', 'Bob', 'Cara']
+      ['a', 'b', 'c']
+      [3, 2, 1]
+      cba
+    complexity: sorted O(n log n); reversed O(1) to create
+    tip: "`sorted` always returns a list, even for a string. `reversed` returns a lazy iterator and works on lists, strings and ranges, but not on generators."
+  - id: builtins-range
+    name: range(start, stop, step)
+    summary: A lazy sequence of integers; `stop` is excluded.
+    example: |-
+      print(list(range(5)))
+      print(list(range(2, 10, 3)))
+      print(list(range(4, -1, -1)))   # down to 0
+      print(list(range(5, 0)))        # empty
+      print(len(range(0, 100, 10)), 50 in range(100))
+    output: |-
+      [0, 1, 2, 3, 4]
+      [2, 5, 8]
+      [4, 3, 2, 1, 0]
+      []
+      10 True
+    complexity: O(1) memory, len and in
+    tip: "Counting down to 0 needs `stop=-1`: `range(n - 1, -1, -1)`. A step with the wrong sign gives an empty range, not an error."
+  - id: builtins-divmod-abs
+    name: divmod / abs / isinstance / len
+    summary: Quotient and remainder at once, plus small everyday helpers.
+    example: |-
+      q, r = divmod(17, 5)         # 17 // 5, 17 % 5
+      print(q, r)
+      n, digits = 472, []
+      while n:
+          n, d = divmod(n, 10)     # peel last digit
+          digits.append(d)
+      print(digits)
+      print(abs(-7), abs(3 - 10))
+      print(isinstance(2.0, (int, float)), len([[1], [2]]))
+    output: |-
+      3 2
+      [2, 7, 4]
+      7 7
+      True 2
+    complexity: O(1) each (len is O(1) too)
+    tip: "`divmod(n, 10)` is the cleanest way to peel digits off a number. `isinstance` accepts a tuple of types; prefer it to `type(x) == int`."
+  - id: builtins-inf-binary
+    name: float('inf') / bin(n) / int(s, base)
+    summary: Infinity sentinels and converting to and from binary.
+    example: |-
+      best = float('inf')       # bigger than any number
+      for x in [5, 3, 8]:
+          best = min(best, x)
+      print(best, -float('inf') < -10**100)
+      print(bin(10), bin(10)[2:])
+      print(int('1010', 2), int('ff', 16))
+      print(int(' 42 '), int(-3.9))   # trims; truncates
+    output: |-
+      3 True
+      0b1010 1010
+      10 255
+      42 -3
+    complexity: O(number of digits)
+    tip: Start running minimums at `float('inf')` (or `math.inf`). `bin(n)` has a `0b` prefix (and `-0b` for negatives); slice with `[2:]` or use `f'{n:b}'`.
+quiz:
+  - id: builtins-q1
+    question: What does this print?
+    code: print(list(zip([1, 2, 3], 'ab')))
+    options:
+      - "[(1, 'a'), (2, 'b')]"
+      - "[(1, 'a'), (2, 'b'), (3, None)]"
+      - ValueError
+    answer: 0
+    explanation: "`zip` stops at the shortest input. Use `itertools.zip_longest` to pad instead."
+  - id: builtins-q2
+    question: What does this print?
+    code: print(all([]), any([]))
+    options:
+      - True False
+      - False False
+      - False True
+      - True True
+    answer: 0
+    explanation: With no items, nothing fails (`all` is True) and nothing succeeds (`any` is False).
+  - id: builtins-q3
+    question: What does this print?
+    code: print(list(range(3, 0, -1)))
+    options:
+      - "[3, 2, 1]"
+      - "[3, 2, 1, 0]"
+      - "[2, 1, 0]"
+      - "[]"
+    answer: 0
+    explanation: The stop value is excluded even when counting down, so 0 is not included.
+  - id: builtins-q4
+    question: "`nums` may be empty. Which expression returns 0 instead of raising?"
+    options:
+      - max(nums)
+      - max(nums, default=0)
+      - max(nums) or 0
+      - max(nums, key=0)
+    answer: 1
+    explanation: "`max` of an empty sequence raises ValueError; `default=` supplies a fallback. `max(nums) or 0` still raises before `or` runs."
+  - id: builtins-q5
+    question: What does this print?
+    code: |-
+      m = [[1, 2], [3, 4]]
+      print(list(zip(*m)))
+    options:
+      - "[(1, 3), (2, 4)]"
+      - "[(1, 2), (3, 4)]"
+      - "[[1, 3], [2, 4]]"
+    answer: 0
+    explanation: "`*m` passes each row as a separate argument, so `zip` pairs up the columns. The results are tuples, not lists."
+  - id: builtins-q6
+    question: What does this print?
+    code: |-
+      nums = map(int, ['1', '2'])
+      print(sum(nums), sum(nums))
+    options:
+      - 3 3
+      - 3 0
+      - TypeError
+    answer: 1
+    explanation: "`map` returns a one-shot iterator: the first `sum` uses it up, so the second sees nothing. Wrap it in `list()` to reuse it."
+drills:
+  - id: builtins-d-enumerate-index
+    method: builtins-enumerate
+    title: Map each value to its index
+    task: Build a dict from each number to its position, the lookup table Two Sum relies on.
+    setup: nums = [7, 2, 9]
+    line: "pos = {x: i for i, x in ___}"
+    answer: enumerate(nums)
+    accept:
+      - zip(range(len(nums)), nums)
+    decoys:
+      - range(len(nums))
+      - enumerate(nums, 1)
+      - nums.items()
+    show: pos
+    expected: "{7: 0, 2: 1, 9: 2}"
+    hint: You need `(index, value)` pairs, in that order, starting at 0.
+    explain: "`enumerate` yields `(index, item)` tuples, so `i, x` unpack cleanly. `range(len(nums))` gives bare ints that cannot be unpacked, and `start=1` shifts every index."
+  - id: builtins-d-zip-transpose
+    method: builtins-zip
+    title: Transpose a grid
+    task: Turn the rows of `grid` into its columns.
+    setup: grid = [[1, 2, 3], [4, 5, 6]]
+    line: cols = [list(c) for c in ___]
+    answer: zip(*grid)
+    decoys:
+      - zip(grid)
+      - zip(*grid[::-1])
+      - grid[::-1]
+    show: cols
+    expected: "[[1, 4], [2, 5], [3, 6]]"
+    hint: Pass every row to `zip` as a **separate** argument.
+    explain: "`*grid` unpacks the rows, so `zip(row0, row1)` pairs up the items column by column. `zip(grid)` sees one argument and wraps each whole row; `zip(*grid[::-1])` rotates instead of transposing."
+  - id: builtins-d-map-int
+    method: builtins-map-filter-lambda
+    title: Parse a line of numbers
+    task: Turn the space-separated string into a list of ints.
+    setup: s = "3 10 2"
+    line: nums = list(___)
+    answer: map(int, s.split())
+    accept:
+      - map(int, s.split(" "))
+      - (int(x) for x in s.split())
+      - "[int(x) for x in s.split()]"
+    decoys:
+      - map(int, s)
+      - s.split()
+      - map(s.split(), int)
+    show: nums
+    expected: "[3, 10, 2]"
+    hint: Split into tokens first, then apply a function to every token.
+    explain: '`map(f, it)` calls `f` on each item lazily, and `split()` splits on any whitespace. Mapping over `s` itself walks single characters, so `int(" ")` fails and `10` would break apart.'
+  - id: builtins-d-filter-lambda
+    method: builtins-map-filter-lambda
+    title: Keep the odd numbers
+    task: Write the function that `filter` should use to keep only the odd numbers.
+    setup: nums = [3, 8, 5, 6, 1]
+    line: odds = list(filter(___, nums))
+    answer: "lambda x: x % 2"
+    accept:
+      - "lambda x: x % 2 == 1"
+      - "lambda x: x % 2 != 0"
+      - "lambda n: n % 2"
+      - "lambda n: n % 2 == 1"
+    decoys:
+      - x % 2
+      - "lambda x: x % 2 == 0"
+      - "lambda: x % 2"
+    show: odds
+    expected: "[3, 5, 1]"
+    hint: "`filter` needs a **function** that takes one item and returns something truthy to keep it."
+    explain: "`lambda x: x % 2` returns 1 (truthy) for odd numbers. A bare `x % 2` is evaluated immediately and `x` is undefined; `filter(None, ...)` would just drop falsy items."
+  - id: builtins-d-all-grid
+    method: builtins-any-all
+    title: Is every cell filled?
+    task: Set `full` to True only if every cell in every row is nonzero.
+    setup: grid = [[1, 1, 1], [1, 0, 1]]
+    line: full = ___
+    answer: all(all(row) for row in grid)
+    accept:
+      - all(x for row in grid for x in row)
+      - all(map(all, grid))
+    decoys:
+      - all(grid)
+      - any(all(row) for row in grid)
+      - all(any(row) for row in grid)
+    show: full
+    expected: "False"
+    hint: A row is "all ones" when `all(row)` holds. You need that for every row.
+    explain: The inner `all` checks one row, the outer `all` requires it for every row, and both stop at the first failure. `all(grid)` only checks that each row list is non-empty, which is always True here.
+  - id: builtins-d-max-key
+    method: builtins-min-max
+    title: Longest word
+    task: Find the longest word in the list.
+    setup: words = ["pear", "fig", "banana", "kiwi"]
+    line: longest = ___
+    answer: max(words, key=len)
+    accept:
+      - "max(words, key=lambda w: len(w))"
+    decoys:
+      - max(words)
+      - max(map(len, words))
+      - max(len(words))
+    show: longest
+    expected: "'banana'"
+    hint: Compare the words by a computed value instead of alphabetically.
+    explain: "`key=len` makes `max` compare lengths but still return the word itself. Plain `max(words)` compares strings alphabetically, and `max(map(len, words))` returns the length 6, not the word."
+  - id: builtins-d-max-default
+    method: builtins-min-max
+    title: Best score of nothing
+    task: No games have been played yet. Get the best score, falling back to 0 instead of raising.
+    setup: scores = []
+    line: best = ___
+    answer: max(scores, default=0)
+    decoys:
+      - max(scores)
+      - max(scores) or 0
+      - max(scores, 0)
+    show: best
+    expected: "0"
+    hint: "`max` has a keyword argument for exactly this case."
+    explain: "`max` of an empty iterable raises ValueError, so `max(scores) or 0` never reaches the `or`. `default=0` is returned only when the input is empty. `max(scores, 0)` compares the list itself with 0 and raises TypeError."
+  - id: builtins-d-sum-count
+    method: builtins-sum
+    title: Count the digits
+    task: Count how many characters of `s` are digits, in one expression.
+    setup: s = "a1b22c3"
+    line: digits = ___
+    answer: sum(c.isdigit() for c in s)
+    accept:
+      - sum(1 for c in s if c.isdigit())
+      - len([c for c in s if c.isdigit()])
+    decoys:
+      - len(c.isdigit() for c in s)
+      - sum(c for c in s if c.isdigit())
+      - sum(s.isdigit())
+    show: digits
+    expected: "4"
+    hint: True counts as 1 when you add it up.
+    explain: Summing a generator of booleans counts the True values in O(1) extra memory. `len` does not work on a generator, and summing the digit characters themselves tries to add strings to 0.
+  - id: builtins-d-sorted-key
+    method: builtins-sorted-reversed
+    title: Sort names ignoring case
+    task: Sort the names alphabetically, treating upper and lower case the same. Keep the original spellings.
+    setup: names = ["bob", "Alice", "carl", "Dan"]
+    line: order = ___
+    answer: sorted(names, key=str.lower)
+    accept:
+      - "sorted(names, key=lambda s: s.lower())"
+      - "sorted(names, key=lambda n: n.lower())"
+    decoys:
+      - sorted(names)
+      - names.sort(key=str.lower)
+      - sorted(names, key=lower)
+    show: order
+    expected: "['Alice', 'bob', 'carl', 'Dan']"
+    hint: Sort by a lowercased version of each name, without changing the names.
+    explain: By default every uppercase letter sorts before every lowercase one, so `Dan` would come before `bob`. `key=str.lower` compares lowercased copies. `list.sort` works in place and returns None.
+  - id: builtins-d-range-down
+    method: builtins-range
+    title: Count down to zero
+    task: List the indexes of an array of length `n` from last to first.
+    setup: n = 5
+    line: order = list(___)
+    answer: range(n - 1, -1, -1)
+    accept:
+      - reversed(range(n))
+    decoys:
+      - range(n - 1, 0, -1)
+      - range(n, 0, -1)
+      - range(n - 1, -1)
+    show: order
+    expected: "[4, 3, 2, 1, 0]"
+    hint: The stop value is excluded, even when the step is negative.
+    explain: To include 0 the stop must be -1, so it is `range(n - 1, -1, -1)`. Stopping at 0 drops index 0, and forgetting the -1 step gives an empty range instead of an error.
+  - id: builtins-d-divmod-digit
+    method: builtins-divmod-abs
+    title: Peel off the last digit
+    task: In one call, drop the last digit from `n` and keep that digit in `last`.
+    setup: n = 472
+    line: n, last = ___
+    answer: divmod(n, 10)
+    accept:
+      - (n // 10, n % 10)
+      - n // 10, n % 10
+    decoys:
+      - divmod(10, n)
+      - n % 10, n // 10
+      - n / 10, n % 10
+    show: (n, last)
+    expected: (47, 2)
+    hint: One built-in returns the quotient and the remainder together.
+    explain: "`divmod(n, 10)` returns `(n // 10, n % 10)`, the core step of digit problems like Reverse Integer or Happy Number. Order matters: quotient first, and `/` would give a float."
+  - id: builtins-d-bin-strip
+    method: builtins-inf-binary
+    title: Binary digits only
+    task: Get the binary representation of `n` as a string, without any prefix.
+    setup: n = 10
+    line: bits = ___
+    answer: bin(n)[2:]
+    accept:
+      - f"{n:b}"
+      - format(n, "b")
+    decoys:
+      - bin(n)
+      - str(n)
+      - bin(n)[1:]
+    show: bits
+    expected: "'1010'"
+    hint: "`bin` adds a two-character marker in front of the digits."
+    explain: '`bin(10)` is `"0b1010"`, so slice off the first two characters (or use `f"{n:b}"`). Going the other way, `int("1010", 2)` parses a binary string back to 10.'

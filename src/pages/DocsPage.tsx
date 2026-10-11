@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 import clsx from "clsx";
 import { BookOpen, Compass, Gauge, Search, X } from "lucide-react";
 import type { DocEntry, DocSection } from "@shared/api";
@@ -15,6 +15,34 @@ import { PATTERN_GUIDE } from "@/data/patternGuide";
 import { OPERATION_GROUPS } from "@/data/complexity";
 
 let docsCache: DocSection[] | null = null;
+
+/** Docs sections that have a matching drill topic. */
+const DOC_TO_DRILL: Record<string, string> = {
+  builtins: "builtins",
+  lists: "lists",
+  dictionaries: "dicts",
+  sets: "sets",
+  strings: "strings",
+  "sorting-and-lambdas": "lists",
+  "common-imports": "itertools",
+  stack: "lists",
+  "queue-and-deque": "collections",
+  heap: "heapq",
+  counter: "collections",
+  defaultdict: "collections",
+  "binary-search": "bisect",
+  "bit-manipulation": "numbers",
+  "dynamic-programming": "functools",
+  "two-pointers": "templates",
+  "sliding-window": "templates",
+  graphs: "templates",
+  backtracking: "templates",
+  intervals: "templates",
+  trees: "templates",
+  "linked-lists": "templates",
+  tries: "templates",
+  recursion: "gotchas",
+};
 
 const renderCode: CodeRenderer = ({ code, language, meta }) => {
   if ((language === "python" || language === "py") && meta?.split(/\s+/).includes("run")) return <RunnableCode code={code} />;
@@ -255,7 +283,14 @@ function NavItem({ label, icon, active, onClick }: { id: string; label: string; 
 function DocSectionView({ section }: { section: DocSection }) {
   return (
     <section id={`doc-${section.slug}`} data-doc={section.slug} className="mb-12 scroll-mt-20 [content-visibility:auto] [contain-intrinsic-size:auto_1200px]">
-      <h2 className="text-lg font-semibold tracking-tight">{section.title}</h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-lg font-semibold tracking-tight">{section.title}</h2>
+        {DOC_TO_DRILL[section.slug] && (
+          <Link to={`/drills/session?mode=topic&topic=${DOC_TO_DRILL[section.slug]}`} className="text-xs text-accent hover:underline">
+            Drill this →
+          </Link>
+        )}
+      </div>
       {section.summary && <p className="mt-1 text-[13.5px] text-muted">{section.summary}</p>}
       {section.intro && <Markdown className="mt-3" renderCode={renderCode}>{section.intro}</Markdown>}
       <div className="mt-4 flex flex-col gap-3">
