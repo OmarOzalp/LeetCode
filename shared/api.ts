@@ -252,6 +252,8 @@ export interface HealthResponse {
   python: { available: boolean; version?: string; command?: string };
   problemCount: number;
   dataFile: string;
+  /** Fingerprint of the code this server runs (set by `npm run app`), to tell copies apart. */
+  appId?: string;
 }
 
 export interface SnippetResponse {

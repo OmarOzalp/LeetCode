@@ -18,19 +18,25 @@ npm run dev
 Open http://localhost:5173. `npm run dev` starts the API server (port 3001) and
 the web UI (port 5173) together.
 
-For everyday use, `npm run app` is simpler: it builds the UI when needed, starts
-everything on http://localhost:3001 and opens your browser.
+For everyday use, `npm run app` (or `npm start`) is simpler: it builds the UI
+when needed, starts everything on http://localhost:3001 and opens your browser.
 
 Other ways to run it:
 
 | Command | What it does |
 | --- | --- |
-| `npm run app` | Build if needed, start at http://localhost:3001 and open the browser |
-| `npm run build && npm start` | Production build served by one process at http://localhost:3001 |
+| `npm run app` / `npm start` | Build if needed, start at http://localhost:3001 and open the browser |
+| `npm run app -- --port 3002` | Same, on another port |
 | `docker compose up --build` | Same, in a container (Node + Python included) at http://localhost:3001; progress is stored in `./.data` |
 
 If Python isn't found, set `PYTHON=/path/to/python3` (on Windows, `py -3` is
 detected automatically).
+
+**The app looks out of date (for example, no Drills page)?** An older copy is
+probably still running on port 3001, and the browser is showing that one.
+`npm run app` detects this and tells you which folder it was started from.
+Stop it with `Ctrl+C` in its terminal window (or close that window), then run
+`npm run app` again.
 
 ## What's inside
 

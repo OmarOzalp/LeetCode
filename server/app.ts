@@ -72,6 +72,7 @@ export function createApp(opts: { dataDir: string; staticDir?: string }) {
       python: py ? { available: true, version: py.version, command: [py.command, ...py.args].join(" ") } : { available: false },
       problemCount: getDataset().order.length,
       dataFile: store.file,
+      appId: process.env.BLIND75_APP_ID,
     };
     res.json(body);
   });
@@ -207,6 +208,10 @@ export function createApp(opts: { dataDir: string; staticDir?: string }) {
     app.use(express.static(opts.staticDir, { index: false, maxAge: "1h" }));
     app.get(/^(?!\/api\/).*/, (_req, res) => {
       res.sendFile(path.join(opts.staticDir!, "index.html"));
+    });
+  } else if (opts.staticDir) {
+    app.get(/^(?!\/api\/).*/, (_req, res) => {
+      res.status(503).type("text/plain").send("The web UI hasn't been built yet. Stop this server (Ctrl+C) and run: npm run app");
     });
   }
 

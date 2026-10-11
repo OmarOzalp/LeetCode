@@ -15,7 +15,17 @@ const { app, store } = createApp({
   staticDir: production ? path.join(root, "dist") : undefined,
 });
 
-const server = app.listen(port, host, () => {
+const server = app.listen(port, host, (err?: Error) => {
+  if (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "EADDRINUSE") {
+      console.error(`[api] Port ${port} is already in use (often another copy of this app that is still running).`);
+      console.error(`[api] Stop that one with Ctrl+C in its window, or use another port: npm run app -- --port ${port + 1}`);
+    } else {
+      console.error(`[api] Could not start the server on ${host}:${port}: ${err.message}`);
+    }
+    process.exit(1);
+  }
   const py = detectPython();
   const ds = getDataset();
   console.log(`[api] listening on http://${host}:${port}${production ? "  (open this URL in your browser)" : ""}`);
